@@ -13,9 +13,9 @@ const routes = [
     component: () => import('@/layouts/MainLayout.vue'),
     redirect: '/projects',
     children: [
-      { path: 'projects', name: 'Projects', component: () => import('@/views/ProjectListView.vue') },
-      { path: 'sys-config', name: 'SysConfig', component: () => import('@/views/SysConfigView.vue') },
-      { path: 'scan-logs', name: 'ScanLogs', component: () => import('@/views/ScanLogListView.vue') },
+      { path: 'projects', name: 'Projects', meta: { title: '项目管理' }, component: () => import('@/views/ProjectListView.vue') },
+      { path: 'sys-config', name: 'SysConfig', meta: { title: '系统配置' }, component: () => import('@/views/SysConfigView.vue') },
+      { path: 'scan-logs', name: 'ScanLogs', meta: { title: '扫描日志' }, component: () => import('@/views/ScanLogListView.vue') },
     ],
   },
 ]
