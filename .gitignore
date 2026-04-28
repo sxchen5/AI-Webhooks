@@ -1,0 +1,8 @@
+**/target/
+**/node_modules/
+**/.idea/
+**/*.iml
+**/.DS_Store
+**/dist/
+scan-platform-frontend/dist/
+**/.env.local

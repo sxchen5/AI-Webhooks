@@ -1,0 +1,50 @@
+package com.scanplatform.service;
+
+import org.springframework.stereotype.Service;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * 在指定工作目录下异步执行 Shell 命令（通过 bash -c），收集标准输出与错误输出。
+ */
+@Service
+public class ShellCommandService {
+
+    private static final Duration DEFAULT_TIMEOUT = Duration.ofHours(2);
+
+    /**
+     * @param workingDir 工作目录，可为空则使用 JVM 当前目录
+     * @return 合并后的控制台输出与退出码
+     */
+    public ShellResult execute(String command, Path workingDir) throws Exception {
+        Path dir = workingDir != null && Files.isDirectory(workingDir) ? workingDir : Path.of("").toAbsolutePath();
+        ProcessBuilder pb = new ProcessBuilder("/bin/bash", "-c", command);
+        pb.directory(dir.toFile());
+        pb.redirectErrorStream(true);
+        Process process = pb.start();
+        StringBuilder out = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                out.append(line).append('\n');
+            }
+        }
+        boolean finished = process.waitFor(DEFAULT_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        if (!finished) {
+            process.destroyForcibly();
+            throw new IllegalStateException("命令执行超时，已终止进程");
+        }
+        int code = process.exitValue();
+        return new ShellResult(out.toString(), code);
+    }
+
+    public record ShellResult(String output, int exitCode) {
+    }
+}
