@@ -1,0 +1,262 @@
+<template>
+  <el-card shadow="never" class="page-card">
+    <template #header>
+      <div class="card-header">
+        <span>主动扫描 · 任务</span>
+        <el-button type="primary" @click="openCreate">新建任务</el-button>
+      </div>
+    </template>
+    <p class="tip">定时使用 Spring 6 段 Cron（秒 分 时 日 月 周），例：每天 2 点 <code>0 0 2 * * ?</code>；启用定时后保存会自动计算下次执行时间。</p>
+    <el-table :data="tableData" v-loading="loading" border stripe>
+      <el-table-column prop="id" label="ID" width="70" />
+      <el-table-column prop="jobName" label="任务名" min-width="120" />
+      <el-table-column label="仓库" min-width="120">
+        <template #default="{ row }">{{ repoName(row.repoId) }}</template>
+      </el-table-column>
+      <el-table-column label="定时" width="90">
+        <template #default="{ row }">
+          <el-tag :type="row.scheduleEnabled === 1 ? 'success' : 'info'">{{ row.scheduleEnabled === 1 ? '开' : '关' }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="cronExpression" label="Cron" min-width="140" show-overflow-tooltip />
+      <el-table-column prop="nextScheduleRun" label="下次执行" width="170" />
+      <el-table-column prop="status" label="状态" width="80">
+        <template #default="{ row }">
+          <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="200" fixed="right">
+        <template #default="{ row }">
+          <el-button type="success" link :disabled="row.status !== 1" @click="onRun(row)">立即扫描</el-button>
+          <el-button type="primary" link @click="openEdit(row)">编辑</el-button>
+          <el-button type="danger" link @click="onDelete(row)">删除</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+    <div class="pager">
+      <el-pagination
+        background
+        layout="total, prev, pager, next"
+        :total="total"
+        v-model:current-page="page"
+        :page-size="size"
+        @current-change="load"
+      />
+    </div>
+  </el-card>
+
+  <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑任务' : '新建任务'" width="640px" destroy-on-close>
+    <el-form ref="formRef" :model="form" :rules="rules" label-width="130px">
+      <el-form-item label="任务名称" prop="jobName">
+        <el-input v-model="form.jobName" maxlength="255" />
+      </el-form-item>
+      <el-form-item label="关联仓库" prop="repoId">
+        <el-select v-model="form.repoId" placeholder="选择仓库" filterable style="width: 100%">
+          <el-option v-for="r in repoOptions" :key="r.id" :label="`${r.repoName} (#${r.id})`" :value="r.id" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="启用定时">
+        <el-switch :active-value="1" :inactive-value="0" v-model="form.scheduleEnabled" />
+      </el-form-item>
+      <el-form-item label="Cron 表达式" prop="cronExpression">
+        <el-input v-model="form.cronExpression" maxlength="120" placeholder="0 0 2 * * ?" clearable />
+      </el-form-item>
+      <el-form-item label="覆盖 Agent 命令">
+        <el-input v-model="form.agentCommandOverride" type="textarea" :rows="2" maxlength="1000" placeholder="留空使用仓库默认命令" clearable />
+      </el-form-item>
+      <el-form-item label="失败发邮件">
+        <el-switch :active-value="1" :inactive-value="0" v-model="form.notifyOnFailure" />
+      </el-form-item>
+      <el-form-item label="成功发邮件">
+        <el-switch :active-value="1" :inactive-value="0" v-model="form.notifyOnSuccess" />
+      </el-form-item>
+      <el-form-item label="状态" prop="status">
+        <el-radio-group v-model="form.status">
+          <el-radio :label="1">启用</el-radio>
+          <el-radio :label="0">禁用</el-radio>
+        </el-radio-group>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="dialogVisible = false">取消</el-button>
+      <el-button type="primary" :loading="saving" @click="saveDialog">保存</el-button>
+    </template>
+  </el-dialog>
+</template>
+
+<script setup>
+import { onMounted, reactive, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  createActiveJob,
+  deleteActiveJob,
+  fetchActiveJobs,
+  fetchActiveRepos,
+  runActiveJob,
+  updateActiveJob,
+} from '@/api/activeScan'
+
+const loading = ref(false)
+const tableData = ref([])
+const total = ref(0)
+const page = ref(1)
+const size = ref(10)
+const repoOptions = ref([])
+const repoMap = ref({})
+
+const dialogVisible = ref(false)
+const isEdit = ref(false)
+const saving = ref(false)
+const formRef = ref()
+const form = reactive({
+  id: null,
+  jobName: '',
+  repoId: null,
+  scheduleEnabled: 0,
+  cronExpression: '',
+  agentCommandOverride: '',
+  notifyOnFailure: 1,
+  notifyOnSuccess: 0,
+  status: 1,
+})
+
+const rules = {
+  jobName: [{ required: true, message: '必填', trigger: 'blur' }],
+  repoId: [{ required: true, message: '必选', trigger: 'change' }],
+}
+
+function repoName(id) {
+  return repoMap.value[id] || `#${id}`
+}
+
+async function loadRepos() {
+  const res = await fetchActiveRepos(0, 500)
+  repoOptions.value = res.content || []
+  const m = {}
+  repoOptions.value.forEach((r) => {
+    m[r.id] = r.repoName
+  })
+  repoMap.value = m
+}
+
+async function load() {
+  loading.value = true
+  try {
+    const res = await fetchActiveJobs(page.value - 1, size.value)
+    tableData.value = res.content || []
+    total.value = res.totalElements || 0
+  } finally {
+    loading.value = false
+  }
+}
+
+function resetForm() {
+  form.id = null
+  form.jobName = ''
+  form.repoId = repoOptions.value[0]?.id ?? null
+  form.scheduleEnabled = 0
+  form.cronExpression = ''
+  form.agentCommandOverride = ''
+  form.notifyOnFailure = 1
+  form.notifyOnSuccess = 0
+  form.status = 1
+}
+
+function openCreate() {
+  isEdit.value = false
+  resetForm()
+  dialogVisible.value = true
+}
+
+function openEdit(row) {
+  isEdit.value = true
+  Object.assign(form, {
+    id: row.id,
+    jobName: row.jobName,
+    repoId: row.repoId,
+    scheduleEnabled: row.scheduleEnabled,
+    cronExpression: row.cronExpression || '',
+    agentCommandOverride: row.agentCommandOverride || '',
+    notifyOnFailure: row.notifyOnFailure,
+    notifyOnSuccess: row.notifyOnSuccess,
+    status: row.status,
+  })
+  dialogVisible.value = true
+}
+
+async function saveDialog() {
+  await formRef.value.validate()
+  if (form.scheduleEnabled === 1 && !form.cronExpression?.trim()) {
+    ElMessage.warning('启用定时时请填写 Cron')
+    return
+  }
+  saving.value = true
+  try {
+    const payload = {
+      jobName: form.jobName,
+      repoId: form.repoId,
+      scheduleEnabled: form.scheduleEnabled,
+      cronExpression: form.cronExpression?.trim() || null,
+      agentCommandOverride: form.agentCommandOverride?.trim() || null,
+      notifyOnFailure: form.notifyOnFailure,
+      notifyOnSuccess: form.notifyOnSuccess,
+      status: form.status,
+    }
+    if (isEdit.value) {
+      await updateActiveJob(form.id, payload)
+      ElMessage.success('已更新')
+    } else {
+      await createActiveJob(payload)
+      ElMessage.success('已创建')
+    }
+    dialogVisible.value = false
+    await load()
+  } finally {
+    saving.value = false
+  }
+}
+
+async function onRun(row) {
+  const { logId } = await runActiveJob(row.id)
+  ElMessage.success(`已触发扫描，日志 ID: ${logId}`)
+}
+
+async function onDelete(row) {
+  await ElMessageBox.confirm(`确定删除任务「${row.jobName}」？`, '提示', { type: 'warning' })
+  await deleteActiveJob(row.id)
+  ElMessage.success('已删除')
+  await load()
+}
+
+onMounted(async () => {
+  await loadRepos()
+  await load()
+})
+</script>
+
+<style scoped lang="scss">
+.page-card {
+  min-height: calc(100vh - 120px);
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+}
+.tip {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #909399;
+  code {
+    background: #f4f4f5;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+}
+.pager {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+</style>

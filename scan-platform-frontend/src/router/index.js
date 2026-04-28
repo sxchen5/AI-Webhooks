@@ -16,6 +16,9 @@ const routes = [
       { path: 'projects', name: 'Projects', meta: { title: '项目管理' }, component: () => import('@/views/ProjectListView.vue') },
       { path: 'sys-config', name: 'SysConfig', meta: { title: '系统配置' }, component: () => import('@/views/SysConfigView.vue') },
       { path: 'scan-logs', name: 'ScanLogs', meta: { title: '扫描日志' }, component: () => import('@/views/ScanLogListView.vue') },
+      { path: 'active-scan/repos', name: 'ActiveScanRepos', meta: { title: '主动扫描-仓库' }, component: () => import('@/views/ActiveScanRepoListView.vue') },
+      { path: 'active-scan/jobs', name: 'ActiveScanJobs', meta: { title: '主动扫描-任务' }, component: () => import('@/views/ActiveScanJobListView.vue') },
+      { path: 'active-scan/logs', name: 'ActiveScanLogs', meta: { title: '主动扫描-日志' }, component: () => import('@/views/ActiveScanLogListView.vue') },
     ],
   },
 ]

@@ -44,6 +44,18 @@
             <el-icon><Document /></el-icon>
             <template #title>扫描日志</template>
           </el-menu-item>
+          <el-menu-item index="/active-scan/repos">
+            <el-icon><Link /></el-icon>
+            <template #title>主动扫描仓库</template>
+          </el-menu-item>
+          <el-menu-item index="/active-scan/jobs">
+            <el-icon><Timer /></el-icon>
+            <template #title>主动扫描任务</template>
+          </el-menu-item>
+          <el-menu-item index="/active-scan/logs">
+            <el-icon><Clock /></el-icon>
+            <template #title>主动扫描日志</template>
+          </el-menu-item>
         </el-menu>
       </div>
     </el-aside>
@@ -64,7 +76,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { Document, Expand, Fold, FolderOpened, Monitor, Setting } from '@element-plus/icons-vue'
+import { Clock, Document, Expand, Fold, FolderOpened, Link, Monitor, Setting, Timer } from '@element-plus/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 

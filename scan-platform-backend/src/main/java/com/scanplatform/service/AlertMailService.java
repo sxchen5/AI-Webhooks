@@ -22,6 +22,11 @@ public class AlertMailService {
     /**
      * @return true 表示已尝试发送且 SMTP 返回成功
      */
+    /** 通用发送（主动扫描成功/失败通知等） */
+    public boolean sendMail(SysConfig config, String toAddresses, String subject, String text) {
+        return sendFailureAlert(config, toAddresses, subject, text);
+    }
+
     public boolean sendFailureAlert(SysConfig config, String toAddresses, String subject, String text) {
         if (!StringUtils.hasText(toAddresses)) {
             log.warn("未配置告警邮箱，跳过邮件发送");

@@ -1,6 +1,6 @@
 # GitLab 代码提交扫描平台
 
-Spring Boot 3 + Vue3 + Element Plus + MySQL。GitLab `push` WebHook 触发异步 Shell 扫描，结果写入 `scan_task_log`，失败时按项目配置发邮件告警。
+Spring Boot 3 + Vue3 + Element Plus + MySQL。支持 **GitLab WebHook** 触发与 **主动扫描**（多 Git 仓库、定时/手动、`git clone` + 同套 agent 命令），日志分别写入 `scan_task_log` 与 `active_scan_log`，邮件走系统 SMTP。
 
 ## 目录
 
@@ -11,7 +11,9 @@ Spring Boot 3 + Vue3 + Element Plus + MySQL。GitLab `push` WebHook 触发异步
 
 1. 创建库：`CREATE DATABASE scan_platform DEFAULT CHARACTER SET utf8mb4;`
 2. 修改 `scan-platform-backend/src/main/resources/application.yml` 中的数据源账号密码（或通过环境变量覆盖）。
-3. 首次启动会自动执行 `schema.sql` 与 `data.sql`（建表 + 默认管理员）。
+3. 首次启动会自动执行 `schema.sql` 与 `data.sql`（建表 + 默认管理员；含 `active_scan_*` 主动扫描表）。
+
+**已有旧库升级**：若库在引入主动扫描前已创建，可手工执行 `scan-platform-backend/src/main/resources/migration-active-scan.sql` 中的建表语句。
 
 默认登录：`admin` / `admin123`（BCrypt 存储在 `data.sql`）。
 
@@ -119,6 +121,14 @@ export LOG_DIR=/var/log/scan-platform        # 可选，默认 ./logs
 ```bash
 agent -p "review these changes for security issues" --output-format text --model "gpt-5.2"
 ```
+
+## 主动扫描（非 WebHook）
+
+- 菜单：**主动扫描仓库 / 任务 / 日志**。仓库支持多条 Git URL、HTTPS 用户名密码（存库为明文，请控制库与文件权限）、分支、可选固定本地目录（留空则克隆到 `scan.active-scan.work-base-dir` 下 `repo-{id}`）。
+- **任务**可绑定仓库，配置 **Cron**（Spring 6 段：`秒 分 时 日 月 周`，例 `0 0 2 * * ?` 每天 2 点）、是否失败/成功发邮件（使用仓库上的通知邮箱与系统 SMTP）、可选覆盖 agent 命令。
+- **立即扫描**：任务列表「立即扫描」→ `POST /api/active-scan/jobs/{id}/run`。
+- 子进程除 `{{path}}` 等占位符外，额外注入 `ACTIVE_SCAN_*` 环境变量；仍兼容 `WEBHOOK_*` 供现有脚本使用。
+- 服务器需已安装 **`git`** 命令。
 
 ## GitLab 配置
 

@@ -43,3 +43,6 @@ scan:
   jwt:
     secret: ${SCAN_JWT_SECRET:scan-platform-dev-secret-key-change-in-production-min-32-chars}
     expire-hours: 24
+  # 主动扫描：未配置 local_clone_path 时，克隆到此目录下（需进程可写）
+  active-scan:
+    work-base-dir: ${SCAN_ACTIVE_WORK_DIR:./active-scan-work}
