@@ -6,6 +6,7 @@ import com.scanplatform.entity.SysUser;
 import com.scanplatform.repository.SysUserRepository;
 import com.scanplatform.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService {
 
     private final SysUserRepository userRepository;
@@ -32,6 +34,7 @@ public class AuthService {
             throw new IllegalArgumentException("用户名或密码错误");
         }
         String token = jwtUtil.createToken(user.getUsername());
+        log.info("用户登录成功: username={}", user.getUsername());
         return new LoginResponse(token, user.getUsername());
     }
 }

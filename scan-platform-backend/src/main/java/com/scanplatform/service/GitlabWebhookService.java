@@ -33,29 +33,35 @@ public class GitlabWebhookService {
     public WebhookHandleResult handle(String rawBody, String gitlabToken, HttpServletRequest request) {
         SysConfig config = sysConfigService.getEntity();
         if (!validateToken(config, gitlabToken)) {
+            log.warn("GitLab WebHook 拒绝: Token 无效, remote={}", request.getRemoteAddr());
             return WebhookHandleResult.rejected("Webhook Token 无效");
         }
         if (!validateClientIp(config, request)) {
+            log.warn("GitLab WebHook 拒绝: IP 不在白名单, clientIp={}", resolveClientIp(request));
             return WebhookHandleResult.rejected("客户端 IP 不在白名单");
         }
         JsonNode root;
         try {
             root = objectMapper.readTree(rawBody);
         } catch (Exception e) {
+            log.warn("GitLab WebHook 拒绝: JSON 解析失败: {}", e.getMessage());
             return WebhookHandleResult.rejected("JSON 解析失败");
         }
         String objectKind = text(root, "object_kind");
         if (!"push".equals(objectKind)) {
+            log.info("GitLab WebHook 忽略: object_kind={}", objectKind);
             return WebhookHandleResult.ignored("非 push 事件，已忽略: " + objectKind);
         }
         Long gitlabProjectId = longOrNull(root.path("project").path("id"));
         if (gitlabProjectId == null) {
+            log.info("GitLab WebHook 忽略: 缺少 project.id");
             return WebhookHandleResult.ignored("缺少 project.id");
         }
         String ref = text(root, "ref");
         String branch = normalizeRef(ref);
         String commit = text(root, "after");
         if ("0000000000000000000000000000000000000000".equals(commit)) {
+            log.info("GitLab WebHook 忽略: 删除分支 projectId={}", gitlabProjectId);
             return WebhookHandleResult.ignored("删除分支事件，无 after commit");
         }
         String commitUser = firstNonBlank(
@@ -71,25 +77,29 @@ public class GitlabWebhookService {
 
         ProjectInfo project = projectInfoService.findByGitlabProjectId(gitlabProjectId);
         if (project == null) {
+            log.info("GitLab WebHook 忽略: 未配置项目 gitlabProjectId={} branch={} commit={}", gitlabProjectId, branch, commit);
             return WebhookHandleResult.ignored("未配置该 GitLab 项目: " + gitlabProjectId);
         }
         if (project.getStatus() == null || project.getStatus() != 1) {
+            log.info("GitLab WebHook 忽略: 项目已禁用 gitlabProjectId={}", gitlabProjectId);
             return WebhookHandleResult.ignored("项目已禁用: " + gitlabProjectId);
         }
 
-        ScanTaskLog log = new ScanTaskLog();
-        log.setProjectId(project.getId());
-        log.setGitlabProjectId(gitlabProjectId);
-        log.setProjectName(project.getProjectName());
-        log.setBranch(branch);
-        log.setCommitHash(commit);
-        log.setCommitUser(commitUser);
-        log.setEmailStatus(0);
-        log.setTaskStartTime(LocalDateTime.now());
-        log = scanTaskLogRepository.save(log);
+        ScanTaskLog taskLog = new ScanTaskLog();
+        taskLog.setProjectId(project.getId());
+        taskLog.setGitlabProjectId(gitlabProjectId);
+        taskLog.setProjectName(project.getProjectName());
+        taskLog.setBranch(branch);
+        taskLog.setCommitHash(commit);
+        taskLog.setCommitUser(commitUser);
+        taskLog.setEmailStatus(0);
+        taskLog.setTaskStartTime(LocalDateTime.now());
+        taskLog = scanTaskLogRepository.save(taskLog);
 
-        scanAsyncExecutor.executeAsync(log.getId());
-        return WebhookHandleResult.accepted("已接收任务，logId=" + log.getId());
+        scanAsyncExecutor.executeAsync(taskLog.getId());
+        log.info("GitLab WebHook 已排队扫描: logId={} projectId={} gitlabProjectId={} branch={} commit={}",
+                taskLog.getId(), project.getId(), gitlabProjectId, branch, commit);
+        return WebhookHandleResult.accepted("已接收任务，logId=" + taskLog.getId());
     }
 
     private boolean validateToken(SysConfig config, String headerToken) {

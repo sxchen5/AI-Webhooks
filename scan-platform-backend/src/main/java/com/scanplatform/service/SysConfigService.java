@@ -4,6 +4,7 @@ import com.scanplatform.dto.SysConfigDto;
 import com.scanplatform.entity.SysConfig;
 import com.scanplatform.repository.SysConfigRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -13,6 +14,7 @@ import org.springframework.util.StringUtils;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SysConfigService {
 
     private final SysConfigRepository configRepository;
@@ -43,6 +45,7 @@ public class SysConfigService {
             c.setEmailTitlePrefix(dto.getEmailTitlePrefix());
         }
         c = configRepository.save(c);
+        log.info("已保存系统全局配置: id={}", c.getId());
         return toDto(c, true);
     }
 

@@ -1,5 +1,6 @@
 package com.scanplatform.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -15,6 +16,7 @@ import java.util.concurrent.TimeUnit;
  * 在指定工作目录下异步执行 Shell 命令（通过 bash -c），收集标准输出与错误输出。
  */
 @Service
+@Slf4j
 public class ShellCommandService {
 
     private static final Duration DEFAULT_TIMEOUT = Duration.ofHours(2);
@@ -31,6 +33,7 @@ public class ShellCommandService {
         if (extraEnv != null && !extraEnv.isEmpty()) {
             pb.environment().putAll(extraEnv);
         }
+        log.debug("执行 Shell: dir={} envKeys={}", dir, extraEnv != null ? extraEnv.keySet() : "none");
         pb.redirectErrorStream(true);
         Process process = pb.start();
         StringBuilder out = new StringBuilder();
@@ -44,9 +47,13 @@ public class ShellCommandService {
         boolean finished = process.waitFor(DEFAULT_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
         if (!finished) {
             process.destroyForcibly();
+            log.error("Shell 执行超时已终止: dir={}", dir);
             throw new IllegalStateException("命令执行超时，已终止进程");
         }
         int code = process.exitValue();
+        if (code != 0) {
+            log.warn("Shell 退出码非零: exitCode={} dir={}", code, dir);
+        }
         return new ShellResult(out.toString(), code);
     }
 

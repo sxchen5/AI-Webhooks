@@ -5,6 +5,7 @@ server:
 
 spring:
   application:
+    # 与 logback 中 springProperty spring.application.name 一致 → scan-platform-backend.log
     name: scan-platform-backend
   datasource:
     url: jdbc:mysql://localhost:3306/scan_platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false

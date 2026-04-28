@@ -21,6 +21,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> badRequest(IllegalArgumentException e) {
+        log.warn("业务校验失败: {}", e.getMessage());
         return ApiResponse.fail(400, e.getMessage());
     }
 
@@ -30,6 +31,7 @@ public class GlobalExceptionHandler {
         String msg = e.getBindingResult().getFieldErrors().stream()
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining("; "));
+        log.warn("参数校验失败: {}", msg);
         return ApiResponse.fail(400, msg);
     }
 

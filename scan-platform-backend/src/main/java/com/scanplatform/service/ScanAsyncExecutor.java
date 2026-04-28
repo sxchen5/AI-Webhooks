@@ -47,6 +47,8 @@ public class ScanAsyncExecutor {
         task.setExecCommand(cmd);
         task.setTaskStartTime(LocalDateTime.now());
         logRepository.save(task);
+        log.info("扫描开始: logId={} project={} gitlabId={} workDir={}", scanLogId, project.getProjectName(),
+                project.getGitlabProjectId(), project.getLocalCodePath());
 
         try {
             Map<String, String> env = webhookEnv(project, task);
@@ -56,8 +58,10 @@ public class ScanAsyncExecutor {
             if (result.exitCode() == 0) {
                 task.setExecStatus(1);
                 task.setEmailStatus(0);
+                log.info("扫描成功: logId={} project={} exitCode=0", scanLogId, project.getProjectName());
             } else {
                 task.setExecStatus(2);
+                log.warn("扫描失败(非零退出码): logId={} project={} exitCode={}", scanLogId, project.getProjectName(), result.exitCode());
                 trySendAlert(config, project, task, "扫描命令退出码: " + result.exitCode());
             }
             logRepository.save(task);
@@ -83,6 +87,7 @@ public class ScanAsyncExecutor {
         if (!StringUtils.hasText(emails)) {
             task.setEmailStatus(0);
             logRepository.save(task);
+            log.info("扫描失败但未配置告警邮箱，跳过邮件: logId={} project={}", task.getId(), project.getProjectName());
             return;
         }
         String prefix = StringUtils.hasText(config.getEmailTitlePrefix()) ? config.getEmailTitlePrefix() : "【代码扫描通知】";
@@ -97,6 +102,11 @@ public class ScanAsyncExecutor {
         boolean sent = alertMailService.sendFailureAlert(config, emails, subject, body);
         task.setEmailStatus(sent ? 1 : 2);
         logRepository.save(task);
+        if (sent) {
+            log.info("告警邮件已发送: logId={} project={}", task.getId(), project.getProjectName());
+        } else {
+            log.warn("告警邮件发送失败: logId={} project={}", task.getId(), project.getProjectName());
+        }
     }
 
     /**

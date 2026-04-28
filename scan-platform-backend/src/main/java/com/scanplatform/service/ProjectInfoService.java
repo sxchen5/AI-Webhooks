@@ -4,6 +4,7 @@ import com.scanplatform.dto.ProjectInfoDto;
 import com.scanplatform.entity.ProjectInfo;
 import com.scanplatform.repository.ProjectInfoRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ProjectInfoService {
 
     private final ProjectInfoRepository repository;
@@ -40,7 +42,9 @@ public class ProjectInfoService {
         }
         ProjectInfo p = new ProjectInfo();
         apply(dto, p);
-        return repository.save(p);
+        ProjectInfo saved = repository.save(p);
+        log.info("创建项目配置: id={} gitlabProjectId={} name={}", saved.getId(), saved.getGitlabProjectId(), saved.getProjectName());
+        return saved;
     }
 
     @Transactional
@@ -54,12 +58,15 @@ public class ProjectInfoService {
             });
         }
         apply(dto, p);
-        return repository.save(p);
+        ProjectInfo saved = repository.save(p);
+        log.info("更新项目配置: id={} gitlabProjectId={}", saved.getId(), saved.getGitlabProjectId());
+        return saved;
     }
 
     @Transactional
     public void delete(Long id) {
         repository.deleteById(id);
+        log.info("删除项目配置: id={}", id);
     }
 
     private void apply(ProjectInfoDto dto, ProjectInfo p) {

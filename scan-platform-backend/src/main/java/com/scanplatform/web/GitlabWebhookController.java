@@ -4,6 +4,7 @@ import com.scanplatform.service.GitlabWebhookService;
 import com.scanplatform.service.GitlabWebhookService.WebhookHandleResult;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/webhook")
 @RequiredArgsConstructor
+@Slf4j
 public class GitlabWebhookController {
 
     private final GitlabWebhookService gitlabWebhookService;
@@ -28,8 +30,10 @@ public class GitlabWebhookController {
             HttpServletRequest request) {
         WebhookHandleResult result = gitlabWebhookService.handle(rawBody, gitlabToken, request);
         if (result.rejected()) {
+            log.warn("GitLab WebHook HTTP 403: {}", result.message());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(result.message());
         }
+        log.debug("GitLab WebHook HTTP 200: {}", result.message());
         return ResponseEntity.ok(result.message());
     }
 }

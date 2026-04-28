@@ -36,7 +36,51 @@ npm install
 npm run dev
 ```
 
-开发环境通过 Vite 代理将 `/api` 转发到 `8080`。生产构建可将 `dist` 交由 Nginx 托管，并反向代理 `/api` 到后端。
+开发环境通过 Vite 代理将 `/api` 转发到 `8080`。生产环境推荐 **单 jar 内嵌前端**（见下文），浏览器访问同一端口即可。
+
+## 生产打包与部署（Maven 3.3.9 + 单 jar）
+
+`mvn package` 时会自动执行 `npm ci && npm run build`（在 `scan-platform-frontend` 目录），再把 `dist` 拷贝到 `classpath:/static/`，与 Spring Boot 可执行 jar 一并打出。
+
+```bash
+cd scan-platform-backend
+mvn clean package -DskipTests
+# 产物：target/scan-platform-backend-1.0.0.jar
+```
+
+- 机器需已安装 **Node.js** 与 **npm**（供 Maven 调用）。  
+- 若只想打后端、跳过前端：`-Dfrontend.skip=true`。  
+- 前端目录不在默认相对路径时：`-Dfrontend.dir=/绝对路径/scan-platform-frontend`。
+
+**一键部署脚本**（复制 jar、生成 `run.sh`、可选外置配置示例）：
+
+```bash
+chmod +x scripts/deploy.sh
+./scripts/deploy.sh /opt/scan-platform
+# 或：MVN=/path/to/mvn3.3.9/bin/mvn ./scripts/deploy.sh
+```
+
+启动：
+
+```bash
+cd /opt/scan-platform
+cp application.yml.example application.yml   # 首次：编辑库连接等
+export LOG_DIR=/var/log/scan-platform        # 可选，默认 ./logs
+./run.sh
+```
+
+浏览器打开 `http://<主机>:8080/` 即可访问管理端（`/api` 同源，无需单独部署前端）。
+
+## 日志（Logback）
+
+使用 `src/main/resources/logback-spring.xml`：`test` profile 仅控制台；其他环境 **控制台 + 滚动文件**（异步写入）。
+
+| 变量 / 参数 | 说明 |
+|-------------|------|
+| `LOG_DIR` 或 `LOG_PATH` | 日志目录，默认 `./logs` |
+| `SCAN_LOG_LEVEL` | `com.scanplatform` 包日志级别，默认 `INFO` |
+
+日志文件：`${LOG_DIR}/<spring.application.name>.log`（默认 `scan-platform-backend.log`）。
 
 ## Cursor CLI（非交互）与 `agent_command` 怎么写
 
