@@ -52,6 +52,8 @@ mvn clean package -DskipTests
 - 若只想打后端、跳过前端：`-Dfrontend.skip=true`。  
 - 前端目录不在默认相对路径时：`-Dfrontend.dir=/绝对路径/scan-platform-frontend`。
 
+**Windows 打包若出现 `Process exited with an error: -4048`**：多为 Maven 直接启动 `npm` 失败。本仓库 `pom.xml` 已在 **Windows** 下改为 `cmd.exe /c npm run ci-and-build`；请确认已安装 Node.js 且 `npm` 在 PATH 中。若仍失败，可先在前端目录手动执行 `npm run ci-and-build`，再打后端包：`-Dfrontend.skip=true`。
+
 **一键部署脚本**（复制 jar、生成 `run.sh`、可选外置配置示例）：
 
 ```bash
