@@ -4,17 +4,18 @@
       <div class="aside-inner">
         <div class="logo" :class="{ 'logo--collapsed': collapsed }">
           <div class="logo-brand">
-            <el-icon class="logo-icon" :size="26"><Monitor /></el-icon>
+            <el-icon class="logo-icon" :size="collapsed ? 24 : 26"><Monitor /></el-icon>
             <span v-show="!collapsed" class="logo-text">代码扫描平台</span>
           </div>
-          <el-tooltip :content="collapsed ? '展开菜单' : '收起菜单'" placement="bottom">
+          <el-tooltip :content="collapsed ? '展开菜单' : '收起菜单'" placement="right">
             <el-button
               class="collapse-btn"
+              :class="{ 'collapse-btn--collapsed': collapsed }"
               type="primary"
               link
               @click.stop="collapsed = !collapsed"
             >
-              <el-icon :size="18">
+              <el-icon :size="collapsed ? 20 : 18">
                 <Expand v-if="collapsed" />
                 <Fold v-else />
               </el-icon>
@@ -117,13 +118,19 @@ function onLogout() {
   flex: 1;
   min-width: 0;
 }
+/* 折叠：纵向排列，避免 64px 内两图标横向挤在一起 */
 .logo--collapsed {
-  padding-left: 8px;
-  padding-right: 4px;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 6px 12px;
+  min-height: 88px;
 }
 .logo--collapsed .logo-brand {
+  flex: 0 0 auto;
+  width: 100%;
   justify-content: center;
-  flex: 1 1 auto;
 }
 .logo-icon {
   color: #69b1ff;
@@ -152,6 +159,21 @@ function onLogout() {
   padding: 4px;
   margin: 0;
   min-height: auto;
+}
+.collapse-btn--collapsed {
+  width: 36px;
+  height: 36px;
+  padding: 0 !important;
+  border-radius: 8px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+.collapse-btn--collapsed:hover {
+  background: rgba(105, 177, 255, 0.15) !important;
+  border-color: rgba(105, 177, 255, 0.35) !important;
 }
 .collapse-btn:hover {
   color: #fff !important;
