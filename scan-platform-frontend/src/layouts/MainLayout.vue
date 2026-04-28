@@ -7,6 +7,19 @@
             <el-icon class="logo-icon" :size="26"><Monitor /></el-icon>
             <span v-show="!collapsed" class="logo-text">代码扫描平台</span>
           </div>
+          <el-tooltip :content="collapsed ? '展开菜单' : '收起菜单'" placement="bottom">
+            <el-button
+              class="collapse-btn"
+              type="primary"
+              link
+              @click.stop="collapsed = !collapsed"
+            >
+              <el-icon :size="18">
+                <Expand v-if="collapsed" />
+                <Fold v-else />
+              </el-icon>
+            </el-button>
+          </el-tooltip>
         </div>
         <el-menu
           class="side-menu"
@@ -31,21 +44,6 @@
             <template #title>扫描日志</template>
           </el-menu-item>
         </el-menu>
-        <div class="aside-footer">
-          <el-tooltip :content="collapsed ? '展开菜单' : '收起菜单'" placement="right">
-            <el-button
-              class="collapse-btn"
-              type="primary"
-              link
-              @click="collapsed = !collapsed"
-            >
-              <el-icon :size="20">
-                <Expand v-if="collapsed" />
-                <Fold v-else />
-              </el-icon>
-            </el-button>
-          </el-tooltip>
-        </div>
       </div>
     </el-aside>
     <el-container>
@@ -106,20 +104,26 @@ function onLogout() {
   min-height: 56px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 0 12px;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 6px 0 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 .logo-brand {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 10px;
-  width: 100%;
+  flex: 1;
   min-width: 0;
+}
+.logo--collapsed {
+  padding-left: 8px;
+  padding-right: 4px;
 }
 .logo--collapsed .logo-brand {
   justify-content: center;
+  flex: 1 1 auto;
 }
 .logo-icon {
   color: #69b1ff;
@@ -142,17 +146,12 @@ function onLogout() {
 .side-menu:not(.el-menu--collapse) {
   width: 220px;
 }
-.aside-footer {
-  flex-shrink: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 10px 0 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
 .collapse-btn {
+  flex-shrink: 0;
   color: rgba(255, 255, 255, 0.85) !important;
-  padding: 4px 8px;
+  padding: 4px;
+  margin: 0;
+  min-height: auto;
 }
 .collapse-btn:hover {
   color: #fff !important;
