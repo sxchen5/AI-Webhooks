@@ -58,7 +58,7 @@
           :rows="4"
           maxlength="1000"
           show-word-limit
-          placeholder="支持占位符 {{path}} {{branch}} {{commit}}"
+          placeholder="例：包装脚本或 agent -p &quot;...&quot; --output-format text；占位符 {{path}} {{branch}} {{commit}}；子进程含 WEBHOOK_* 环境变量"
         />
       </el-form-item>
       <el-form-item label="告警邮箱" prop="receiveEmail">
@@ -99,7 +99,7 @@ const dialogForm = reactive({
   projectName: '',
   gitUrl: '',
   localCodePath: '',
-  agentCommand: 'echo "scan {{path}} {{branch}} {{commit}}"',
+  agentCommand: '/bin/bash /path/to/AI-Webhooks/scripts/cursor-gitlab-webhook-scan.sh',
   receiveEmail: '',
   status: 1,
 })
@@ -128,7 +128,7 @@ function resetForm() {
   dialogForm.projectName = ''
   dialogForm.gitUrl = ''
   dialogForm.localCodePath = ''
-  dialogForm.agentCommand = 'echo "scan {{path}} {{branch}} {{commit}}"'
+  dialogForm.agentCommand = '/bin/bash /path/to/AI-Webhooks/scripts/cursor-gitlab-webhook-scan.sh'
   dialogForm.receiveEmail = ''
   dialogForm.status = 1
 }

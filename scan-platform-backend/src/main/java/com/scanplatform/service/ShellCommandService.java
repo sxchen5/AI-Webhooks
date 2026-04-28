@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -20,12 +21,16 @@ public class ShellCommandService {
 
     /**
      * @param workingDir 工作目录，可为空则使用 JVM 当前目录
+     * @param extraEnv   追加到子进程环境变量（如 WEBHOOK_*），便于 Shell 脚本与 Cursor CLI 使用
      * @return 合并后的控制台输出与退出码
      */
-    public ShellResult execute(String command, Path workingDir) throws Exception {
+    public ShellResult execute(String command, Path workingDir, Map<String, String> extraEnv) throws Exception {
         Path dir = workingDir != null && Files.isDirectory(workingDir) ? workingDir : Path.of("").toAbsolutePath();
         ProcessBuilder pb = new ProcessBuilder("/bin/bash", "-c", command);
         pb.directory(dir.toFile());
+        if (extraEnv != null && !extraEnv.isEmpty()) {
+            pb.environment().putAll(extraEnv);
+        }
         pb.redirectErrorStream(true);
         Process process = pb.start();
         StringBuilder out = new StringBuilder();
@@ -43,6 +48,11 @@ public class ShellCommandService {
         }
         int code = process.exitValue();
         return new ShellResult(out.toString(), code);
+    }
+
+    /** 不注入额外环境变量时的便捷重载。 */
+    public ShellResult execute(String command, Path workingDir) throws Exception {
+        return execute(command, workingDir, Map.of());
     }
 
     public record ShellResult(String output, int exitCode) {

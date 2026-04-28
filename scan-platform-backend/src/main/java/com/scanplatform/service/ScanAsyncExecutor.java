@@ -13,6 +13,8 @@ import org.springframework.util.StringUtils;
 
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * 异步执行扫描命令、更新日志、失败时发邮件。
@@ -47,7 +49,8 @@ public class ScanAsyncExecutor {
         logRepository.save(task);
 
         try {
-            ShellCommandService.ShellResult result = shellCommandService.execute(cmd, Path.of(project.getLocalCodePath()));
+            Map<String, String> env = webhookEnv(project, task);
+            ShellCommandService.ShellResult result = shellCommandService.execute(cmd, Path.of(project.getLocalCodePath()), env);
             task.setExecResult(result.output());
             task.setTaskEndTime(LocalDateTime.now());
             if (result.exitCode() == 0) {
@@ -94,6 +97,21 @@ public class ScanAsyncExecutor {
         boolean sent = alertMailService.sendFailureAlert(config, emails, subject, body);
         task.setEmailStatus(sent ? 1 : 2);
         logRepository.save(task);
+    }
+
+    /**
+     * WebHook 扫描子进程环境变量，供自定义脚本或 Cursor 包装脚本读取（与 {{path}} 等占位符互补）。
+     */
+    public static Map<String, String> webhookEnv(ProjectInfo project, ScanTaskLog task) {
+        Map<String, String> m = new LinkedHashMap<>();
+        m.put("WEBHOOK_REPO_PATH", project.getLocalCodePath() != null ? project.getLocalCodePath() : "");
+        m.put("WEBHOOK_BRANCH", task.getBranch() != null ? task.getBranch() : "");
+        m.put("WEBHOOK_COMMIT", task.getCommitHash() != null ? task.getCommitHash() : "");
+        m.put("WEBHOOK_PROJECT_NAME", project.getProjectName() != null ? project.getProjectName() : "");
+        m.put("WEBHOOK_GITLAB_PROJECT_ID", project.getGitlabProjectId() != null ? String.valueOf(project.getGitlabProjectId()) : "");
+        m.put("WEBHOOK_COMMIT_USER", task.getCommitUser() != null ? task.getCommitUser() : "");
+        m.put("WEBHOOK_GIT_URL", project.getGitUrl() != null ? project.getGitUrl() : "");
+        return m;
     }
 
     /**
