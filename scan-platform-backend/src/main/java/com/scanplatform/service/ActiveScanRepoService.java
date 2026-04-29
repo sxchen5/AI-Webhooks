@@ -88,7 +88,6 @@ public class ActiveScanRepoService {
         e.setScanSkillName(StringUtils.hasText(dto.getScanSkillName()) ? dto.getScanSkillName().trim() : null);
         e.setScanSkillPrompt(StringUtils.hasText(dto.getScanSkillPrompt()) ? dto.getScanSkillPrompt().trim() : null);
         e.setReceiveEmail(dto.getReceiveEmail());
-        e.setDisplayCommit(dto.getDisplayCommit() != null ? dto.getDisplayCommit() : 1);
         e.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
     }
 

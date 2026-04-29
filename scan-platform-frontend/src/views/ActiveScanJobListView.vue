@@ -73,14 +73,6 @@
       <el-form-item label="覆盖 Agent 命令">
         <el-input v-model="form.agentCommandOverride" type="textarea" :rows="2" maxlength="1000" placeholder="留空使用 Git 项目配置中的命令" clearable />
       </el-form-item>
-      <el-form-item label="展示 Commit">
-        <el-radio-group v-model="form.displayCommitMode">
-          <el-radio label="inherit">沿用配置</el-radio>
-          <el-radio label="show">覆盖为展示</el-radio>
-          <el-radio label="hide">覆盖为不强调</el-radio>
-        </el-radio-group>
-        <span class="form-hint">仅影响该任务触发的日志与邮件是否突出 Commit</span>
-      </el-form-item>
       <el-form-item label="失败发邮件">
         <el-switch :active-value="1" :inactive-value="0" v-model="form.notifyOnFailure" />
       </el-form-item>
@@ -136,8 +128,6 @@ const form = reactive({
   agentCommandOverride: '',
   scanSkillName: '',
   scanSkillPrompt: '',
-  /** inherit | show | hide — API 仅 0/1 或 null 表示不覆盖 */
-  displayCommitMode: 'inherit',
   notifyOnFailure: 1,
   notifyOnSuccess: 0,
   status: 1,
@@ -188,7 +178,6 @@ function resetForm() {
   form.agentCommandOverride = ''
   form.scanSkillName = ''
   form.scanSkillPrompt = ''
-  form.displayCommitMode = 'inherit'
   form.notifyOnFailure = 1
   form.notifyOnSuccess = 0
   form.status = 1
@@ -213,8 +202,6 @@ function openEdit(row) {
     agentCommandOverride: row.agentCommandOverride || '',
     scanSkillName: row.scanSkillName || '',
     scanSkillPrompt: row.scanSkillPrompt || '',
-    displayCommitMode:
-      row.displayCommit === 0 ? 'hide' : row.displayCommit === 1 ? 'show' : 'inherit',
     notifyOnFailure: row.notifyOnFailure,
     notifyOnSuccess: row.notifyOnSuccess,
     status: row.status,
@@ -234,8 +221,6 @@ function openCopy(row) {
     agentCommandOverride: row.agentCommandOverride || '',
     scanSkillName: row.scanSkillName || '',
     scanSkillPrompt: row.scanSkillPrompt || '',
-    displayCommitMode:
-      row.displayCommit === 0 ? 'hide' : row.displayCommit === 1 ? 'show' : 'inherit',
     notifyOnFailure: row.notifyOnFailure,
     notifyOnSuccess: row.notifyOnSuccess,
     status: row.status,
@@ -259,8 +244,6 @@ async function saveDialog() {
       agentCommandOverride: form.agentCommandOverride?.trim() || null,
       scanSkillName: form.scanSkillName?.trim() || null,
       scanSkillPrompt: form.scanSkillPrompt?.trim() || null,
-      displayCommit:
-        form.displayCommitMode === 'show' ? 1 : form.displayCommitMode === 'hide' ? 0 : null,
       notifyOnFailure: form.notifyOnFailure,
       notifyOnSuccess: form.notifyOnSuccess,
       status: form.status,
@@ -321,12 +304,5 @@ onMounted(async () => {
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
-}
-.form-hint {
-  display: block;
-  margin-top: 4px;
-  font-size: 12px;
-  color: #909399;
-  line-height: 1.4;
 }
 </style>

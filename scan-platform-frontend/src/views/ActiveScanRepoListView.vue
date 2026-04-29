@@ -141,10 +141,6 @@
       <el-form-item label="Agent 命令" prop="agentCommand">
         <el-input v-model="form.agentCommand" type="textarea" :rows="3" maxlength="1000" show-word-limit placeholder="与技能二选一；仅技能可填 echo 占位" />
       </el-form-item>
-      <el-form-item label="展示检出 Commit">
-        <el-switch :active-value="1" :inactive-value="0" v-model="form.displayCommit" />
-        <span class="form-hint">关闭后列表与邮件不强调单次提交 hash，适合全仓类技能</span>
-      </el-form-item>
       <el-form-item label="通知邮箱" prop="receiveEmail">
         <el-input v-model="form.receiveEmail" maxlength="500" placeholder="逗号分隔，可选" clearable />
       </el-form-item>
@@ -204,7 +200,6 @@ const form = reactive({
   scanSkillName: '',
   scanSkillPrompt: '',
   receiveEmail: '',
-  displayCommit: 1,
   status: 1,
   skillPickMode: 'none',
 })
@@ -324,7 +319,6 @@ function resetForm() {
   form.scanSkillName = ''
   form.scanSkillPrompt = ''
   form.receiveEmail = ''
-  form.displayCommit = 1
   form.status = 1
   form.skillPickMode = 'none'
 }
@@ -374,7 +368,6 @@ async function openEdit(row) {
     scanSkillName: skillName,
     scanSkillPrompt: row.scanSkillPrompt || '',
     receiveEmail: row.receiveEmail || '',
-    displayCommit: row.displayCommit === 0 ? 0 : 1,
     status: row.status,
     skillPickMode: inferSkillPickMode(skillName),
   })
@@ -402,7 +395,6 @@ async function openCopy(row) {
     scanSkillName: skillName,
     scanSkillPrompt: row.scanSkillPrompt || '',
     receiveEmail: row.receiveEmail || '',
-    displayCommit: row.displayCommit === 0 ? 0 : 1,
     status: row.status,
     skillPickMode: inferSkillPickMode(skillName),
   })
@@ -452,7 +444,6 @@ async function saveDialog() {
       scanSkillName: skillOut,
       scanSkillPrompt: form.scanSkillPrompt?.trim() || null,
       receiveEmail: form.receiveEmail || null,
-      displayCommit: form.displayCommit === 0 ? 0 : 1,
       status: form.status,
     }
     if (isEdit.value) {

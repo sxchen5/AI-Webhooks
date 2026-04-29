@@ -46,10 +46,6 @@ public class ActiveScanJob {
     @Column(name = "scan_skill_prompt", columnDefinition = "TEXT")
     private String scanSkillPrompt;
 
-    /** 非空则覆盖仓库 display_commit */
-    @Column(name = "display_commit")
-    private Integer displayCommit;
-
     @Column(name = "notify_on_failure", nullable = false)
     private Integer notifyOnFailure = 1;
 

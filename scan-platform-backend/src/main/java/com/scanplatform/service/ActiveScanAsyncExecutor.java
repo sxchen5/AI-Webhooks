@@ -143,17 +143,13 @@ public class ActiveScanAsyncExecutor {
         String subject = prefix + (execSuccess ? " 主动扫描成功 - " : " 主动扫描失败 - ") + job.getJobName();
         String body = "任务: " + job.getJobName() + "\n仓库: " + repo.getRepoName() + "\n触发: " + task.getTriggerType()
                 + "\n分支: " + task.getBranch()
-                + (showCommit(task) ? "\nCommit: " + (task.getCommitHash() != null ? task.getCommitHash() : "") : "")
+                + "\nCommit: " + (task.getCommitHash() != null ? task.getCommitHash() : "")
                 + "\n\nGit 日志:\n" + (task.getCloneLog() != null ? task.getCloneLog() : "")
                 + "\n\n命令:\n" + (task.getExecCommand() != null ? task.getExecCommand() : "")
                 + "\n\n输出:\n" + (task.getExecResult() != null ? task.getExecResult() : "");
         boolean sent = alertMailService.sendMail(config, emails, subject, body);
         task.setEmailStatus(sent ? 1 : 2);
         logRepository.save(task);
-    }
-
-    private static boolean showCommit(ActiveScanLog task) {
-        return task.getDisplayCommit() == null || task.getDisplayCommit() == 1;
     }
 
     public static Map<String, String> activeScanEnv(ActiveScanRepo repo, ActiveScanJob job, ActiveScanLog task,

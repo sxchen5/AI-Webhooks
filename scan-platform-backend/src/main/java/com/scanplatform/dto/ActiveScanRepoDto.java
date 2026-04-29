@@ -22,8 +22,6 @@ public class ActiveScanRepoDto {
     private String scanSkillName;
     private String scanSkillPrompt;
     private String receiveEmail;
-    /** 1 展示检出 commit；0 不强调单次提交 */
-    private Integer displayCommit;
     private Integer status;
 
     @AssertTrue(message = "请填写「Agent 命令」或「扫描技能名」至少一项")

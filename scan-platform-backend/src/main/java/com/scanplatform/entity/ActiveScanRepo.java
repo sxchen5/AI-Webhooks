@@ -55,10 +55,6 @@ public class ActiveScanRepo {
     @Column(name = "receive_email", length = 500)
     private String receiveEmail;
 
-    /** 1 列表/日志展示当前检出 commit；0 不强调单次提交（技能为全仓扫描时） */
-    @Column(name = "display_commit", nullable = false)
-    private Integer displayCommit = 1;
-
     @Column(nullable = false)
     private Integer status = 1;
 

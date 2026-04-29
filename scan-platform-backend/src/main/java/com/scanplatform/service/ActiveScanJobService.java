@@ -86,7 +86,6 @@ public class ActiveScanJobService {
         j.setNotifyOnFailure(dto.getNotifyOnFailure() != null ? dto.getNotifyOnFailure() : 1);
         j.setNotifyOnSuccess(dto.getNotifyOnSuccess() != null ? dto.getNotifyOnSuccess() : 0);
         j.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
-        j.setDisplayCommit(dto.getDisplayCommit());
     }
 
     private void computeNextRun(ActiveScanJob j) {

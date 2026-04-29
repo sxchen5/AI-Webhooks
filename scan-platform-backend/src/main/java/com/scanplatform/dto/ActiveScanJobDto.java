@@ -19,6 +19,4 @@ public class ActiveScanJobDto {
     private Integer notifyOnFailure;
     private Integer notifyOnSuccess;
     private Integer status;
-    /** 非空则覆盖仓库 display_commit */
-    private Integer displayCommit;
 }
