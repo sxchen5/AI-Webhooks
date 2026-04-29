@@ -1,6 +1,6 @@
 # 代码扫描平台
 
-Spring Boot 3 + Vue3 + Element Plus + MySQL。支持 **主动 Git 扫描**（多仓库、定时/手动、`git clone` + agent/技能）、**平台技能**、**邮件配置**；扫描日志写入 `active_scan_log`。
+Spring Boot 3 + Vue3 + Element Plus + MySQL。支持 **主动 Git 扫描**（多仓库、定时/手动、`git clone` + agent/技能）、**Git 项目 AI 问答**（按问题执行 agent）、**平台技能**、**邮件配置**；扫描日志写入 `active_scan_log`。
 
 ## 目录
 
@@ -16,6 +16,8 @@ Spring Boot 3 + Vue3 + Element Plus + MySQL。支持 **主动 Git 扫描**（多
 **增加 Git 项目管理**：已有库在备份后执行 `migration-git-project.sql`（新建 `git_project` 表并为 `active_scan_repo` 增加 `git_project_id`）。若仍含旧版 WebHook 表，可先执行 `migration-remove-webhook.sql`。
 
 **移除 display_commit 列**：若库由旧版升级而来且仍存在该列，执行 `migration-drop-display-commit.sql`。
+
+**Git 项目 AI 问答**：已有库在备份后执行 `migration-git-qa-project.sql`（新建 `git_qa_project` 表）。删除「Git项目管理」中的主数据前，需先解除本功能或「Git 项目配置」中的关联。
 
 默认登录：`admin` / `admin123`（BCrypt 存储在 `data.sql`）。
 

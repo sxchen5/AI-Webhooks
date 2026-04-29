@@ -2,29 +2,21 @@
   <el-card shadow="never" class="page-card">
     <template #header>
       <div class="card-header">
-        <span>Git项目配置</span>
-        <div class="header-actions">
-          <el-input
-            v-model="filterRepoName"
-            clearable
-            placeholder="筛选项目名称"
-            style="width: 220px"
-            @change="onFilterChange"
-            @clear="onFilterChange"
-          />
-          <el-button type="primary" @click="openCreate">新建配置</el-button>
-        </div>
+        <span>Git项目AI问答</span>
+        <el-button type="primary" @click="openCreate">新建配置</el-button>
       </div>
     </template>
-    <p class="tip">支持多个 HTTP(S) 仓库；用户名/密码用于非交互克隆。可从「Git项目管理」选择项目自动带出地址。通知邮箱用于主动扫描结果邮件，发信账号在<strong>系统配置管理 → 邮件配置</strong>中维护。</p>
+    <p class="tip">
+      配置问答机器人名称、Git 克隆与本地目录、Agent/技能（与「Git 项目配置」一致）。保存后在右侧进入「AI问答」对话；执行可能较久，请耐心等待。
+    </p>
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column prop="id" label="ID" width="70" />
-      <el-table-column prop="repoName" label="项目名称" min-width="120" />
+      <el-table-column prop="botName" label="机器人名称" min-width="120" />
       <el-table-column prop="gitUrl" label="Git URL" min-width="200" show-overflow-tooltip />
-      <el-table-column prop="gitUsername" label="用户名" width="120" show-overflow-tooltip />
-      <el-table-column prop="branch" label="分支" width="100" />
+      <el-table-column prop="gitUsername" label="用户名" width="110" show-overflow-tooltip />
+      <el-table-column prop="branch" label="分支" width="90" />
       <el-table-column prop="localClonePath" label="本地克隆目录" min-width="140" show-overflow-tooltip />
-      <el-table-column prop="agentCommand" label="Agent/技能" min-width="180" show-overflow-tooltip>
+      <el-table-column prop="agentCommand" label="Agent/技能" min-width="160" show-overflow-tooltip>
         <template #default="{ row }">
           <span v-if="row.scanSkillName" style="color: #409eff">技能: {{ row.scanSkillName }}</span>
           <span v-else>{{ row.agentCommand }}</span>
@@ -35,11 +27,11 @@
           <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="260" fixed="right">
+      <el-table-column label="操作" width="300" fixed="right">
         <template #default="{ row }">
           <el-button type="primary" link @click="openDetail(row)">详情</el-button>
           <el-button type="primary" link @click="openEdit(row)">编辑</el-button>
-          <el-button type="info" link @click="openCopy(row)">复制</el-button>
+          <el-button type="success" link :disabled="row.status !== 1" @click="openChat(row)">AI问答</el-button>
           <el-button type="danger" link @click="onDelete(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -56,12 +48,12 @@
     </div>
   </el-card>
 
-  <el-drawer v-model="detailVisible" title="Git 项目配置详情" size="56%">
+  <el-drawer v-model="detailVisible" title="Git项目AI问答详情" size="56%">
     <template v-if="detail">
       <el-descriptions :column="1" border size="small">
         <el-descriptions-item label="ID">{{ detail.id }}</el-descriptions-item>
+        <el-descriptions-item label="机器人名称">{{ detail.botName }}</el-descriptions-item>
         <el-descriptions-item label="关联 Git 项目 ID">{{ detail.gitProjectId ?? '—' }}</el-descriptions-item>
-        <el-descriptions-item label="项目名称">{{ detail.repoName }}</el-descriptions-item>
         <el-descriptions-item label="Git URL">{{ detail.gitUrl }}</el-descriptions-item>
         <el-descriptions-item label="用户名">{{ detail.gitUsername || '—' }}</el-descriptions-item>
         <el-descriptions-item label="分支">{{ detail.branch || '—' }}</el-descriptions-item>
@@ -71,7 +63,6 @@
         <el-descriptions-item label="Agent 命令">
           <el-input type="textarea" :rows="4" readonly :model-value="detail.agentCommand || ''" />
         </el-descriptions-item>
-        <el-descriptions-item label="通知邮箱">{{ detail.receiveEmail || '—' }}</el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="detail.status === 1 ? 'success' : 'info'">{{ detail.status === 1 ? '启用' : '禁用' }}</el-tag>
         </el-descriptions-item>
@@ -83,6 +74,9 @@
 
   <el-dialog v-model="dialogVisible" :title="dialogTitle" width="640px" destroy-on-close>
     <el-form ref="formRef" :model="form" :rules="rules" label-width="120px">
+      <el-form-item label="机器人名称" prop="botName">
+        <el-input v-model="form.botName" maxlength="128" placeholder="如：代码助手" />
+      </el-form-item>
       <el-form-item label="名称来源">
         <el-radio-group v-model="form.repoLinkMode" @change="onRepoLinkModeChange">
           <el-radio label="project">选择 Git 项目</el-radio>
@@ -106,14 +100,6 @@
           />
         </el-select>
       </el-form-item>
-      <el-form-item label="项目名称" prop="repoName">
-        <el-input
-          v-model="form.repoName"
-          maxlength="255"
-          :disabled="form.repoLinkMode === 'project' && form.gitProjectId != null"
-          placeholder="与 Git 项目一致或手动填写"
-        />
-      </el-form-item>
       <el-form-item label="Git URL" prop="gitUrl">
         <el-input v-model="form.gitUrl" maxlength="500" placeholder="https://..." :disabled="form.repoLinkMode === 'project'" />
       </el-form-item>
@@ -127,7 +113,7 @@
         <el-input v-model="form.branch" maxlength="255" placeholder="默认 main" />
       </el-form-item>
       <el-form-item label="本地克隆目录" prop="localClonePath">
-        <el-input v-model="form.localClonePath" maxlength="500" placeholder="留空则自动生成到工作区" clearable />
+        <el-input v-model="form.localClonePath" maxlength="500" placeholder="留空则使用工作目录下 git-qa-{id}" clearable />
       </el-form-item>
       <el-divider content-position="left">Cursor 技能（可选）</el-divider>
       <el-form-item label="扫描技能">
@@ -162,13 +148,23 @@
         />
       </el-form-item>
       <el-form-item label="技能补充说明">
-        <el-input v-model="form.scanSkillPrompt" type="textarea" :rows="2" placeholder="漏洞、供应链风险等" clearable />
+        <el-input
+          v-model="form.scanSkillPrompt"
+          type="textarea"
+          :rows="2"
+          placeholder="可用占位符 {{path}} {{branch}} {{commit}} {{question}}"
+          clearable
+        />
       </el-form-item>
       <el-form-item label="Agent 命令" prop="agentCommand">
-        <el-input v-model="form.agentCommand" type="textarea" :rows="3" maxlength="1000" show-word-limit placeholder="与技能二选一；仅技能可填 echo 占位" />
-      </el-form-item>
-      <el-form-item label="通知邮箱" prop="receiveEmail">
-        <el-input v-model="form.receiveEmail" maxlength="500" placeholder="逗号分隔，可选" clearable />
+        <el-input
+          v-model="form.agentCommand"
+          type="textarea"
+          :rows="3"
+          maxlength="1000"
+          show-word-limit
+          placeholder="与技能二选一；支持 {{path}} {{branch}} {{commit}} {{question}}"
+        />
       </el-form-item>
       <el-form-item label="状态" prop="status">
         <el-radio-group v-model="form.status">
@@ -186,24 +182,25 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  createActiveRepo,
-  deleteActiveRepo,
-  fetchActiveRepos,
-  getActiveRepo,
-  updateActiveRepo,
-} from '@/api/activeScan'
+  createGitQaProject,
+  deleteGitQaProject,
+  fetchGitQaProjects,
+  getGitQaProject,
+  updateGitQaProject,
+} from '@/api/gitQaProject'
 import { fetchGitProjectOptions } from '@/api/gitProject'
 import { fetchPlatformSkillOptions } from '@/api/platformSkill'
 import { formatBackendDateTime } from '@/utils/formatTime'
 
+const router = useRouter()
 const loading = ref(false)
 const tableData = ref([])
 const total = ref(0)
 const page = ref(1)
 const size = ref(10)
-const filterRepoName = ref('')
 
 const platformSkillOptions = ref([])
 const gitProjectOptions = ref([])
@@ -213,15 +210,13 @@ const detail = ref(null)
 
 const dialogVisible = ref(false)
 const isEdit = ref(false)
-const isCopy = ref(false)
 const saving = ref(false)
 const formRef = ref()
 const form = reactive({
   id: null,
-  /** manual | project */
   repoLinkMode: 'manual',
   gitProjectId: null,
-  repoName: '',
+  botName: '',
   gitUrl: '',
   gitUsername: '',
   gitPassword: '',
@@ -230,19 +225,14 @@ const form = reactive({
   agentCommand: '',
   scanSkillName: '',
   scanSkillPrompt: '',
-  receiveEmail: '',
   status: 1,
   skillPickMode: 'none',
 })
 
-const dialogTitle = computed(() => {
-  if (isEdit.value) return '编辑 Git 项目配置'
-  if (isCopy.value) return '复制 Git 项目配置'
-  return '新建 Git 项目配置'
-})
+const dialogTitle = computed(() => (isEdit.value ? '编辑 Git项目AI问答' : '新建 Git项目AI问答'))
 
 const rules = {
-  repoName: [{ required: true, message: '必填', trigger: 'blur' }],
+  botName: [{ required: true, message: '必填', trigger: 'blur' }],
   gitUrl: [{ required: true, message: '必填', trigger: 'blur' }],
   gitProjectId: [
     {
@@ -294,12 +284,9 @@ function onRepoLinkModeChange(mode) {
 }
 
 function onGitProjectSelect(id) {
-  if (id == null) {
-    return
-  }
+  if (id == null) return
   const o = gitProjectOptions.value.find((x) => x.id === id)
   if (o) {
-    form.repoName = o.projectName
     form.gitUrl = o.gitUrl || ''
   }
 }
@@ -320,15 +307,10 @@ async function loadPlatformSkillOptions() {
   }
 }
 
-function onFilterChange() {
-  page.value = 1
-  load()
-}
-
 async function load() {
   loading.value = true
   try {
-    const res = await fetchActiveRepos(page.value - 1, size.value, filterRepoName.value?.trim() || undefined)
+    const res = await fetchGitQaProjects(page.value - 1, size.value)
     tableData.value = res.content || []
     total.value = res.totalElements || 0
   } finally {
@@ -340,7 +322,7 @@ function resetForm() {
   form.id = null
   form.repoLinkMode = 'manual'
   form.gitProjectId = null
-  form.repoName = ''
+  form.botName = ''
   form.gitUrl = ''
   form.gitUsername = ''
   form.gitPassword = ''
@@ -349,7 +331,6 @@ function resetForm() {
   form.agentCommand = ''
   form.scanSkillName = ''
   form.scanSkillPrompt = ''
-  form.receiveEmail = ''
   form.status = 1
   form.skillPickMode = 'none'
 }
@@ -361,40 +342,37 @@ function inferSkillPickMode(savedName) {
   return 'custom'
 }
 
-function openCreate() {
-  isEdit.value = false
-  isCopy.value = false
-  resetForm()
-  dialogVisible.value = true
-}
-
-/** 下拉仅含启用项目；若当前关联项已禁用则改为手动并清除关联 */
 function ensureLinkModeForDisabledProject() {
   if (form.repoLinkMode !== 'project' || form.gitProjectId == null) return
   const ok = gitProjectOptions.value.some((o) => o.id === form.gitProjectId)
   if (!ok) {
     form.repoLinkMode = 'manual'
     form.gitProjectId = null
-    ElMessage.warning('关联的 Git 项目已禁用或已删除，已改为手动填写，请确认项目名称与 Git URL 后保存')
+    ElMessage.warning('关联的 Git 项目已禁用或已删除，已改为手动填写 Git URL')
   }
 }
 
+function openCreate() {
+  isEdit.value = false
+  resetForm()
+  dialogVisible.value = true
+}
+
 async function openDetail(row) {
-  detail.value = await getActiveRepo(row.id)
+  detail.value = await getGitQaProject(row.id)
   detailVisible.value = true
 }
 
 async function openEdit(row) {
   await loadGitProjectOptions()
   isEdit.value = true
-  isCopy.value = false
   const skillName = row.scanSkillName || ''
   const linked = row.gitProjectId != null
   Object.assign(form, {
     id: row.id,
     repoLinkMode: linked ? 'project' : 'manual',
     gitProjectId: linked ? row.gitProjectId : null,
-    repoName: row.repoName,
+    botName: row.botName,
     gitUrl: row.gitUrl,
     gitUsername: row.gitUsername || '',
     gitPassword: '',
@@ -403,7 +381,6 @@ async function openEdit(row) {
     agentCommand: row.agentCommand === '(cursor-skill)' ? '' : row.agentCommand,
     scanSkillName: skillName,
     scanSkillPrompt: row.scanSkillPrompt || '',
-    receiveEmail: row.receiveEmail || '',
     status: row.status,
     skillPickMode: inferSkillPickMode(skillName),
   })
@@ -411,31 +388,8 @@ async function openEdit(row) {
   dialogVisible.value = true
 }
 
-async function openCopy(row) {
-  await loadGitProjectOptions()
-  isEdit.value = false
-  isCopy.value = true
-  const skillName = row.scanSkillName || ''
-  const linked = row.gitProjectId != null
-  Object.assign(form, {
-    id: null,
-    repoLinkMode: linked ? 'project' : 'manual',
-    gitProjectId: linked ? row.gitProjectId : null,
-    repoName: `${row.repoName}（复制）`,
-    gitUrl: row.gitUrl,
-    gitUsername: row.gitUsername || '',
-    gitPassword: '',
-    branch: row.branch || 'main',
-    localClonePath: row.localClonePath || '',
-    agentCommand: row.agentCommand === '(cursor-skill)' ? '' : row.agentCommand,
-    scanSkillName: skillName,
-    scanSkillPrompt: row.scanSkillPrompt || '',
-    receiveEmail: row.receiveEmail || '',
-    status: row.status,
-    skillPickMode: inferSkillPickMode(skillName),
-  })
-  ensureLinkModeForDisabledProject()
-  dialogVisible.value = true
+function openChat(row) {
+  router.push({ name: 'GitQaChat', params: { id: String(row.id) } })
 }
 
 async function saveDialog() {
@@ -448,7 +402,7 @@ async function saveDialog() {
     form.scanSkillName = ''
   }
   if (form.skillPickMode === 'platform' && !form.scanSkillName?.trim()) {
-    ElMessage.warning('请选择平台技能，或改为「手动输入」/「不使用技能」')
+    ElMessage.warning('请选择平台技能')
     return
   }
   if (form.skillPickMode === 'custom' && !form.scanSkillName?.trim()) {
@@ -469,7 +423,7 @@ async function saveDialog() {
   saving.value = true
   try {
     const payload = {
-      repoName: form.repoName,
+      botName: form.botName.trim(),
       gitProjectId: form.repoLinkMode === 'project' ? form.gitProjectId : null,
       gitUrl: form.gitUrl,
       gitUsername: form.gitUsername || null,
@@ -479,15 +433,14 @@ async function saveDialog() {
       agentCommand: skillOut ? (cmdTrim || '(cursor-skill)') : cmdTrim,
       scanSkillName: skillOut,
       scanSkillPrompt: form.scanSkillPrompt?.trim() || null,
-      receiveEmail: form.receiveEmail || null,
       status: form.status,
     }
     if (isEdit.value) {
       if (!form.gitPassword) delete payload.gitPassword
-      await updateActiveRepo(form.id, payload)
+      await updateGitQaProject(form.id, payload)
       ElMessage.success('已更新')
     } else {
-      await createActiveRepo(payload)
+      await createGitQaProject(payload)
       ElMessage.success('已创建')
     }
     dialogVisible.value = false
@@ -498,8 +451,8 @@ async function saveDialog() {
 }
 
 async function onDelete(row) {
-  await ElMessageBox.confirm(`确定删除配置「${row.repoName}」？`, '提示', { type: 'warning' })
-  await deleteActiveRepo(row.id)
+  await ElMessageBox.confirm(`确定删除「${row.botName}」？`, '提示', { type: 'warning' })
+  await deleteGitQaProject(row.id)
   ElMessage.success('已删除')
   await load()
 }
@@ -520,11 +473,6 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   font-weight: 600;
-}
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
 }
 .tip {
   margin: 0 0 12px;

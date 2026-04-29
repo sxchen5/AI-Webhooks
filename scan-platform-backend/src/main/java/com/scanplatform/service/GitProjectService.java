@@ -4,6 +4,7 @@ import com.scanplatform.dto.GitProjectDto;
 import com.scanplatform.entity.GitProject;
 import com.scanplatform.repository.ActiveScanRepoRepository;
 import com.scanplatform.repository.GitProjectRepository;
+import com.scanplatform.repository.GitQaProjectRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -21,6 +22,7 @@ public class GitProjectService {
 
     private final GitProjectRepository repository;
     private final ActiveScanRepoRepository activeScanRepoRepository;
+    private final GitQaProjectRepository gitQaProjectRepository;
 
     @Transactional(readOnly = true)
     public Page<GitProject> page(String projectName, Pageable pageable) {
@@ -62,6 +64,9 @@ public class GitProjectService {
     public void delete(Long id) {
         if (activeScanRepoRepository.countByGitProjectId(id) > 0) {
             throw new IllegalArgumentException("该 Git 项目仍被「Git 项目配置」引用，请先解除关联或删除相关配置");
+        }
+        if (gitQaProjectRepository.countByGitProjectId(id) > 0) {
+            throw new IllegalArgumentException("该 Git 项目仍被「Git项目AI问答」引用，请先解除关联或删除相关配置");
         }
         repository.deleteById(id);
         log.info("删除 Git 项目: id={}", id);

@@ -49,6 +49,18 @@ const routes = [
         meta: { parentTitle: '技能管理', title: '平台技能' },
         component: () => import('@/views/PlatformSkillListView.vue'),
       },
+      {
+        path: 'ai-git-qa/projects',
+        name: 'GitQaProjects',
+        meta: { parentTitle: 'AI问答', title: 'Git项目AI问答' },
+        component: () => import('@/views/GitQaProjectListView.vue'),
+      },
+      {
+        path: 'ai-git-qa/chat/:id',
+        name: 'GitQaChat',
+        meta: { parentTitle: 'AI问答', title: '对话' },
+        component: () => import('@/views/GitProjectAiQaChatView.vue'),
+      },
     ],
   },
 ]

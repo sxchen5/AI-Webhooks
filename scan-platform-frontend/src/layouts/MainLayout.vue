@@ -26,6 +26,17 @@
           text-color="rgba(255,255,255,0.75)"
           active-text-color="#fff"
         >
+          <el-sub-menu index="ai-qa-mgmt">
+            <template #title>
+              <el-icon><ChatDotRound /></el-icon>
+              <span class="submenu-title-text">AI问答</span>
+            </template>
+            <el-menu-item index="/ai-git-qa/projects">
+              <el-icon><FolderOpened /></el-icon>
+              <template #title>Git项目AI问答</template>
+            </el-menu-item>
+          </el-sub-menu>
+
           <el-sub-menu index="git-scan-mgmt">
             <template #title>
               <el-icon><Folder /></el-icon>
@@ -105,7 +116,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { Clock, Collection, Expand, Fold, Folder, FolderOpened, Link, Message, Monitor, Setting, Timer } from '@element-plus/icons-vue'
+import { ChatDotRound, Clock, Collection, Expand, Fold, Folder, FolderOpened, Link, Message, Monitor, Setting, Timer } from '@element-plus/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 
@@ -123,6 +134,9 @@ const defaultOpenSubmenus = computed(() => {
   const open = []
   if (p.startsWith('/system')) {
     open.push('system-mgmt')
+  }
+  if (p.startsWith('/ai-git-qa')) {
+    open.push('ai-qa-mgmt')
   }
   if (p.startsWith('/active-scan')) {
     open.push('git-scan-mgmt')

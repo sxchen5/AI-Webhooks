@@ -9,12 +9,18 @@ public final class AgentCommandUtil {
     }
 
     public static String buildCommand(String template, String path, String branch, String commit) {
+        return buildCommand(template, path, branch, commit, "");
+    }
+
+    public static String buildCommand(String template, String path, String branch, String commit, String question) {
         String p = path != null ? path : "";
         String b = branch != null ? branch : "";
         String c = commit != null ? commit : "";
+        String q = question != null ? question : "";
         return template
                 .replace("{{path}}", p)
                 .replace("{{branch}}", b)
-                .replace("{{commit}}", c);
+                .replace("{{commit}}", c)
+                .replace("{{question}}", q);
     }
 }

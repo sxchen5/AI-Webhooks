@@ -40,6 +40,20 @@ public class AgentCommandBuilder {
             String contextLabel,
             String skillFolderName,
             String skillPrompt) throws IOException {
+        return buildSkillAgentCommand(workDirAbsolute, branch, commit, contextLabel, skillFolderName, skillPrompt, null);
+    }
+
+    /**
+     * @param userQuestion 非空时追加到提示末尾，供 Git 问答等场景将用户问题一并交给 agent
+     */
+    public String buildSkillAgentCommand(
+            Path workDirAbsolute,
+            String branch,
+            String commit,
+            String contextLabel,
+            String skillFolderName,
+            String skillPrompt,
+            String userQuestion) throws IOException {
 
         if (!StringUtils.hasText(skillFolderName)) {
             return null;
@@ -60,6 +74,7 @@ public class AgentCommandBuilder {
         String p = workDirAbsolute.toString();
         String b = branch != null ? branch : "";
         String c = commit != null ? commit : "";
+        String q = userQuestion != null ? userQuestion : "";
         String label = StringUtils.hasText(contextLabel) ? contextLabel : "repo";
 
         StringBuilder body = new StringBuilder();
@@ -70,8 +85,12 @@ public class AgentCommandBuilder {
             String extra = skillPrompt
                     .replace("{{path}}", p)
                     .replace("{{branch}}", b)
-                    .replace("{{commit}}", c);
+                    .replace("{{commit}}", c)
+                    .replace("{{question}}", q);
             body.append(extra.trim()).append("\n");
+        }
+        if (StringUtils.hasText(userQuestion)) {
+            body.append("\n【用户问题】\n").append(userQuestion.trim()).append("\n");
         }
 
         Files.writeString(promptFile, body.toString(), StandardCharsets.UTF_8);
@@ -116,11 +135,25 @@ public class AgentCommandBuilder {
                 ? job.getScanSkillPrompt()
                 : repo.getScanSkillPrompt();
         if (StringUtils.hasText(skill)) {
-            return buildSkillAgentCommand(dir, branch, commit, repo.getRepoName(), skill, prompt);
+            return buildSkillAgentCommand(dir, branch, commit, repo.getRepoName(), skill, prompt, null);
         }
         String template = StringUtils.hasText(job.getAgentCommandOverride())
                 ? job.getAgentCommandOverride()
                 : repo.getAgentCommand();
         return AgentCommandUtil.buildCommand(template, dir.toString(), branch, commit);
+    }
+
+    /** Git 项目 AI 问答：无任务层覆盖，支持将用户问题写入技能提示或 {{question}} 占位符 */
+    public String resolveGitQaCommand(com.scanplatform.entity.GitQaProject qp,
+                                     String workPath, String branch, String commit, String userQuestion) throws IOException {
+        Path dir = Path.of(workPath).toAbsolutePath().normalize();
+        String skill = StringUtils.hasText(qp.getScanSkillName()) ? qp.getScanSkillName().trim() : null;
+        String prompt = qp.getScanSkillPrompt();
+        String label = StringUtils.hasText(qp.getBotName()) ? qp.getBotName().trim() : "Git问答";
+        if (StringUtils.hasText(skill)) {
+            return buildSkillAgentCommand(dir, branch, commit, label, skill, prompt, userQuestion);
+        }
+        String template = qp.getAgentCommand();
+        return AgentCommandUtil.buildCommand(template, dir.toString(), branch, commit, userQuestion != null ? userQuestion : "");
     }
 }

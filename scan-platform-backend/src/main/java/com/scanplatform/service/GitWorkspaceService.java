@@ -31,24 +31,56 @@ public class GitWorkspaceService {
      * @return [0]=工作目录绝对路径, [1]=commit hash, [2]=clone/fetch 日志
      */
     public String[] ensureRepo(ActiveScanRepo repo) throws Exception {
+        return ensureClone(
+                repo.getGitUrl(),
+                repo.getGitUsername(),
+                repo.getGitPassword(),
+                repo.getBranch(),
+                repo.getLocalClonePath(),
+                repo.getId(),
+                "repo-");
+    }
+
+    /**
+     * Git 问答等场景：与 {@link ActiveScanRepo} 克隆逻辑相同，默认目录使用前缀 {@code git-qa-{id}}，避免与主动扫描的 {@code repo-{id}} 工作区互相覆盖。
+     */
+    public String[] ensureRepoClone(String gitUrl,
+                                     String gitUsername,
+                                     String gitPassword,
+                                     String branch,
+                                     String localClonePath,
+                                     long id,
+                                     String defaultDirPrefix) throws Exception {
+        return ensureClone(gitUrl, gitUsername, gitPassword, branch, localClonePath, id, defaultDirPrefix);
+    }
+
+    private String[] ensureClone(String gitUrl,
+                                 String gitUsername,
+                                 String gitPassword,
+                                 String branchRaw,
+                                 String localClonePath,
+                                 Long idForDefaultDir,
+                                 String defaultDirPrefix) throws Exception {
         Path base = Path.of(workBaseDir).toAbsolutePath().normalize();
         Files.createDirectories(base);
 
         Path workDir;
-        if (StringUtils.hasText(repo.getLocalClonePath())) {
-            workDir = Path.of(repo.getLocalClonePath()).toAbsolutePath().normalize();
+        if (StringUtils.hasText(localClonePath)) {
+            workDir = Path.of(localClonePath).toAbsolutePath().normalize();
         } else {
-            workDir = base.resolve("repo-" + repo.getId());
+            if (idForDefaultDir == null) {
+                throw new IllegalArgumentException("未配置本地克隆目录且缺少配置 ID，无法生成工作目录");
+            }
+            workDir = base.resolve(defaultDirPrefix + idForDefaultDir).toAbsolutePath().normalize();
         }
         Files.createDirectories(workDir.getParent() != null ? workDir.getParent() : workDir);
 
-        String authUrl = gitUrlHelper.embedCredentials(repo.getGitUrl(), repo.getGitUsername(), repo.getGitPassword());
-        String branch = StringUtils.hasText(repo.getBranch()) ? repo.getBranch() : "main";
+        String authUrl = gitUrlHelper.embedCredentials(gitUrl, gitUsername, gitPassword);
+        String branch = StringUtils.hasText(branchRaw) ? branchRaw : "main";
 
         StringBuilder logOut = new StringBuilder();
         if (!Files.isDirectory(workDir.resolve(".git"))) {
             runGit(workDir.getParent(), logOut, "git", "clone", "-b", branch, "--depth", "1", authUrl, workDir.getFileName().toString());
-            // clone 在 parent 执行，工作目录为 workDir
         } else {
             runGit(workDir, logOut, "git", "fetch", "origin", branch);
             runGit(workDir, logOut, "git", "checkout", branch);
