@@ -61,6 +61,12 @@
       <el-form-item label="Cron 表达式" prop="cronExpression">
         <el-input v-model="form.cronExpression" maxlength="120" placeholder="0 0 2 * * ?" clearable />
       </el-form-item>
+      <el-form-item label="覆盖技能名">
+        <el-input v-model="form.scanSkillName" maxlength="128" placeholder="留空用仓库配置" clearable />
+      </el-form-item>
+      <el-form-item label="覆盖技能说明">
+        <el-input v-model="form.scanSkillPrompt" type="textarea" :rows="2" placeholder="留空用仓库配置" clearable />
+      </el-form-item>
       <el-form-item label="覆盖 Agent 命令">
         <el-input v-model="form.agentCommandOverride" type="textarea" :rows="2" maxlength="1000" placeholder="留空使用仓库默认命令" clearable />
       </el-form-item>
@@ -115,6 +121,8 @@ const form = reactive({
   scheduleEnabled: 0,
   cronExpression: '',
   agentCommandOverride: '',
+  scanSkillName: '',
+  scanSkillPrompt: '',
   notifyOnFailure: 1,
   notifyOnSuccess: 0,
   status: 1,
@@ -157,6 +165,8 @@ function resetForm() {
   form.scheduleEnabled = 0
   form.cronExpression = ''
   form.agentCommandOverride = ''
+  form.scanSkillName = ''
+  form.scanSkillPrompt = ''
   form.notifyOnFailure = 1
   form.notifyOnSuccess = 0
   form.status = 1
@@ -177,6 +187,8 @@ function openEdit(row) {
     scheduleEnabled: row.scheduleEnabled,
     cronExpression: row.cronExpression || '',
     agentCommandOverride: row.agentCommandOverride || '',
+    scanSkillName: row.scanSkillName || '',
+    scanSkillPrompt: row.scanSkillPrompt || '',
     notifyOnFailure: row.notifyOnFailure,
     notifyOnSuccess: row.notifyOnSuccess,
     status: row.status,
@@ -198,6 +210,8 @@ async function saveDialog() {
       scheduleEnabled: form.scheduleEnabled,
       cronExpression: form.cronExpression?.trim() || null,
       agentCommandOverride: form.agentCommandOverride?.trim() || null,
+      scanSkillName: form.scanSkillName?.trim() || null,
+      scanSkillPrompt: form.scanSkillPrompt?.trim() || null,
       notifyOnFailure: form.notifyOnFailure,
       notifyOnSuccess: form.notifyOnSuccess,
       status: form.status,

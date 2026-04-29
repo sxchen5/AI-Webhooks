@@ -36,6 +36,7 @@ public class ActiveScanAsyncExecutor {
     private final SysConfigService sysConfigService;
     private final ShellCommandService shellCommandService;
     private final AlertMailService alertMailService;
+    private final AgentCommandBuilder agentCommandBuilder;
 
     @Async("scanTaskExecutor")
     public void executeAsync(Long activeLogId) {
@@ -79,11 +80,16 @@ public class ActiveScanAsyncExecutor {
             return;
         }
 
-        String template = StringUtils.hasText(job.getAgentCommandOverride())
-                ? job.getAgentCommandOverride()
-                : repo.getAgentCommand();
         String branch = StringUtils.hasText(repo.getBranch()) ? repo.getBranch() : "main";
-        String cmd = ScanAsyncExecutor.buildCommand(template, workPath, branch, commit);
+        String cmd;
+        try {
+            cmd = agentCommandBuilder.resolveActiveScanCommand(repo, job, workPath, branch, commit);
+        } catch (Exception e) {
+            log.error("主动扫描构建命令失败 logId={}", activeLogId, e);
+            finishFailure(task, "构建扫描命令失败: " + e.getMessage(), config);
+            notifyAfterRun(config, job, repo, task, false);
+            return;
+        }
         task.setExecCommand(cmd);
         logRepository.save(task);
         log.info("主动扫描执行命令: logId={} job={}", activeLogId, job.getJobName());

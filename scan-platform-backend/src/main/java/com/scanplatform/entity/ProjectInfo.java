@@ -34,6 +34,13 @@ public class ProjectInfo {
     @Column(name = "agent_command", nullable = false, length = 1000)
     private String agentCommand;
 
+    /** Cursor 技能目录名（.cursor/skills/&lt;name&gt;/），非空时平台生成 agent --print -f 提示文件并首行 /name */
+    @Column(name = "scan_skill_name", length = 128)
+    private String scanSkillName;
+
+    @Column(name = "scan_skill_prompt", columnDefinition = "TEXT")
+    private String scanSkillPrompt;
+
     @Column(name = "receive_email", length = 500)
     private String receiveEmail;
 

@@ -13,7 +13,13 @@
       <el-table-column prop="gitUrl" label="Git URL" min-width="200" show-overflow-tooltip />
       <el-table-column prop="gitUsername" label="用户名" width="120" show-overflow-tooltip />
       <el-table-column prop="branch" label="分支" width="100" />
-      <el-table-column prop="localClonePath" label="本地目录" min-width="160" show-overflow-tooltip />
+      <el-table-column prop="localClonePath" label="本地目录" min-width="140" show-overflow-tooltip />
+      <el-table-column prop="agentCommand" label="Agent/技能" min-width="180" show-overflow-tooltip>
+        <template #default="{ row }">
+          <span v-if="row.scanSkillName" style="color: #409eff">技能: {{ row.scanSkillName }}</span>
+          <span v-else>{{ row.agentCommand }}</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="status" label="状态" width="80">
         <template #default="{ row }">
           <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
@@ -58,8 +64,15 @@
       <el-form-item label="本地克隆目录" prop="localClonePath">
         <el-input v-model="form.localClonePath" maxlength="500" placeholder="留空则自动生成到工作区" clearable />
       </el-form-item>
+      <el-divider content-position="left">Cursor 技能（可选）</el-divider>
+      <el-form-item label="扫描技能名">
+        <el-input v-model="form.scanSkillName" maxlength="128" placeholder=".cursor/skills 下目录名" clearable />
+      </el-form-item>
+      <el-form-item label="技能补充说明">
+        <el-input v-model="form.scanSkillPrompt" type="textarea" :rows="2" placeholder="漏洞、供应链风险等" clearable />
+      </el-form-item>
       <el-form-item label="Agent 命令" prop="agentCommand">
-        <el-input v-model="form.agentCommand" type="textarea" :rows="3" maxlength="1000" show-word-limit placeholder="{{path}} {{branch}} {{commit}}" />
+        <el-input v-model="form.agentCommand" type="textarea" :rows="3" maxlength="1000" show-word-limit placeholder="与技能二选一；仅技能可填 echo 占位" />
       </el-form-item>
       <el-form-item label="通知邮箱" prop="receiveEmail">
         <el-input v-model="form.receiveEmail" maxlength="500" placeholder="逗号分隔，可选" clearable />
@@ -106,7 +119,9 @@ const form = reactive({
   gitPassword: '',
   branch: 'main',
   localClonePath: '',
-  agentCommand: 'echo "active {{path}} {{branch}} {{commit}}"',
+  agentCommand: '',
+  scanSkillName: '',
+  scanSkillPrompt: '',
   receiveEmail: '',
   status: 1,
 })
@@ -114,7 +129,18 @@ const form = reactive({
 const rules = {
   repoName: [{ required: true, message: '必填', trigger: 'blur' }],
   gitUrl: [{ required: true, message: '必填', trigger: 'blur' }],
-  agentCommand: [{ required: true, message: '必填', trigger: 'blur' }],
+  agentCommand: [
+    {
+      validator: (_, v, cb) => {
+        if (!form.scanSkillName?.trim() && !(v && String(v).trim())) {
+          cb(new Error('请填写 Agent 命令或扫描技能名'))
+        } else {
+          cb()
+        }
+      },
+      trigger: 'blur',
+    },
+  ],
 }
 
 async function load() {
@@ -136,7 +162,9 @@ function resetForm() {
   form.gitPassword = ''
   form.branch = 'main'
   form.localClonePath = ''
-  form.agentCommand = 'echo "active {{path}} {{branch}} {{commit}}"'
+  form.agentCommand = ''
+  form.scanSkillName = ''
+  form.scanSkillPrompt = ''
   form.receiveEmail = ''
   form.status = 1
 }
@@ -158,6 +186,8 @@ function openEdit(row) {
     branch: row.branch || 'main',
     localClonePath: row.localClonePath || '',
     agentCommand: row.agentCommand,
+    scanSkillName: row.scanSkillName || '',
+    scanSkillPrompt: row.scanSkillPrompt || '',
     receiveEmail: row.receiveEmail || '',
     status: row.status,
   })
@@ -180,7 +210,9 @@ async function saveDialog() {
       gitPassword: form.gitPassword || null,
       branch: form.branch || 'main',
       localClonePath: form.localClonePath || null,
-      agentCommand: form.agentCommand,
+      agentCommand: form.agentCommand?.trim() || '(cursor-skill)',
+      scanSkillName: form.scanSkillName?.trim() || null,
+      scanSkillPrompt: form.scanSkillPrompt?.trim() || null,
       receiveEmail: form.receiveEmail || null,
       status: form.status,
     }

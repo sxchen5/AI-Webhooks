@@ -14,6 +14,8 @@ public class ActiveScanJobDto {
     private Integer scheduleEnabled;
     private String cronExpression;
     private String agentCommandOverride;
+    private String scanSkillName;
+    private String scanSkillPrompt;
     private Integer notifyOnFailure;
     private Integer notifyOnSuccess;
     private Integer status;

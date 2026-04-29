@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 /**
  * 项目配置 CRUD，按 gitlab_project_id 唯一约束。
@@ -74,7 +75,9 @@ public class ProjectInfoService {
         p.setProjectName(dto.getProjectName());
         p.setGitUrl(dto.getGitUrl());
         p.setLocalCodePath(dto.getLocalCodePath());
-        p.setAgentCommand(dto.getAgentCommand());
+        p.setAgentCommand(StringUtils.hasText(dto.getAgentCommand()) ? dto.getAgentCommand() : "(cursor-skill)");
+        p.setScanSkillName(StringUtils.hasText(dto.getScanSkillName()) ? dto.getScanSkillName().trim() : null);
+        p.setScanSkillPrompt(StringUtils.hasText(dto.getScanSkillPrompt()) ? dto.getScanSkillPrompt().trim() : null);
         p.setReceiveEmail(dto.getReceiveEmail());
         p.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
     }

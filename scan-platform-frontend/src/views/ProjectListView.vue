@@ -11,7 +11,12 @@
       <el-table-column prop="gitlabProjectId" label="GitLab 项目ID" width="130" />
       <el-table-column prop="projectName" label="项目名称" min-width="140" />
       <el-table-column prop="localCodePath" label="本地路径" min-width="200" show-overflow-tooltip />
-      <el-table-column prop="agentCommand" label="Agent 命令" min-width="200" show-overflow-tooltip />
+      <el-table-column prop="agentCommand" label="Agent/技能" min-width="200" show-overflow-tooltip>
+        <template #default="{ row }">
+          <span v-if="row.scanSkillName" class="skill-tag">技能: {{ row.scanSkillName }}</span>
+          <span v-else>{{ row.agentCommand }}</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="receiveEmail" label="告警邮箱" min-width="160" show-overflow-tooltip />
       <el-table-column prop="status" label="状态" width="90">
         <template #default="{ row }">
@@ -51,6 +56,18 @@
       <el-form-item label="本地代码目录" prop="localCodePath">
         <el-input v-model="dialogForm.localCodePath" maxlength="500" placeholder="服务器上已存在的代码路径" />
       </el-form-item>
+      <el-divider content-position="left">Cursor 技能扫描（可选）</el-divider>
+      <el-form-item label="扫描技能名" prop="scanSkillName">
+        <el-input v-model="dialogForm.scanSkillName" maxlength="128" placeholder=".cursor/skills 下目录名，如 gitlab-webhook-cursor-scan" clearable />
+      </el-form-item>
+      <el-form-item label="技能补充说明" prop="scanSkillPrompt">
+        <el-input
+          v-model="dialogForm.scanSkillPrompt"
+          type="textarea"
+          :rows="3"
+          placeholder="漏洞、依赖风险等；支持 {{path}} {{branch}} {{commit}}；填技能名时首行会自动 /技能名 触发"
+        />
+      </el-form-item>
       <el-form-item label="Agent 命令" prop="agentCommand">
         <el-input
           v-model="dialogForm.agentCommand"
@@ -58,7 +75,7 @@
           :rows="4"
           maxlength="1000"
           show-word-limit
-          placeholder="例：包装脚本或 agent -p &quot;...&quot; --output-format text；占位符 {{path}} {{branch}} {{commit}}；子进程含 WEBHOOK_* 环境变量"
+          placeholder="与「扫描技能名」二选一或同时用：仅技能时填占位即可；否则写脚本或 agent 命令"
         />
       </el-form-item>
       <el-form-item label="告警邮箱" prop="receiveEmail">
@@ -99,7 +116,9 @@ const dialogForm = reactive({
   projectName: '',
   gitUrl: '',
   localCodePath: '',
-  agentCommand: '/bin/bash /path/to/AI-Webhooks/scripts/cursor-gitlab-webhook-scan.sh',
+  agentCommand: '',
+  scanSkillName: '',
+  scanSkillPrompt: '',
   receiveEmail: '',
   status: 1,
 })
@@ -108,7 +127,19 @@ const dialogRules = {
   gitlabProjectId: [{ required: true, message: '必填', trigger: 'blur' }],
   projectName: [{ required: true, message: '必填', trigger: 'blur' }],
   localCodePath: [{ required: true, message: '必填', trigger: 'blur' }],
-  agentCommand: [{ required: true, message: '必填', trigger: 'blur' }],
+  agentCommand: [
+    {
+      validator: (_, v, cb) => {
+        const skill = dialogForm.scanSkillName?.trim()
+        if (!skill && !(v && String(v).trim())) {
+          cb(new Error('请填写 Agent 命令或扫描技能名'))
+        } else {
+          cb()
+        }
+      },
+      trigger: 'blur',
+    },
+  ],
 }
 
 async function load() {
@@ -128,7 +159,9 @@ function resetForm() {
   dialogForm.projectName = ''
   dialogForm.gitUrl = ''
   dialogForm.localCodePath = ''
-  dialogForm.agentCommand = '/bin/bash /path/to/AI-Webhooks/scripts/cursor-gitlab-webhook-scan.sh'
+  dialogForm.agentCommand = ''
+  dialogForm.scanSkillName = ''
+  dialogForm.scanSkillPrompt = ''
   dialogForm.receiveEmail = ''
   dialogForm.status = 1
 }
@@ -148,6 +181,8 @@ function openEdit(row) {
     gitUrl: row.gitUrl || '',
     localCodePath: row.localCodePath,
     agentCommand: row.agentCommand,
+    scanSkillName: row.scanSkillName || '',
+    scanSkillPrompt: row.scanSkillPrompt || '',
     receiveEmail: row.receiveEmail || '',
     status: row.status,
   })
@@ -163,7 +198,9 @@ async function saveDialog() {
       projectName: dialogForm.projectName,
       gitUrl: dialogForm.gitUrl || null,
       localCodePath: dialogForm.localCodePath,
-      agentCommand: dialogForm.agentCommand,
+      agentCommand: dialogForm.agentCommand?.trim() || '(cursor-skill)',
+      scanSkillName: dialogForm.scanSkillName?.trim() || null,
+      scanSkillPrompt: dialogForm.scanSkillPrompt?.trim() || null,
       receiveEmail: dialogForm.receiveEmail || null,
       status: dialogForm.status,
     }
@@ -205,6 +242,10 @@ onMounted(load)
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+}
+.skill-tag {
+  color: #409eff;
+  font-size: 13px;
 }
 .w-full {
   width: 100%;

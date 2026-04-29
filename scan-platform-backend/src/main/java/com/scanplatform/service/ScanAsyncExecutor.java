@@ -29,6 +29,7 @@ public class ScanAsyncExecutor {
     private final SysConfigService sysConfigService;
     private final ShellCommandService shellCommandService;
     private final AlertMailService alertMailService;
+    private final AgentCommandBuilder agentCommandBuilder;
 
     @Async("scanTaskExecutor")
     public void executeAsync(Long scanLogId) {
@@ -43,7 +44,14 @@ public class ScanAsyncExecutor {
             finishFailure(task, "项目不存在或已禁用", config);
             return;
         }
-        String cmd = buildCommand(project.getAgentCommand(), project.getLocalCodePath(), task.getBranch(), task.getCommitHash());
+        String cmd;
+        try {
+            cmd = agentCommandBuilder.resolveWebhookCommand(project, task);
+        } catch (Exception e) {
+            log.error("构建扫描命令失败 logId={}", scanLogId, e);
+            finishFailure(task, "构建扫描命令失败: " + e.getMessage(), config);
+            return;
+        }
         task.setExecCommand(cmd);
         task.setTaskStartTime(LocalDateTime.now());
         logRepository.save(task);

@@ -40,6 +40,12 @@ public class ActiveScanJob {
     @Column(name = "agent_command_override", length = 1000)
     private String agentCommandOverride;
 
+    @Column(name = "scan_skill_name", length = 128)
+    private String scanSkillName;
+
+    @Column(name = "scan_skill_prompt", columnDefinition = "TEXT")
+    private String scanSkillPrompt;
+
     @Column(name = "notify_on_failure", nullable = false)
     private Integer notifyOnFailure = 1;
 

@@ -63,6 +63,8 @@ public class ActiveScanJobService {
         j.setScheduleEnabled(dto.getScheduleEnabled() != null && dto.getScheduleEnabled() == 1 ? 1 : 0);
         j.setCronExpression(StringUtils.hasText(dto.getCronExpression()) ? dto.getCronExpression().trim() : null);
         j.setAgentCommandOverride(StringUtils.hasText(dto.getAgentCommandOverride()) ? dto.getAgentCommandOverride() : null);
+        j.setScanSkillName(StringUtils.hasText(dto.getScanSkillName()) ? dto.getScanSkillName().trim() : null);
+        j.setScanSkillPrompt(StringUtils.hasText(dto.getScanSkillPrompt()) ? dto.getScanSkillPrompt().trim() : null);
         j.setNotifyOnFailure(dto.getNotifyOnFailure() != null ? dto.getNotifyOnFailure() : 1);
         j.setNotifyOnSuccess(dto.getNotifyOnSuccess() != null ? dto.getNotifyOnSuccess() : 0);
         j.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);

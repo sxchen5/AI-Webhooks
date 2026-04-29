@@ -42,6 +42,12 @@ public class ActiveScanRepo {
     @Column(name = "agent_command", nullable = false, length = 1000)
     private String agentCommand;
 
+    @Column(name = "scan_skill_name", length = 128)
+    private String scanSkillName;
+
+    @Column(name = "scan_skill_prompt", columnDefinition = "TEXT")
+    private String scanSkillPrompt;
+
     @Column(name = "receive_email", length = 500)
     private String receiveEmail;
 
