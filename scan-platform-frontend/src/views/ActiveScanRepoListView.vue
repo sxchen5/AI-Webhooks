@@ -18,7 +18,7 @@
         </div>
       </div>
     </template>
-    <p class="tip">支持多个 HTTP(S) 仓库；用户名/密码用于非交互克隆。凭据存库请注意权限；密码不会在列表中回显。通知邮箱用于主动扫描结果邮件，发信账号在<strong>系统配置</strong>的 SMTP 中维护（与 WebHook 扫描共用）。</p>
+    <p class="tip">支持多个 HTTP(S) 仓库；用户名/密码用于非交互克隆。凭据存库请注意权限；密码不会在列表中回显。通知邮箱用于主动扫描结果邮件，发信账号在<strong>系统配置管理 → 邮件配置</strong>中维护。</p>
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column prop="id" label="ID" width="70" />
       <el-table-column prop="repoName" label="名称" min-width="120" />

@@ -2,8 +2,6 @@ package com.scanplatform.service;
 
 import com.scanplatform.entity.ActiveScanJob;
 import com.scanplatform.entity.ActiveScanRepo;
-import com.scanplatform.entity.ProjectInfo;
-import com.scanplatform.entity.ScanTaskLog;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -88,7 +86,6 @@ public class AgentCommandBuilder {
     }
 
     private static String sanitizeSkillSlug(String name) {
-        // 允许与常见 skill 目录名一致：gitlab-webhook-cursor-scan
         if (!name.matches("^[a-zA-Z0-9][a-zA-Z0-9._-]*$")) {
             return "";
         }
@@ -108,18 +105,6 @@ public class AgentCommandBuilder {
         return System.getProperty("os.name", "").toLowerCase().contains("win");
     }
 
-    /** WebHook 项目：配置了 scan_skill_name 则走技能 agent，否则模板替换 */
-    public String resolveWebhookCommand(ProjectInfo project, ScanTaskLog task) throws IOException {
-        Path dir = Path.of(project.getLocalCodePath()).toAbsolutePath().normalize();
-        String branch = task.getBranch() != null ? task.getBranch() : "";
-        String commit = task.getCommitHash() != null ? task.getCommitHash() : "";
-        if (StringUtils.hasText(project.getScanSkillName())) {
-            return buildSkillAgentCommand(dir, branch, commit, project.getProjectName(),
-                    project.getScanSkillName().trim(), project.getScanSkillPrompt());
-        }
-        return ScanAsyncExecutor.buildCommand(project.getAgentCommand(), dir.toString(), branch, commit);
-    }
-
     /** 主动扫描：任务层技能字段优先于仓库 */
     public String resolveActiveScanCommand(ActiveScanRepo repo, ActiveScanJob job,
                                              String workPath, String branch, String commit) throws IOException {
@@ -136,6 +121,6 @@ public class AgentCommandBuilder {
         String template = StringUtils.hasText(job.getAgentCommandOverride())
                 ? job.getAgentCommandOverride()
                 : repo.getAgentCommand();
-        return ScanAsyncExecutor.buildCommand(template, dir.toString(), branch, commit);
+        return AgentCommandUtil.buildCommand(template, dir.toString(), branch, commit);
     }
 }

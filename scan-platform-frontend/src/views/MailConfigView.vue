@@ -2,24 +2,11 @@
   <el-card shadow="never" class="page-card">
     <template #header>
       <div class="card-header">
-        <span>系统配置</span>
+        <span>邮件配置</span>
         <el-button type="primary" :loading="saving" @click="onSave">保存</el-button>
       </div>
     </template>
     <el-form v-loading="loading" :model="form" label-width="140px" class="form">
-      <el-divider content-position="left">WebHook</el-divider>
-      <el-form-item label="Webhook Token">
-        <el-input v-model="form.webhookToken" placeholder="与 GitLab Secret Token 一致；留空则不校验" clearable />
-      </el-form-item>
-      <el-form-item label="GitLab IP 白名单">
-        <el-input
-          v-model="form.gitlabAllowIps"
-          type="textarea"
-          :rows="2"
-          placeholder="逗号分隔，如 192.168.1.10,10.0.0.5；留空则不限制"
-        />
-      </el-form-item>
-      <el-divider content-position="left">邮件（SMTP）</el-divider>
       <el-form-item label="SMTP 主机">
         <el-input v-model="form.smtpHost" placeholder="如 smtp.example.com" clearable />
       </el-form-item>
@@ -45,7 +32,7 @@
         title="说明"
         type="info"
         :closable="false"
-        description="WebHook 项目扫描失败/告警与「Git 仓库扫描」主动扫描通知共用此处 SMTP 与邮件标题前缀；各项目/仓库的收件人在各自配置中填写。无需改 application.yml。GitLab WebHook 地址：/api/webhook/gitlab"
+        description="用于「Git 仓库扫描」主动扫描任务成功/失败通知；收件人在各仓库的「通知邮箱」中配置。无需改 application.yml。"
       />
     </el-form>
   </el-card>
@@ -59,8 +46,6 @@ import { getSysConfig, saveSysConfig } from '@/api/sysConfig'
 const loading = ref(false)
 const saving = ref(false)
 const form = reactive({
-  webhookToken: '',
-  gitlabAllowIps: '',
   smtpHost: '',
   smtpPort: null,
   smtpUsername: '',
@@ -72,8 +57,6 @@ async function load() {
   loading.value = true
   try {
     const c = await getSysConfig()
-    form.webhookToken = c.webhookToken || ''
-    form.gitlabAllowIps = c.gitlabAllowIps || ''
     form.smtpHost = c.smtpHost || ''
     form.smtpPort = c.smtpPort
     form.smtpUsername = c.smtpUsername || ''
@@ -88,8 +71,6 @@ async function onSave() {
   saving.value = true
   try {
     await saveSysConfig({
-      webhookToken: form.webhookToken || null,
-      gitlabAllowIps: form.gitlabAllowIps || null,
       smtpHost: form.smtpHost || null,
       smtpPort: form.smtpPort,
       smtpUsername: form.smtpUsername || null,

@@ -34,22 +34,14 @@
           text-color="rgba(255,255,255,0.75)"
           active-text-color="#fff"
         >
-          <el-sub-menu index="webhook-mgmt">
+          <el-sub-menu index="system-mgmt">
             <template #title>
-              <el-icon><Message /></el-icon>
-              <span class="submenu-title-text">WebHooks回调管理</span>
-            </template>
-            <el-menu-item index="/projects">
-              <el-icon><FolderOpened /></el-icon>
-              <template #title>仓库管理</template>
-            </el-menu-item>
-            <el-menu-item index="/sys-config">
               <el-icon><Setting /></el-icon>
-              <template #title>系统配置</template>
-            </el-menu-item>
-            <el-menu-item index="/scan-logs">
-              <el-icon><Document /></el-icon>
-              <template #title>扫描日志</template>
+              <span class="submenu-title-text">系统配置管理</span>
+            </template>
+            <el-menu-item index="/system/mail">
+              <el-icon><Message /></el-icon>
+              <template #title>邮件配置</template>
             </el-menu-item>
           </el-sub-menu>
 
@@ -102,7 +94,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { Clock, Collection, Document, Expand, Fold, Folder, FolderOpened, Link, Message, Monitor, Setting, Timer } from '@element-plus/icons-vue'
+import { Clock, Collection, Expand, Fold, Folder, Link, Message, Monitor, Setting, Timer } from '@element-plus/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 
@@ -118,8 +110,8 @@ const active = computed(() => route.path)
 const defaultOpenSubmenus = computed(() => {
   const p = route.path
   const open = []
-  if (p === '/projects' || p === '/sys-config' || p === '/scan-logs') {
-    open.push('webhook-mgmt')
+  if (p.startsWith('/system')) {
+    open.push('system-mgmt')
   }
   if (p.startsWith('/active-scan')) {
     open.push('git-scan-mgmt')

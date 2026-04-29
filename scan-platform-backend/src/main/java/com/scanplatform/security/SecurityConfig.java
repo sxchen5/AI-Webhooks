@@ -18,7 +18,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.List;
 
 /**
- * Spring Security：开放登录与 GitLab WebHook，其余接口需 JWT。
+ * Spring Security：开放登录，其余接口需 JWT。
  */
 @Configuration
 @EnableWebSecurity
@@ -48,7 +48,6 @@ public class SecurityConfig {
                                 "/assets/**"
                         ).permitAll()
                         .requestMatchers("/api/auth/login").permitAll()
-                        .requestMatchers("/api/webhook/gitlab").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )

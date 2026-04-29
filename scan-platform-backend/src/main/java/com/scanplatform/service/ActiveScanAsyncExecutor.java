@@ -167,7 +167,7 @@ public class ActiveScanAsyncExecutor {
         m.put("ACTIVE_SCAN_JOB_NAME", job.getJobName() != null ? job.getJobName() : "");
         m.put("ACTIVE_SCAN_REPO_NAME", repo.getRepoName() != null ? repo.getRepoName() : "");
         m.put("ACTIVE_SCAN_TRIGGER", task.getTriggerType() != null ? task.getTriggerType() : "");
-        // 与 WebHook 脚本兼容
+        // 与自定义脚本中常见 WEBHOOK_* 环境变量命名兼容
         m.put("WEBHOOK_REPO_PATH", path);
         m.put("WEBHOOK_BRANCH", branch);
         m.put("WEBHOOK_COMMIT", commit != null ? commit : "");

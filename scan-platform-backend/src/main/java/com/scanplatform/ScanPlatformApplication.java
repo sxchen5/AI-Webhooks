@@ -6,7 +6,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
- * GitLab WebHook 触发的代码扫描平台入口。
+ * 代码扫描平台（主动扫描、平台技能、邮件配置等）入口。
  */
 @SpringBootApplication
 @EnableAsync

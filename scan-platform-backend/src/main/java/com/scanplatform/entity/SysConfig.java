@@ -7,7 +7,7 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 /**
- * 全局配置 sys_config：WebHook Token、IP 白名单、SMTP。
+ * 全局配置 sys_config：SMTP 与邮件标题前缀等。
  */
 @Entity
 @Table(name = "sys_config")
@@ -18,12 +18,6 @@ public class SysConfig {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Column(name = "webhook_token", length = 255)
-    private String webhookToken;
-
-    @Column(name = "gitlab_allow_ips", length = 500)
-    private String gitlabAllowIps;
 
     @Column(name = "smtp_host", length = 255)
     private String smtpHost;

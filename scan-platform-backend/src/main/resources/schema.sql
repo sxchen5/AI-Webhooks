@@ -12,8 +12,6 @@ CREATE TABLE IF NOT EXISTS sys_user (
 
 CREATE TABLE IF NOT EXISTS sys_config (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    webhook_token VARCHAR(255) COMMENT 'GitLab Webhook Token',
-    gitlab_allow_ips VARCHAR(500) COMMENT '允许的GitLab IP，逗号分隔',
     smtp_host VARCHAR(255),
     smtp_port INT,
     smtp_username VARCHAR(255),
@@ -21,40 +19,7 @@ CREATE TABLE IF NOT EXISTS sys_config (
     email_title_prefix VARCHAR(255) DEFAULT '【代码扫描通知】',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) COMMENT '全局配置';
-
-CREATE TABLE IF NOT EXISTS project_info (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    gitlab_project_id BIGINT NOT NULL COMMENT 'GitLab 项目ID',
-    project_name VARCHAR(255) NOT NULL,
-    git_url VARCHAR(500),
-    local_code_path VARCHAR(500) NOT NULL COMMENT '本地代码目录',
-    agent_command VARCHAR(1000) NOT NULL COMMENT '执行命令，支持占位符 {{path}} {{branch}} {{commit}}；若配置技能则可为占位由平台生成 agent 命令',
-    scan_skill_name VARCHAR(128) COMMENT 'Cursor 技能名（.cursor/skills 下目录名），与 scan_skill_prompt 二选一或同时填则走 agent -f 提示文件',
-    scan_skill_prompt TEXT COMMENT '扫描说明，与技能组合写入提示文件',
-    receive_email VARCHAR(500) COMMENT '告警邮箱，多个逗号分隔',
-    status TINYINT DEFAULT 1,
-    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_gitlab_project_id (gitlab_project_id)
-) COMMENT '项目配置';
-
-CREATE TABLE IF NOT EXISTS scan_task_log (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    project_id BIGINT,
-    gitlab_project_id BIGINT,
-    project_name VARCHAR(255),
-    branch VARCHAR(255),
-    commit_hash VARCHAR(255),
-    commit_user VARCHAR(255),
-    exec_command TEXT,
-    exec_result LONGTEXT,
-    exec_status TINYINT COMMENT '1成功 2失败',
-    email_status TINYINT COMMENT '0未发送 1已发送 2发送失败',
-    task_start_time DATETIME,
-    task_end_time DATETIME,
-    create_time DATETIME DEFAULT CURRENT_TIMESTAMP
-) COMMENT '扫描任务执行日志';
+) COMMENT '全局配置（邮件等）';
 
 CREATE TABLE IF NOT EXISTS active_scan_repo (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,

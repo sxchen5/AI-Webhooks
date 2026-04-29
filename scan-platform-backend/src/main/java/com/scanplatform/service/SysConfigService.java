@@ -33,8 +33,6 @@ public class SysConfigService {
     @Transactional
     public SysConfigDto save(SysConfigDto dto) {
         SysConfig c = configRepository.findAll().stream().findFirst().orElseGet(this::createDefault);
-        c.setWebhookToken(dto.getWebhookToken());
-        c.setGitlabAllowIps(dto.getGitlabAllowIps());
         c.setSmtpHost(dto.getSmtpHost());
         c.setSmtpPort(dto.getSmtpPort());
         c.setSmtpUsername(dto.getSmtpUsername());
@@ -58,8 +56,6 @@ public class SysConfigService {
     private SysConfigDto toDto(SysConfig c, boolean maskPassword) {
         SysConfigDto d = new SysConfigDto();
         d.setId(c.getId());
-        d.setWebhookToken(c.getWebhookToken());
-        d.setGitlabAllowIps(c.getGitlabAllowIps());
         d.setSmtpHost(c.getSmtpHost());
         d.setSmtpPort(c.getSmtpPort());
         d.setSmtpUsername(c.getSmtpUsername());

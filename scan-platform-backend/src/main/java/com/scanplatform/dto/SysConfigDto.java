@@ -8,8 +8,6 @@ import lombok.Data;
 @Data
 public class SysConfigDto {
     private Long id;
-    private String webhookToken;
-    private String gitlabAllowIps;
     private String smtpHost;
     private Integer smtpPort;
     private String smtpUsername;
