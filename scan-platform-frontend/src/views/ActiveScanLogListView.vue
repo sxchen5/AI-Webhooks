@@ -6,7 +6,14 @@
         <el-button @click="load">刷新</el-button>
       </div>
     </template>
-    <el-table :data="tableData" v-loading="loading" border stripe>
+    <el-table
+      :data="tableData"
+      v-loading="loading"
+      border
+      stripe
+      :default-sort="{ prop: 'taskStartTime', order: 'descending' }"
+      @sort-change="onSortChange"
+    >
       <el-table-column prop="id" label="ID" width="70" />
       <el-table-column prop="jobName" label="任务" min-width="110" />
       <el-table-column prop="repoName" label="仓库" min-width="100" />
@@ -33,7 +40,7 @@
           <span v-else>—</span>
         </template>
       </el-table-column>
-      <el-table-column prop="taskStartTime" label="开始时间" width="170">
+      <el-table-column prop="taskStartTime" label="开始时间" width="170" sortable="custom">
         <template #default="{ row }">{{ formatBackendDateTime(row.taskStartTime) }}</template>
       </el-table-column>
       <el-table-column label="操作" width="120" fixed="right">
@@ -95,6 +102,8 @@ const tableData = ref([])
 const total = ref(0)
 const page = ref(1)
 const size = ref(10)
+/** 与开始时间列排序一致：'desc' 新在前，'asc' 旧在前 */
+const startTimeOrder = ref('desc')
 const drawerVisible = ref(false)
 const detail = ref(null)
 
@@ -105,10 +114,26 @@ function emailLabel(v) {
   return '—'
 }
 
+function onSortChange({ prop, order }) {
+  if (prop !== 'taskStartTime') return
+  if (order === 'ascending') startTimeOrder.value = 'asc'
+  else if (order === 'descending') startTimeOrder.value = 'desc'
+  else startTimeOrder.value = 'desc'
+  page.value = 1
+  load()
+}
+
 async function load() {
   loading.value = true
   try {
-    const res = await fetchActiveLogs(page.value - 1, size.value)
+    const res = await fetchActiveLogs(
+      page.value - 1,
+      size.value,
+      undefined,
+      undefined,
+      undefined,
+      startTimeOrder.value,
+    )
     tableData.value = res.content || []
     total.value = res.totalElements || 0
   } finally {

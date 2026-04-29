@@ -53,11 +53,12 @@ export function runActiveJob(id) {
   return http.post(`/active-scan/jobs/${id}/run`)
 }
 
-export function fetchActiveLogs(page, size, repoId, jobName, repoName) {
+export function fetchActiveLogs(page, size, repoId, jobName, repoName, startTimeOrder) {
   const params = { page, size }
   if (repoId != null && repoId !== '') params.repoId = repoId
   if (jobName) params.jobName = jobName
   if (repoName) params.repoName = repoName
+  if (startTimeOrder === 'asc' || startTimeOrder === 'desc') params.startTimeOrder = startTimeOrder
   return http.get('/active-scan/logs', { params })
 }
 
