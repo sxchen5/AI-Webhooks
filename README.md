@@ -138,11 +138,18 @@ scan:
 
 ### Cursor 技能扫描（页面配置）
 
-技能文件需放在**被扫描代码仓库**内的 `.cursor/skills/<技能目录名>/SKILL.md`（与 [Cursor Skills 文档](https://cursor.com/docs/skills) 一致）。本平台的 **「扫描技能名」** 填该目录名（如 `gitlab-webhook-cursor-scan`），**「技能补充说明」** 可写漏洞、供应链风险等要求。
+1. **平台技能（优先级最高）**  
+   菜单 **平台技能**：维护 `skill_name` 与完整 `SKILL.md` 正文。当某次扫描配置的 **扫描技能名** 与平台技能名一致且技能为启用状态时，平台会在**每次扫描前**将内容写入工作区  
+   `{代码根}/.cursor/skills/<技能名>/SKILL.md`，**覆盖**仓库内同名路径；若平台未配置该名，则仍使用仓库自带的 `.cursor/skills/`。
 
-保存后，执行时会在代码目录下生成 `.scan-platform/scan-prompt-*.txt`，并运行 **`agent --print -f <该文件>`**；提示首行为 **`/技能目录名`**，用于显式触发对应技能。扫描的完整输出仍写入 **WebHook 扫描日志** 或 **主动扫描日志** 页面。
+2. **仓库内技能**  
+   技能定义见 [Cursor Skills 文档](https://cursor.com/docs/skills)。在 **项目管理 / 主动扫描仓库** 中填写 **「扫描技能名」**（与 `.cursor/skills` 下目录名一致），**「技能补充说明」** 可写任意任务说明（性能、规范、漏洞等）。
 
-若更习惯手写整条命令，可留空技能名，仅在 **Agent 命令** 中写 `agent -p "..." --print` 等（与原先一致）。
+3. **执行方式**  
+   运行时在代码目录生成 `.scan-platform/scan-prompt-*.txt`，执行 **`agent --print -f <该文件>`**；首行 **`/技能目录名`** 用于显式触发技能。输出写入 **WebHook 扫描日志** 或 **主动扫描日志**。  
+   若留空技能名，仅在 **Agent 命令** 中写自定义 `agent ...` 亦可。
+
+已有数据库请执行 **`migration-platform-skill.sql`** 创建 `platform_skill` 表。
 
 - **任务**可绑定仓库，配置 **Cron**（Spring 6 段：`秒 分 时 日 月 周`，例 `0 0 2 * * ?` 每天 2 点）、是否失败/成功发邮件（使用仓库上的通知邮箱与系统 SMTP）、可选覆盖 agent 命令。
 - **立即扫描**：任务列表「立即扫描」→ `POST /api/active-scan/jobs/{id}/run`。

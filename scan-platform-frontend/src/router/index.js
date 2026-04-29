@@ -19,6 +19,7 @@ const routes = [
       { path: 'active-scan/repos', name: 'ActiveScanRepos', meta: { title: '主动扫描-仓库' }, component: () => import('@/views/ActiveScanRepoListView.vue') },
       { path: 'active-scan/jobs', name: 'ActiveScanJobs', meta: { title: '主动扫描-任务' }, component: () => import('@/views/ActiveScanJobListView.vue') },
       { path: 'active-scan/logs', name: 'ActiveScanLogs', meta: { title: '主动扫描-日志' }, component: () => import('@/views/ActiveScanLogListView.vue') },
+      { path: 'platform-skills', name: 'PlatformSkills', meta: { title: '平台技能' }, component: () => import('@/views/PlatformSkillListView.vue') },
     ],
   },
 ]

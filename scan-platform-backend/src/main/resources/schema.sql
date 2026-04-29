@@ -114,3 +114,14 @@ CREATE TABLE IF NOT EXISTS active_scan_log (
     KEY idx_job_id (job_id),
     KEY idx_create_time (create_time)
 ) COMMENT '主动扫描-执行日志';
+
+CREATE TABLE IF NOT EXISTS platform_skill (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    skill_name VARCHAR(128) NOT NULL COMMENT '与 .cursor/skills 目录名一致',
+    description VARCHAR(500) COMMENT '说明',
+    skill_body LONGTEXT NOT NULL COMMENT '完整 SKILL.md',
+    status TINYINT DEFAULT 1,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_skill_name (skill_name)
+) COMMENT '平台技能：扫描前写入工作区，优先级高于仓库 .cursor/skills';

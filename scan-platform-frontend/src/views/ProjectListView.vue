@@ -58,7 +58,7 @@
       </el-form-item>
       <el-divider content-position="left">Cursor 技能扫描（可选）</el-divider>
       <el-form-item label="扫描技能名" prop="scanSkillName">
-        <el-input v-model="dialogForm.scanSkillName" maxlength="128" placeholder=".cursor/skills 下目录名，如 gitlab-webhook-cursor-scan" clearable />
+        <el-input v-model="dialogForm.scanSkillName" maxlength="128" placeholder="与 .cursor/skills 或「平台技能」中名称一致" clearable />
       </el-form-item>
       <el-form-item label="技能补充说明" prop="scanSkillPrompt">
         <el-input

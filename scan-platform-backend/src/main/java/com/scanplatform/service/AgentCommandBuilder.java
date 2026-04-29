@@ -20,6 +20,12 @@ import java.nio.file.Path;
 @Component
 public class AgentCommandBuilder {
 
+    private final PlatformSkillMaterializer platformSkillMaterializer;
+
+    public AgentCommandBuilder(PlatformSkillMaterializer platformSkillMaterializer) {
+        this.platformSkillMaterializer = platformSkillMaterializer;
+    }
+
     /**
      * @param workDirAbsolute  代码根目录（已解析占位符后的绝对路径）
      * @param branch           分支
@@ -45,6 +51,9 @@ public class AgentCommandBuilder {
             throw new IllegalArgumentException("扫描技能名无效，请使用字母数字与连字符（与 .cursor/skills 下目录名一致）");
         }
 
+        // 平台技能优先：存在则写入工作区 .cursor/skills/<slug>/SKILL.md，覆盖仓库同名技能
+        platformSkillMaterializer.materializeIfPresent(workDirAbsolute, slug);
+
         Path dir = workDirAbsolute.resolve(".scan-platform");
         Files.createDirectories(dir);
         String fileName = "scan-prompt-" + System.nanoTime() + ".txt";
@@ -57,7 +66,7 @@ public class AgentCommandBuilder {
 
         StringBuilder body = new StringBuilder();
         body.append("/").append(slug).append(" ");
-        body.append("对当前仓库做安全与风险扫描。上下文：").append(label);
+        body.append("请按上述技能执行本次任务。上下文：").append(label);
         body.append("；工作目录: ").append(p);
         body.append("；分支: ").append(b).append("；Commit: ").append(c).append("。\n");
         if (StringUtils.hasText(skillPrompt)) {
@@ -67,7 +76,7 @@ public class AgentCommandBuilder {
                     .replace("{{commit}}", c);
             body.append(extra.trim()).append("\n");
         }
-        body.append("请输出结构化结论；不要擅自修改仓库文件，除非用户明确要求。\n");
+        body.append("请输出清晰可读的结论；除技能明确要求外不要修改仓库文件。\n");
 
         Files.writeString(promptFile, body.toString(), StandardCharsets.UTF_8);
 

@@ -66,7 +66,7 @@
       </el-form-item>
       <el-divider content-position="left">Cursor 技能（可选）</el-divider>
       <el-form-item label="扫描技能名">
-        <el-input v-model="form.scanSkillName" maxlength="128" placeholder=".cursor/skills 下目录名" clearable />
+        <el-input v-model="form.scanSkillName" maxlength="128" placeholder="与平台技能或仓库 .cursor/skills 目录名一致" clearable />
       </el-form-item>
       <el-form-item label="技能补充说明">
         <el-input v-model="form.scanSkillPrompt" type="textarea" :rows="2" placeholder="漏洞、供应链风险等" clearable />

@@ -21,7 +21,8 @@ public class SpaForwardController {
             "/scan-logs",
             "/active-scan/repos",
             "/active-scan/jobs",
-            "/active-scan/logs"
+            "/active-scan/logs",
+            "/platform-skills"
     })
     public String forwardSpa() {
         return "forward:/index.html";

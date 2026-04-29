@@ -56,6 +56,10 @@
             <el-icon><Clock /></el-icon>
             <template #title>主动扫描日志</template>
           </el-menu-item>
+          <el-menu-item index="/platform-skills">
+            <el-icon><Collection /></el-icon>
+            <template #title>平台技能</template>
+          </el-menu-item>
         </el-menu>
       </div>
     </el-aside>
@@ -76,7 +80,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { Clock, Document, Expand, Fold, FolderOpened, Link, Monitor, Setting, Timer } from '@element-plus/icons-vue'
+import { Clock, Collection, Document, Expand, Fold, FolderOpened, Link, Monitor, Setting, Timer } from '@element-plus/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 
