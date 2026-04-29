@@ -73,16 +73,45 @@
       <el-form-item label="本地代码目录" prop="localCodePath">
         <el-input v-model="dialogForm.localCodePath" maxlength="500" placeholder="服务器上已存在的代码路径" />
       </el-form-item>
-      <el-divider content-position="left">Cursor 技能扫描（可选）</el-divider>
-      <el-form-item label="扫描技能名" prop="scanSkillName">
-        <el-input v-model="dialogForm.scanSkillName" maxlength="128" placeholder="与 .cursor/skills 或「平台技能」中名称一致" clearable />
+      <el-divider content-position="left">Cursor 技能（可选）</el-divider>
+      <el-form-item label="扫描技能">
+        <el-radio-group v-model="dialogForm.skillPickMode">
+          <el-radio label="none">不使用技能</el-radio>
+          <el-radio label="platform">选择平台技能</el-radio>
+          <el-radio label="custom">手动输入技能名</el-radio>
+        </el-radio-group>
+      </el-form-item>
+      <el-form-item v-if="dialogForm.skillPickMode === 'platform'" label="平台技能">
+        <el-select
+          v-model="dialogForm.scanSkillName"
+          clearable
+          filterable
+          placeholder="从已启用的平台技能中选择"
+          style="width: 100%"
+        >
+          <el-option
+            v-for="o in platformSkillOptions"
+            :key="o.skillName"
+            :label="o.description ? `${o.skillName} — ${o.description}` : o.skillName"
+            :value="o.skillName"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item v-if="dialogForm.skillPickMode === 'custom'" label="技能名">
+        <el-input
+          v-model="dialogForm.scanSkillName"
+          maxlength="128"
+          placeholder="与仓库 .cursor/skills 下目录名一致"
+          clearable
+        />
       </el-form-item>
       <el-form-item label="技能补充说明" prop="scanSkillPrompt">
         <el-input
           v-model="dialogForm.scanSkillPrompt"
           type="textarea"
           :rows="3"
-          placeholder="漏洞、依赖风险等；支持 {{path}} {{branch}} {{commit}}；填技能名时首行会自动 /技能名 触发"
+          placeholder="漏洞、依赖风险等；支持 {{path}} {{branch}} {{commit}}"
+          clearable
         />
       </el-form-item>
       <el-form-item label="Agent 命令" prop="agentCommand">
@@ -92,7 +121,7 @@
           :rows="4"
           maxlength="1000"
           show-word-limit
-          placeholder="与「扫描技能名」二选一或同时用：仅技能时填占位即可；否则写脚本或 agent 命令"
+          placeholder="与技能二选一；仅技能可填 echo 占位"
         />
       </el-form-item>
       <el-form-item label="告警邮箱" prop="receiveEmail">
@@ -113,10 +142,11 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { createProject, deleteProject, fetchProjects, updateProject } from '@/api/project'
 import { fetchWebhookProjectOptions } from '@/api/projectOptions'
+import { fetchPlatformSkillOptions } from '@/api/platformSkill'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -125,6 +155,7 @@ const page = ref(1)
 const size = ref(10)
 const filterProjectName = ref('')
 const projectOptions = ref([])
+const platformSkillOptions = ref([])
 
 const dialogVisible = ref(false)
 const isEdit = ref(false)
@@ -141,6 +172,8 @@ const dialogForm = reactive({
   scanSkillPrompt: '',
   receiveEmail: '',
   status: 1,
+  /** none | platform | custom */
+  skillPickMode: 'none',
 })
 
 const dialogRules = {
@@ -150,16 +183,43 @@ const dialogRules = {
   agentCommand: [
     {
       validator: (_, v, cb) => {
-        const skill = dialogForm.scanSkillName?.trim()
-        if (!skill && !(v && String(v).trim())) {
-          cb(new Error('请填写 Agent 命令或扫描技能名'))
-        } else {
-          cb()
+        if (dialogForm.skillPickMode === 'none') {
+          if (!(v && String(v).trim())) {
+            cb(new Error('未使用技能时请填写 Agent 命令'))
+          } else {
+            cb()
+          }
+          return
         }
+        if (
+          (dialogForm.skillPickMode === 'platform' || dialogForm.skillPickMode === 'custom') &&
+          !dialogForm.scanSkillName?.trim()
+        ) {
+          cb(new Error('请选择或填写扫描技能名'))
+          return
+        }
+        cb()
       },
       trigger: 'blur',
     },
   ],
+}
+
+watch(
+  () => dialogForm.skillPickMode,
+  (mode) => {
+    if (mode === 'none') {
+      dialogForm.scanSkillName = ''
+    }
+  }
+)
+
+async function loadPlatformSkillOptions() {
+  try {
+    platformSkillOptions.value = (await fetchPlatformSkillOptions()) || []
+  } catch {
+    platformSkillOptions.value = []
+  }
 }
 
 async function load() {
@@ -184,6 +244,7 @@ onMounted(async () => {
   } catch {
     projectOptions.value = []
   }
+  await loadPlatformSkillOptions()
   await load()
 })
 
@@ -198,6 +259,14 @@ function resetForm() {
   dialogForm.scanSkillPrompt = ''
   dialogForm.receiveEmail = ''
   dialogForm.status = 1
+  dialogForm.skillPickMode = 'none'
+}
+
+function inferSkillPickMode(savedName) {
+  const n = (savedName || '').trim()
+  if (!n) return 'none'
+  if (platformSkillOptions.value.some((o) => o.skillName === n)) return 'platform'
+  return 'custom'
 }
 
 function openCreate() {
@@ -208,23 +277,42 @@ function openCreate() {
 
 function openEdit(row) {
   isEdit.value = true
+  const skillName = row.scanSkillName || ''
   Object.assign(dialogForm, {
     id: row.id,
     gitlabProjectId: row.gitlabProjectId,
     projectName: row.projectName,
     gitUrl: row.gitUrl || '',
     localCodePath: row.localCodePath,
-    agentCommand: row.agentCommand,
-    scanSkillName: row.scanSkillName || '',
+    agentCommand: row.agentCommand === '(cursor-skill)' ? '' : row.agentCommand,
+    scanSkillName: skillName,
     scanSkillPrompt: row.scanSkillPrompt || '',
     receiveEmail: row.receiveEmail || '',
     status: row.status,
+    skillPickMode: inferSkillPickMode(skillName),
   })
   dialogVisible.value = true
 }
 
 async function saveDialog() {
   await dialogFormRef.value.validate()
+  if (dialogForm.skillPickMode === 'none') {
+    dialogForm.scanSkillName = ''
+  }
+  if (dialogForm.skillPickMode === 'platform' && !dialogForm.scanSkillName?.trim()) {
+    ElMessage.warning('请选择平台技能，或改为「手动输入」/「不使用技能」')
+    return
+  }
+  if (dialogForm.skillPickMode === 'custom' && !dialogForm.scanSkillName?.trim()) {
+    ElMessage.warning('请填写技能名')
+    return
+  }
+  const skillOut = dialogForm.skillPickMode === 'none' ? null : dialogForm.scanSkillName?.trim() || null
+  const cmdTrim = dialogForm.agentCommand?.trim() || ''
+  if (!skillOut && !cmdTrim) {
+    ElMessage.warning('请填写 Agent 命令，或选择/填写扫描技能')
+    return
+  }
   saving.value = true
   try {
     const payload = {
@@ -232,8 +320,8 @@ async function saveDialog() {
       projectName: dialogForm.projectName,
       gitUrl: dialogForm.gitUrl || null,
       localCodePath: dialogForm.localCodePath,
-      agentCommand: dialogForm.agentCommand?.trim() || '(cursor-skill)',
-      scanSkillName: dialogForm.scanSkillName?.trim() || null,
+      agentCommand: skillOut ? (cmdTrim || '(cursor-skill)') : cmdTrim,
+      scanSkillName: skillOut,
       scanSkillPrompt: dialogForm.scanSkillPrompt?.trim() || null,
       receiveEmail: dialogForm.receiveEmail || null,
       status: dialogForm.status,
