@@ -38,7 +38,7 @@
     </div>
   </el-card>
 
-  <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑平台技能' : '新建平台技能'" width="720px" destroy-on-close top="5vh">
+  <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑平台技能' : '新建平台技能'" width="92%" top="4vh" class="skill-dialog" destroy-on-close>
     <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
       <el-form-item label="技能名" prop="skillName">
         <el-input v-model="form.skillName" maxlength="128" placeholder="仅字母数字及 ._-，与 SKILL 目录名一致" :disabled="isEdit" />
@@ -47,12 +47,39 @@
         <el-input v-model="form.description" maxlength="500" placeholder="列表展示用" />
       </el-form-item>
       <el-form-item label="SKILL.md" prop="skillBody">
-        <el-input
-          v-model="form.skillBody"
-          type="textarea"
-          :rows="18"
-          placeholder="粘贴完整 SKILL.md（含 YAML frontmatter 的 --- name / description ---）"
-        />
+        <div class="skill-toolbar">
+          <el-radio-group v-model="skillBodyViewMode" size="small">
+            <el-radio-button label="edit">编辑</el-radio-button>
+            <el-radio-button label="split">编辑+预览</el-radio-button>
+            <el-radio-button label="preview">预览</el-radio-button>
+          </el-radio-group>
+          <div class="skill-actions">
+            <el-button size="small" @click="copySkillBody">复制</el-button>
+            <el-button size="small" @click="downloadSkillMd">下载 SKILL.md</el-button>
+          </div>
+        </div>
+        <p class="field-hint">正文为 Markdown；预览与下发扫描日志中的预览使用相同渲染规则。</p>
+        <div v-if="skillBodyViewMode === 'edit'" class="skill-body-block">
+          <el-input
+            v-model="form.skillBody"
+            type="textarea"
+            :rows="22"
+            placeholder="粘贴完整 SKILL.md（含 YAML frontmatter 的 --- name / description ---）"
+          />
+        </div>
+        <div v-else-if="skillBodyViewMode === 'split'" class="skill-split">
+          <el-input
+            v-model="form.skillBody"
+            type="textarea"
+            :rows="20"
+            class="split-editor"
+            placeholder="左侧编辑，右侧实时预览"
+          />
+          <MarkdownPreview class="split-preview" :source="form.skillBody" />
+        </div>
+        <div v-else class="skill-body-block">
+          <MarkdownPreview :source="form.skillBody" />
+        </div>
       </el-form-item>
       <el-form-item label="状态" prop="status">
         <el-radio-group v-model="form.status">
@@ -71,12 +98,15 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import MarkdownPreview from '@/components/MarkdownPreview.vue'
 import {
   createPlatformSkill,
   deletePlatformSkill,
   fetchPlatformSkills,
   updatePlatformSkill,
 } from '@/api/platformSkill'
+
+const skillBodyViewMode = ref('edit')
 
 const loading = ref(false)
 const tableData = ref([])
@@ -126,6 +156,7 @@ description: 示例：按需修改 name 与正文
 在此编写技能正文…
 `
   form.status = 1
+  skillBodyViewMode.value = 'edit'
 }
 
 function openCreate() {
@@ -143,6 +174,7 @@ function openEdit(row) {
     skillBody: row.skillBody || '',
     status: row.status,
   })
+  skillBodyViewMode.value = 'edit'
   dialogVisible.value = true
 }
 
@@ -168,6 +200,28 @@ async function saveDialog() {
   } finally {
     saving.value = false
   }
+}
+
+async function copySkillBody() {
+  const t = form.skillBody ?? ''
+  try {
+    await navigator.clipboard.writeText(t)
+    ElMessage.success('已复制 SKILL.md 原文')
+  } catch {
+    ElMessage.error('复制失败，请手动选中编辑区文本复制')
+  }
+}
+
+function downloadSkillMd() {
+  const name = (form.skillName || 'SKILL').trim().replace(/[/\\?%*:|"<>]/g, '_') || 'SKILL'
+  const blob = new Blob([form.skillBody ?? ''], { type: 'text/markdown;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${name}.md`
+  a.click()
+  URL.revokeObjectURL(url)
+  ElMessage.success('已开始下载')
 }
 
 async function onDelete(row) {
@@ -205,5 +259,53 @@ onMounted(load)
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+}
+.skill-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.skill-actions {
+  display: flex;
+  gap: 8px;
+}
+.field-hint {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.4;
+}
+.skill-body-block {
+  width: 100%;
+}
+.skill-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: stretch;
+  min-height: 360px;
+}
+@media (max-width: 900px) {
+  .skill-split {
+    grid-template-columns: 1fr;
+  }
+}
+.split-editor :deep(.el-textarea__inner) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  min-height: 360px;
+}
+.split-preview {
+  min-height: 360px;
+  max-height: 70vh;
+}
+</style>
+
+<style lang="scss">
+.skill-dialog .el-dialog__body {
+  padding-top: 8px;
 }
 </style>

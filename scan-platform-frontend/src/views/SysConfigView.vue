@@ -45,7 +45,7 @@
         title="说明"
         type="info"
         :closable="false"
-        description="扫描失败时向项目配置的告警邮箱发送邮件；SMTP 与邮箱均在页面配置，无需改 application.yml。GitLab WebHook 地址：/api/webhook/gitlab"
+        description="WebHook 项目扫描失败/告警与「Git 仓库扫描」主动扫描通知共用此处 SMTP 与邮件标题前缀；各项目/仓库的收件人在各自配置中填写。无需改 application.yml。GitLab WebHook 地址：/api/webhook/gitlab"
       />
     </el-form>
   </el-card>

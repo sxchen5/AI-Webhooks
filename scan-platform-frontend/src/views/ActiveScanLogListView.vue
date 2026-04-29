@@ -39,7 +39,9 @@
           <span v-else>—</span>
         </template>
       </el-table-column>
-      <el-table-column prop="taskStartTime" label="开始时间" width="170" />
+      <el-table-column prop="taskStartTime" label="开始时间" width="170">
+        <template #default="{ row }">{{ formatBackendDateTime(row.taskStartTime) }}</template>
+      </el-table-column>
       <el-table-column label="操作" width="100" fixed="right">
         <template #default="{ row }">
           <el-button type="primary" link @click="openDetail(row)">详情</el-button>
@@ -78,14 +80,16 @@
         <el-descriptions-item label="邮件">
           {{ emailLabel(detail.emailStatus) }}
         </el-descriptions-item>
-        <el-descriptions-item label="时间">{{ detail.taskStartTime }} → {{ detail.taskEndTime || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="时间">
+          {{ formatBackendDateTime(detail.taskStartTime) }} → {{ formatBackendDateTime(detail.taskEndTime) }}
+        </el-descriptions-item>
       </el-descriptions>
       <h4>Git 同步日志</h4>
       <el-input type="textarea" :rows="6" readonly :model-value="detail.cloneLog || ''" />
       <h4>执行命令</h4>
       <el-input type="textarea" :rows="4" readonly :model-value="detail.execCommand || ''" />
       <h4>执行输出</h4>
-      <el-input type="textarea" :rows="14" readonly :model-value="detail.execResult || ''" />
+      <MarkdownOutputPanel :text="detail.execResult || ''" :rows="14" />
     </template>
   </el-drawer>
 </template>
@@ -93,6 +97,8 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { fetchActiveLogs, getActiveLog } from '@/api/activeScan'
+import MarkdownOutputPanel from '@/components/MarkdownOutputPanel.vue'
+import { formatBackendDateTime } from '@/utils/formatTime'
 
 const loading = ref(false)
 const tableData = ref([])

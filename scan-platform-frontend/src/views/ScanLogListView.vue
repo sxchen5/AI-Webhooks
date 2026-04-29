@@ -44,7 +44,9 @@
           <span v-else>—</span>
         </template>
       </el-table-column>
-      <el-table-column prop="taskStartTime" label="开始时间" width="170" />
+      <el-table-column prop="taskStartTime" label="开始时间" width="170">
+        <template #default="{ row }">{{ formatBackendDateTime(row.taskStartTime) }}</template>
+      </el-table-column>
       <el-table-column label="操作" width="100" fixed="right">
         <template #default="{ row }">
           <el-button type="primary" link @click="openDetail(row)">详情</el-button>
@@ -78,13 +80,13 @@
         <el-descriptions-item label="邮件状态">
           {{ emailLabel(detail.emailStatus) }}
         </el-descriptions-item>
-        <el-descriptions-item label="开始">{{ detail.taskStartTime }}</el-descriptions-item>
-        <el-descriptions-item label="结束">{{ detail.taskEndTime || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="开始">{{ formatBackendDateTime(detail.taskStartTime) }}</el-descriptions-item>
+        <el-descriptions-item label="结束">{{ formatBackendDateTime(detail.taskEndTime) }}</el-descriptions-item>
       </el-descriptions>
       <h4>执行命令</h4>
       <el-input type="textarea" :rows="4" readonly :model-value="detail.execCommand || ''" />
       <h4>执行结果</h4>
-      <el-input type="textarea" :rows="16" readonly :model-value="detail.execResult || ''" />
+      <MarkdownOutputPanel :text="detail.execResult || ''" :rows="16" />
     </template>
   </el-drawer>
 </template>
@@ -93,6 +95,8 @@
 import { onMounted, ref } from 'vue'
 import { fetchScanLogs, getScanLog } from '@/api/scanLog'
 import { fetchWebhookProjectOptions } from '@/api/projectOptions'
+import MarkdownOutputPanel from '@/components/MarkdownOutputPanel.vue'
+import { formatBackendDateTime } from '@/utils/formatTime'
 
 const loading = ref(false)
 const tableData = ref([])

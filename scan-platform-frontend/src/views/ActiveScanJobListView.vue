@@ -6,7 +6,7 @@
         <el-button type="primary" @click="openCreate">新建任务</el-button>
       </div>
     </template>
-    <p class="tip">定时使用 Spring 6 段 Cron（秒 分 时 日 月 周），例：每天 2 点 <code>0 0 2 * * ?</code>；启用定时后保存会自动计算下次执行时间。</p>
+    <p class="tip">定时使用 Spring 6 段 Cron（秒 分 时 日 月 周），例：每天 2 点 <code>0 0 2 * * ?</code>；启用定时后保存会自动计算下次执行时间。邮件通知使用<strong>系统配置</strong>中的 SMTP（与 WebHook 扫描共用），收件人请在<strong>仓库管理</strong>中配置通知邮箱。</p>
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column prop="id" label="ID" width="70" />
       <el-table-column prop="jobName" label="任务名" min-width="120" />
@@ -19,7 +19,9 @@
         </template>
       </el-table-column>
       <el-table-column prop="cronExpression" label="Cron" min-width="140" show-overflow-tooltip />
-      <el-table-column prop="nextScheduleRun" label="下次执行" width="170" />
+      <el-table-column prop="nextScheduleRun" label="下次执行" width="170">
+        <template #default="{ row }">{{ formatBackendDateTime(row.nextScheduleRun) }}</template>
+      </el-table-column>
       <el-table-column prop="status" label="状态" width="80">
         <template #default="{ row }">
           <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
@@ -109,6 +111,7 @@ import {
   runActiveJob,
   updateActiveJob,
 } from '@/api/activeScan'
+import { formatBackendDateTime } from '@/utils/formatTime'
 
 const loading = ref(false)
 const tableData = ref([])
