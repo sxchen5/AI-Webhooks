@@ -6,11 +6,11 @@
         <el-button type="primary" @click="openCreate">新建任务</el-button>
       </div>
     </template>
-    <p class="tip">定时使用 Spring 6 段 Cron（秒 分 时 日 月 周），例：每天 2 点 <code>0 0 2 * * ?</code>；启用定时后保存会自动计算下次执行时间。邮件通知使用<strong>系统配置管理 → 邮件配置</strong>中的 SMTP，收件人请在<strong>仓库管理</strong>中配置通知邮箱。</p>
+    <p class="tip">定时使用 Spring 6 段 Cron（秒 分 时 日 月 周），例：每天 2 点 <code>0 0 2 * * ?</code>；启用定时后保存会自动计算下次执行时间。邮件通知使用<strong>系统配置管理 → 邮件配置</strong>中的 SMTP，收件人请在<strong>Git项目配置</strong>中配置通知邮箱。</p>
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column prop="id" label="ID" width="70" />
       <el-table-column prop="jobName" label="任务名" min-width="120" />
-      <el-table-column label="仓库" min-width="120">
+      <el-table-column label="配置" min-width="120">
         <template #default="{ row }">{{ repoName(row.repoId) }}</template>
       </el-table-column>
       <el-table-column label="定时" width="90">
@@ -27,10 +27,11 @@
           <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="260" fixed="right">
         <template #default="{ row }">
           <el-button type="success" link :disabled="row.status !== 1" @click="onRun(row)">立即扫描</el-button>
           <el-button type="primary" link @click="openEdit(row)">编辑</el-button>
+          <el-button type="info" link @click="openCopy(row)">复制</el-button>
           <el-button type="danger" link @click="onDelete(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -47,13 +48,13 @@
     </div>
   </el-card>
 
-  <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑任务' : '新建任务'" width="640px" destroy-on-close>
+  <el-dialog v-model="dialogVisible" :title="dialogTitle" width="640px" destroy-on-close>
     <el-form ref="formRef" :model="form" :rules="rules" label-width="130px">
       <el-form-item label="任务名称" prop="jobName">
         <el-input v-model="form.jobName" maxlength="255" />
       </el-form-item>
-      <el-form-item label="关联仓库" prop="repoId">
-        <el-select v-model="form.repoId" placeholder="选择仓库" filterable style="width: 100%">
+      <el-form-item label="关联配置" prop="repoId">
+        <el-select v-model="form.repoId" placeholder="选择 Git 项目配置" filterable style="width: 100%">
           <el-option v-for="r in repoOptions" :key="r.id" :label="`${r.repoName} (#${r.id})`" :value="r.id" />
         </el-select>
       </el-form-item>
@@ -64,21 +65,21 @@
         <el-input v-model="form.cronExpression" maxlength="120" placeholder="0 0 2 * * ?" clearable />
       </el-form-item>
       <el-form-item label="覆盖技能名">
-        <el-input v-model="form.scanSkillName" maxlength="128" placeholder="留空用仓库配置" clearable />
+        <el-input v-model="form.scanSkillName" maxlength="128" placeholder="留空用 Git 项目配置" clearable />
       </el-form-item>
       <el-form-item label="覆盖技能说明">
-        <el-input v-model="form.scanSkillPrompt" type="textarea" :rows="2" placeholder="留空用仓库配置" clearable />
+        <el-input v-model="form.scanSkillPrompt" type="textarea" :rows="2" placeholder="留空用 Git 项目配置" clearable />
       </el-form-item>
       <el-form-item label="覆盖 Agent 命令">
-        <el-input v-model="form.agentCommandOverride" type="textarea" :rows="2" maxlength="1000" placeholder="留空使用仓库默认命令" clearable />
+        <el-input v-model="form.agentCommandOverride" type="textarea" :rows="2" maxlength="1000" placeholder="留空使用 Git 项目配置中的命令" clearable />
       </el-form-item>
       <el-form-item label="展示 Commit">
         <el-radio-group v-model="form.displayCommitMode">
-          <el-radio label="inherit">沿用仓库</el-radio>
+          <el-radio label="inherit">沿用配置</el-radio>
           <el-radio label="show">覆盖为展示</el-radio>
           <el-radio label="hide">覆盖为不强调</el-radio>
         </el-radio-group>
-        <span class="form-hint">仅影响该任务触发的日志列表与邮件是否突出 Commit</span>
+        <span class="form-hint">仅影响该任务触发的日志与邮件是否突出 Commit</span>
       </el-form-item>
       <el-form-item label="失败发邮件">
         <el-switch :active-value="1" :inactive-value="0" v-model="form.notifyOnFailure" />
@@ -101,7 +102,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   createActiveJob,
@@ -123,6 +124,7 @@ const repoMap = ref({})
 
 const dialogVisible = ref(false)
 const isEdit = ref(false)
+const isCopy = ref(false)
 const saving = ref(false)
 const formRef = ref()
 const form = reactive({
@@ -145,6 +147,12 @@ const rules = {
   jobName: [{ required: true, message: '必填', trigger: 'blur' }],
   repoId: [{ required: true, message: '必选', trigger: 'change' }],
 }
+
+const dialogTitle = computed(() => {
+  if (isEdit.value) return '编辑任务'
+  if (isCopy.value) return '复制任务'
+  return '新建任务'
+})
 
 function repoName(id) {
   return repoMap.value[id] || `#${id}`
@@ -188,15 +196,38 @@ function resetForm() {
 
 function openCreate() {
   isEdit.value = false
+  isCopy.value = false
   resetForm()
   dialogVisible.value = true
 }
 
 function openEdit(row) {
   isEdit.value = true
+  isCopy.value = false
   Object.assign(form, {
     id: row.id,
     jobName: row.jobName,
+    repoId: row.repoId,
+    scheduleEnabled: row.scheduleEnabled,
+    cronExpression: row.cronExpression || '',
+    agentCommandOverride: row.agentCommandOverride || '',
+    scanSkillName: row.scanSkillName || '',
+    scanSkillPrompt: row.scanSkillPrompt || '',
+    displayCommitMode:
+      row.displayCommit === 0 ? 'hide' : row.displayCommit === 1 ? 'show' : 'inherit',
+    notifyOnFailure: row.notifyOnFailure,
+    notifyOnSuccess: row.notifyOnSuccess,
+    status: row.status,
+  })
+  dialogVisible.value = true
+}
+
+function openCopy(row) {
+  isEdit.value = false
+  isCopy.value = true
+  Object.assign(form, {
+    id: null,
+    jobName: `${row.jobName}（复制）`,
     repoId: row.repoId,
     scheduleEnabled: row.scheduleEnabled,
     cronExpression: row.cronExpression || '',
@@ -239,7 +270,7 @@ async function saveDialog() {
       ElMessage.success('已更新')
     } else {
       await createActiveJob(payload)
-      ElMessage.success('已创建')
+      ElMessage.success(isCopy.value ? '已从复制创建' : '已创建')
     }
     dialogVisible.value = false
     await load()

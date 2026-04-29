@@ -21,9 +21,19 @@ CREATE TABLE IF NOT EXISTS sys_config (
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) COMMENT '全局配置（邮件等）';
 
+CREATE TABLE IF NOT EXISTS git_project (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    project_name VARCHAR(255) NOT NULL COMMENT '项目名称',
+    git_url VARCHAR(500) NOT NULL COMMENT 'Git 项目地址',
+    status TINYINT DEFAULT 1 COMMENT '1启用 0禁用',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) COMMENT 'Git项目管理';
+
 CREATE TABLE IF NOT EXISTS active_scan_repo (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    repo_name VARCHAR(255) NOT NULL COMMENT '仓库显示名称',
+    repo_name VARCHAR(255) NOT NULL COMMENT '项目名称（可与 git_project 同步）',
+    git_project_id BIGINT COMMENT '关联 git_project',
     git_url VARCHAR(500) NOT NULL COMMENT 'Git 克隆地址',
     git_username VARCHAR(255) COMMENT 'HTTP(S) 用户名',
     git_password VARCHAR(500) COMMENT 'HTTP(S) 密码或 Token',
@@ -36,8 +46,9 @@ CREATE TABLE IF NOT EXISTS active_scan_repo (
     display_commit TINYINT DEFAULT 1 COMMENT '1展示检出commit 0不强调单次提交',
     status TINYINT DEFAULT 1,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) COMMENT '主动扫描-Git仓库';
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_git_project_id (git_project_id)
+) COMMENT '主动扫描-Git项目配置';
 
 CREATE TABLE IF NOT EXISTS active_scan_job (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,

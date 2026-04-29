@@ -9,6 +9,8 @@ public class ActiveScanRepoDto {
     private Long id;
     @NotBlank
     private String repoName;
+    /** 可选：关联 git_project */
+    private Long gitProjectId;
     @NotBlank
     private String gitUrl;
     private String gitUsername;

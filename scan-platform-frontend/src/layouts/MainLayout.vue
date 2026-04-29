@@ -50,9 +50,13 @@
               <el-icon><Folder /></el-icon>
               <span class="submenu-title-text">Git仓库扫描管理</span>
             </template>
+            <el-menu-item index="/active-scan/git-projects">
+              <el-icon><FolderOpened /></el-icon>
+              <template #title>Git项目管理</template>
+            </el-menu-item>
             <el-menu-item index="/active-scan/repos">
               <el-icon><Link /></el-icon>
-              <template #title>仓库管理</template>
+              <template #title>Git项目配置</template>
             </el-menu-item>
             <el-menu-item index="/active-scan/jobs">
               <el-icon><Timer /></el-icon>
@@ -94,7 +98,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { Clock, Collection, Expand, Fold, Folder, Link, Message, Monitor, Setting, Timer } from '@element-plus/icons-vue'
+import { Clock, Collection, Expand, Fold, Folder, FolderOpened, Link, Message, Monitor, Setting, Timer } from '@element-plus/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 

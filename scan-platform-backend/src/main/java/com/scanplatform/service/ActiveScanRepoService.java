@@ -4,6 +4,7 @@ import com.scanplatform.dto.ActiveScanRepoDto;
 import com.scanplatform.entity.ActiveScanRepo;
 import com.scanplatform.repository.ActiveScanJobRepository;
 import com.scanplatform.repository.ActiveScanRepoRepository;
+import com.scanplatform.repository.GitProjectRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -21,14 +22,15 @@ public class ActiveScanRepoService {
 
     private final ActiveScanRepoRepository repository;
     private final ActiveScanJobRepository jobRepository;
+    private final GitProjectRepository gitProjectRepository;
 
     @Transactional(readOnly = true)
     public Page<ActiveScanRepo> page(String projectName, Pageable pageable) {
         if (!StringUtils.hasText(projectName)) {
             return repository.findAll(pageable);
         }
-        String n = projectName.trim();
-        return repository.findAll((root, q, cb) -> cb.equal(root.get("repoName"), n), pageable);
+        String n = escapeLike(projectName.trim());
+        return repository.findAll((root, q, cb) -> cb.like(root.get("repoName"), "%" + n + "%", '\\'), pageable);
     }
 
     @Transactional(readOnly = true)
@@ -38,7 +40,7 @@ public class ActiveScanRepoService {
 
     @Transactional(readOnly = true)
     public ActiveScanRepo get(Long id) {
-        return repository.findById(id).orElseThrow(() -> new IllegalArgumentException("仓库不存在"));
+        return repository.findById(id).orElseThrow(() -> new IllegalArgumentException("配置不存在"));
     }
 
     @Transactional
@@ -58,14 +60,19 @@ public class ActiveScanRepoService {
     @Transactional
     public void delete(Long id) {
         if (jobRepository.countByRepoId(id) > 0) {
-            throw new IllegalArgumentException("该仓库仍被扫描任务引用，请先删除任务");
+            throw new IllegalArgumentException("该配置仍被下发任务引用，请先删除任务");
         }
         repository.deleteById(id);
-        log.info("删除主动扫描仓库: id={}", id);
+        log.info("删除 Git 项目配置: id={}", id);
     }
 
     private void apply(ActiveScanRepoDto dto, ActiveScanRepo e, boolean isNew) {
         e.setRepoName(dto.getRepoName());
+        if (dto.getGitProjectId() != null) {
+            gitProjectRepository.findById(dto.getGitProjectId())
+                    .orElseThrow(() -> new IllegalArgumentException("Git 项目不存在"));
+        }
+        e.setGitProjectId(dto.getGitProjectId());
         e.setGitUrl(dto.getGitUrl());
         e.setGitUsername(dto.getGitUsername());
         if (StringUtils.hasText(dto.getGitPassword()) || isNew) {
@@ -79,5 +86,9 @@ public class ActiveScanRepoService {
         e.setReceiveEmail(dto.getReceiveEmail());
         e.setDisplayCommit(dto.getDisplayCommit() != null ? dto.getDisplayCommit() : 1);
         e.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
+    }
+
+    private static String escapeLike(String s) {
+        return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 }

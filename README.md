@@ -13,7 +13,7 @@ Spring Boot 3 + Vue3 + Element Plus + MySQL。支持 **主动 Git 扫描**（多
 2. 修改 `scan-platform-backend/src/main/resources/application.yml` 中的数据源账号密码（或通过环境变量覆盖）。
 3. 首次启动会自动执行 `schema.sql` 与 `data.sql`（建表 + 默认管理员）。
 
-**从含 GitLab WebHook / `project_info` / `scan_task_log` 的旧库升级**：在备份后手工执行 `scan-platform-backend/src/main/resources/migration-remove-webhook.sql`（删除旧表与 `sys_config` 中 WebHook 相关列）。新装库直接使用当前 `schema.sql` 即可。
+**增加 Git 项目管理**：已有库在备份后执行 `migration-git-project.sql`（新建 `git_project` 表并为 `active_scan_repo` 增加 `git_project_id`）。若仍含旧版 WebHook 表，可先执行 `migration-remove-webhook.sql`。
 
 默认登录：`admin` / `admin123`（BCrypt 存储在 `data.sql`）。
 

@@ -2,26 +2,24 @@
   <el-card shadow="never" class="page-card">
     <template #header>
       <div class="card-header">
-        <span>Git仓库扫描 · 仓库管理</span>
+        <span>Git仓库扫描 · Git项目配置</span>
         <div class="header-actions">
-          <el-select
+          <el-input
             v-model="filterRepoName"
             clearable
-            filterable
-            placeholder="项目名称"
+            placeholder="筛选项目名称"
             style="width: 220px"
             @change="onFilterChange"
-          >
-            <el-option v-for="n in repoNameOptions" :key="n" :label="n" :value="n" />
-          </el-select>
-          <el-button type="primary" @click="openCreate">新建仓库</el-button>
+            @clear="onFilterChange"
+          />
+          <el-button type="primary" @click="openCreate">新建配置</el-button>
         </div>
       </div>
     </template>
-    <p class="tip">支持多个 HTTP(S) 仓库；用户名/密码用于非交互克隆。凭据存库请注意权限；密码不会在列表中回显。通知邮箱用于主动扫描结果邮件，发信账号在<strong>系统配置管理 → 邮件配置</strong>中维护。</p>
+    <p class="tip">支持多个 HTTP(S) 仓库；用户名/密码用于非交互克隆。可从「Git项目管理」选择项目自动带出地址。通知邮箱用于主动扫描结果邮件，发信账号在<strong>系统配置管理 → 邮件配置</strong>中维护。</p>
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column prop="id" label="ID" width="70" />
-      <el-table-column prop="repoName" label="名称" min-width="120" />
+      <el-table-column prop="repoName" label="项目名称" min-width="120" />
       <el-table-column prop="gitUrl" label="Git URL" min-width="200" show-overflow-tooltip />
       <el-table-column prop="gitUsername" label="用户名" width="120" show-overflow-tooltip />
       <el-table-column prop="branch" label="分支" width="100" />
@@ -37,9 +35,10 @@
           <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="140" fixed="right">
+      <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
           <el-button type="primary" link @click="openEdit(row)">编辑</el-button>
+          <el-button type="info" link @click="openCopy(row)">复制</el-button>
           <el-button type="danger" link @click="onDelete(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -56,13 +55,41 @@
     </div>
   </el-card>
 
-  <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑仓库' : '新建仓库'" width="640px" destroy-on-close>
+  <el-dialog v-model="dialogVisible" :title="dialogTitle" width="640px" destroy-on-close>
     <el-form ref="formRef" :model="form" :rules="rules" label-width="120px">
-      <el-form-item label="显示名称" prop="repoName">
-        <el-input v-model="form.repoName" maxlength="255" />
+      <el-form-item label="名称来源">
+        <el-radio-group v-model="form.repoLinkMode" @change="onRepoLinkModeChange">
+          <el-radio label="project">选择 Git 项目</el-radio>
+          <el-radio label="manual">手动填写</el-radio>
+        </el-radio-group>
+      </el-form-item>
+      <el-form-item v-if="form.repoLinkMode === 'project'" label="Git 项目" prop="gitProjectId">
+        <el-select
+          v-model="form.gitProjectId"
+          clearable
+          filterable
+          placeholder="从 Git项目管理 中选择"
+          style="width: 100%"
+          @change="onGitProjectSelect"
+        >
+          <el-option
+            v-for="o in gitProjectOptions"
+            :key="o.id"
+            :label="`${o.projectName} (#${o.id})`"
+            :value="o.id"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="项目名称" prop="repoName">
+        <el-input
+          v-model="form.repoName"
+          maxlength="255"
+          :disabled="form.repoLinkMode === 'project' && form.gitProjectId != null"
+          placeholder="与 Git 项目一致或手动填写"
+        />
       </el-form-item>
       <el-form-item label="Git URL" prop="gitUrl">
-        <el-input v-model="form.gitUrl" maxlength="500" placeholder="https://..." />
+        <el-input v-model="form.gitUrl" maxlength="500" placeholder="https://..." :disabled="form.repoLinkMode === 'project'" />
       </el-form-item>
       <el-form-item label="用户名" prop="gitUsername">
         <el-input v-model="form.gitUsername" maxlength="255" placeholder="HTTPS 可选" clearable />
@@ -136,7 +163,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   createActiveRepo,
@@ -144,6 +171,7 @@ import {
   fetchActiveRepos,
   updateActiveRepo,
 } from '@/api/activeScan'
+import { fetchGitProjectOptions } from '@/api/gitProject'
 import { fetchPlatformSkillOptions } from '@/api/platformSkill'
 
 const loading = ref(false)
@@ -151,15 +179,21 @@ const tableData = ref([])
 const total = ref(0)
 const page = ref(1)
 const size = ref(10)
+const filterRepoName = ref('')
 
 const platformSkillOptions = ref([])
+const gitProjectOptions = ref([])
 
 const dialogVisible = ref(false)
 const isEdit = ref(false)
+const isCopy = ref(false)
 const saving = ref(false)
 const formRef = ref()
 const form = reactive({
   id: null,
+  /** manual | project */
+  repoLinkMode: 'manual',
+  gitProjectId: null,
   repoName: '',
   gitUrl: '',
   gitUsername: '',
@@ -172,13 +206,30 @@ const form = reactive({
   receiveEmail: '',
   displayCommit: 1,
   status: 1,
-  /** none | platform | custom */
   skillPickMode: 'none',
+})
+
+const dialogTitle = computed(() => {
+  if (isEdit.value) return '编辑 Git 项目配置'
+  if (isCopy.value) return '复制 Git 项目配置'
+  return '新建 Git 项目配置'
 })
 
 const rules = {
   repoName: [{ required: true, message: '必填', trigger: 'blur' }],
   gitUrl: [{ required: true, message: '必填', trigger: 'blur' }],
+  gitProjectId: [
+    {
+      validator: (_, v, cb) => {
+        if (form.repoLinkMode === 'project' && (v == null || v === '')) {
+          cb(new Error('请选择 Git 项目'))
+        } else {
+          cb()
+        }
+      },
+      trigger: 'change',
+    },
+  ],
   agentCommand: [
     {
       validator: (_, v, cb) => {
@@ -210,6 +261,31 @@ watch(
   }
 )
 
+function onRepoLinkModeChange(mode) {
+  if (mode === 'manual') {
+    form.gitProjectId = null
+  }
+}
+
+function onGitProjectSelect(id) {
+  if (id == null) {
+    return
+  }
+  const o = gitProjectOptions.value.find((x) => x.id === id)
+  if (o) {
+    form.repoName = o.projectName
+    form.gitUrl = o.gitUrl || ''
+  }
+}
+
+async function loadGitProjectOptions() {
+  try {
+    gitProjectOptions.value = (await fetchGitProjectOptions()) || []
+  } catch {
+    gitProjectOptions.value = []
+  }
+}
+
 async function loadPlatformSkillOptions() {
   try {
     platformSkillOptions.value = (await fetchPlatformSkillOptions()) || []
@@ -218,10 +294,15 @@ async function loadPlatformSkillOptions() {
   }
 }
 
+function onFilterChange() {
+  page.value = 1
+  load()
+}
+
 async function load() {
   loading.value = true
   try {
-    const res = await fetchActiveRepos(page.value - 1, size.value)
+    const res = await fetchActiveRepos(page.value - 1, size.value, filterRepoName.value?.trim() || undefined)
     tableData.value = res.content || []
     total.value = res.totalElements || 0
   } finally {
@@ -231,6 +312,8 @@ async function load() {
 
 function resetForm() {
   form.id = null
+  form.repoLinkMode = 'manual'
+  form.gitProjectId = null
   form.repoName = ''
   form.gitUrl = ''
   form.gitUsername = ''
@@ -255,16 +338,47 @@ function inferSkillPickMode(savedName) {
 
 function openCreate() {
   isEdit.value = false
+  isCopy.value = false
   resetForm()
   dialogVisible.value = true
 }
 
 function openEdit(row) {
   isEdit.value = true
+  isCopy.value = false
   const skillName = row.scanSkillName || ''
+  const linked = row.gitProjectId != null
   Object.assign(form, {
     id: row.id,
+    repoLinkMode: linked ? 'project' : 'manual',
+    gitProjectId: linked ? row.gitProjectId : null,
     repoName: row.repoName,
+    gitUrl: row.gitUrl,
+    gitUsername: row.gitUsername || '',
+    gitPassword: '',
+    branch: row.branch || 'main',
+    localClonePath: row.localClonePath || '',
+    agentCommand: row.agentCommand === '(cursor-skill)' ? '' : row.agentCommand,
+    scanSkillName: skillName,
+    scanSkillPrompt: row.scanSkillPrompt || '',
+    receiveEmail: row.receiveEmail || '',
+    displayCommit: row.displayCommit === 0 ? 0 : 1,
+    status: row.status,
+    skillPickMode: inferSkillPickMode(skillName),
+  })
+  dialogVisible.value = true
+}
+
+function openCopy(row) {
+  isEdit.value = false
+  isCopy.value = true
+  const skillName = row.scanSkillName || ''
+  const linked = row.gitProjectId != null
+  Object.assign(form, {
+    id: null,
+    repoLinkMode: linked ? 'project' : 'manual',
+    gitProjectId: linked ? row.gitProjectId : null,
+    repoName: `${row.repoName}（复制）`,
     gitUrl: row.gitUrl,
     gitUsername: row.gitUsername || '',
     gitPassword: '',
@@ -283,6 +397,10 @@ function openEdit(row) {
 
 async function saveDialog() {
   await formRef.value.validate()
+  if (form.repoLinkMode === 'project' && form.gitProjectId == null) {
+    ElMessage.warning('请选择 Git 项目，或改为「手动填写」')
+    return
+  }
   if (form.skillPickMode === 'none') {
     form.scanSkillName = ''
   }
@@ -309,6 +427,7 @@ async function saveDialog() {
   try {
     const payload = {
       repoName: form.repoName,
+      gitProjectId: form.repoLinkMode === 'project' ? form.gitProjectId : null,
       gitUrl: form.gitUrl,
       gitUsername: form.gitUsername || null,
       gitPassword: form.gitPassword || null,
@@ -337,13 +456,14 @@ async function saveDialog() {
 }
 
 async function onDelete(row) {
-  await ElMessageBox.confirm(`确定删除仓库「${row.repoName}」？`, '提示', { type: 'warning' })
+  await ElMessageBox.confirm(`确定删除配置「${row.repoName}」？`, '提示', { type: 'warning' })
   await deleteActiveRepo(row.id)
   ElMessage.success('已删除')
   await load()
 }
 
 onMounted(async () => {
+  await loadGitProjectOptions()
   await loadPlatformSkillOptions()
   await load()
 })
@@ -358,6 +478,11 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   font-weight: 600;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 .tip {
   margin: 0 0 12px;

@@ -23,6 +23,10 @@ public class ActiveScanRepo {
     @Column(name = "repo_name", nullable = false, length = 255)
     private String repoName;
 
+    /** 可选：关联 git_project，用于从主数据带出 Git URL */
+    @Column(name = "git_project_id")
+    private Long gitProjectId;
+
     @Column(name = "git_url", nullable = false, length = 500)
     private String gitUrl;
 

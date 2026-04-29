@@ -11,7 +11,7 @@ const routes = [
   {
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
-    redirect: '/active-scan/repos',
+    redirect: '/active-scan/git-projects',
     children: [
       {
         path: 'system/mail',
@@ -19,7 +19,13 @@ const routes = [
         meta: { title: '邮件配置' },
         component: () => import('@/views/MailConfigView.vue'),
       },
-      { path: 'active-scan/repos', name: 'ActiveScanRepos', meta: { title: '仓库管理' }, component: () => import('@/views/ActiveScanRepoListView.vue') },
+      {
+        path: 'active-scan/git-projects',
+        name: 'GitProjects',
+        meta: { title: 'Git项目管理' },
+        component: () => import('@/views/GitProjectListView.vue'),
+      },
+      { path: 'active-scan/repos', name: 'ActiveScanRepos', meta: { title: 'Git项目配置' }, component: () => import('@/views/ActiveScanRepoListView.vue') },
       { path: 'active-scan/jobs', name: 'ActiveScanJobs', meta: { title: '下发任务管理' }, component: () => import('@/views/ActiveScanJobListView.vue') },
       { path: 'active-scan/logs', name: 'ActiveScanLogs', meta: { title: '下发任务日志' }, component: () => import('@/views/ActiveScanLogListView.vue') },
       { path: 'platform-skills', name: 'PlatformSkills', meta: { title: '平台技能' }, component: () => import('@/views/PlatformSkillListView.vue') },

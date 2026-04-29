@@ -17,6 +17,7 @@ public class SpaForwardController {
             "/",
             "/login",
             "/system/mail",
+            "/active-scan/git-projects",
             "/active-scan/repos",
             "/active-scan/jobs",
             "/active-scan/logs",
