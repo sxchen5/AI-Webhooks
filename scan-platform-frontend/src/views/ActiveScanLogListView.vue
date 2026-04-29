@@ -2,7 +2,7 @@
   <el-card shadow="never" class="page-card">
     <template #header>
       <div class="card-header">
-        <span>主动扫描 · 执行日志</span>
+        <span>Git仓库扫描 · 下发日志</span>
         <el-button @click="load">刷新</el-button>
       </div>
     </template>
@@ -53,7 +53,7 @@
     </div>
   </el-card>
 
-  <el-drawer v-model="drawerVisible" title="主动扫描详情" size="62%">
+  <el-drawer v-model="drawerVisible" title="下发扫描详情" size="62%">
     <template v-if="detail">
       <el-descriptions :column="1" border size="small">
         <el-descriptions-item label="任务">{{ detail.jobName }} (ID {{ detail.jobId }})</el-descriptions-item>

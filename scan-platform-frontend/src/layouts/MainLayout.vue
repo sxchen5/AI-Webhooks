@@ -25,6 +25,7 @@
         <el-menu
           class="side-menu"
           :default-active="active"
+          :default-openeds="defaultOpenSubmenus"
           :collapse="collapsed"
           :collapse-transition="true"
           router
@@ -32,30 +33,44 @@
           text-color="rgba(255,255,255,0.75)"
           active-text-color="#fff"
         >
-          <el-menu-item index="/projects">
-            <el-icon><FolderOpened /></el-icon>
-            <template #title>项目管理</template>
-          </el-menu-item>
-          <el-menu-item index="/sys-config">
-            <el-icon><Setting /></el-icon>
-            <template #title>系统配置</template>
-          </el-menu-item>
-          <el-menu-item index="/scan-logs">
-            <el-icon><Document /></el-icon>
-            <template #title>扫描日志</template>
-          </el-menu-item>
-          <el-menu-item index="/active-scan/repos">
-            <el-icon><Link /></el-icon>
-            <template #title>主动扫描仓库</template>
-          </el-menu-item>
-          <el-menu-item index="/active-scan/jobs">
-            <el-icon><Timer /></el-icon>
-            <template #title>主动扫描任务</template>
-          </el-menu-item>
-          <el-menu-item index="/active-scan/logs">
-            <el-icon><Clock /></el-icon>
-            <template #title>主动扫描日志</template>
-          </el-menu-item>
+          <el-sub-menu index="webhook-mgmt">
+            <template #title>
+              <el-icon><Message /></el-icon>
+              <span>WebHooks回调管理</span>
+            </template>
+            <el-menu-item index="/projects">
+              <el-icon><FolderOpened /></el-icon>
+              <template #title>项目管理</template>
+            </el-menu-item>
+            <el-menu-item index="/sys-config">
+              <el-icon><Setting /></el-icon>
+              <template #title>系统配置</template>
+            </el-menu-item>
+            <el-menu-item index="/scan-logs">
+              <el-icon><Document /></el-icon>
+              <template #title>扫描日志</template>
+            </el-menu-item>
+          </el-sub-menu>
+
+          <el-sub-menu index="git-scan-mgmt">
+            <template #title>
+              <el-icon><Folder /></el-icon>
+              <span>Git仓库扫描管理</span>
+            </template>
+            <el-menu-item index="/active-scan/repos">
+              <el-icon><Link /></el-icon>
+              <template #title>项目管理</template>
+            </el-menu-item>
+            <el-menu-item index="/active-scan/jobs">
+              <el-icon><Timer /></el-icon>
+              <template #title>下发任务管理</template>
+            </el-menu-item>
+            <el-menu-item index="/active-scan/logs">
+              <el-icon><Clock /></el-icon>
+              <template #title>下发日志</template>
+            </el-menu-item>
+          </el-sub-menu>
+
           <el-menu-item index="/platform-skills">
             <el-icon><Collection /></el-icon>
             <template #title>平台技能</template>
@@ -80,7 +95,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { Clock, Collection, Document, Expand, Fold, FolderOpened, Link, Monitor, Setting, Timer } from '@element-plus/icons-vue'
+import { Clock, Collection, Document, Expand, Fold, Folder, FolderOpened, Link, Message, Monitor, Setting, Timer } from '@element-plus/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 
@@ -93,6 +108,20 @@ const collapsed = ref(false)
 const asideWidth = computed(() => (collapsed.value ? '64px' : '220px'))
 
 const active = computed(() => route.path)
+
+/** 根据当前路由展开对应一级菜单，避免刷新后子菜单折叠 */
+const defaultOpenSubmenus = computed(() => {
+  const p = route.path
+  const open = []
+  if (p === '/projects' || p === '/sys-config' || p === '/scan-logs') {
+    open.push('webhook-mgmt')
+  }
+  if (p.startsWith('/active-scan')) {
+    open.push('git-scan-mgmt')
+  }
+  return open
+})
+
 const title = computed(() => route.meta.title || '控制台')
 
 function onLogout() {
@@ -167,7 +196,7 @@ function onLogout() {
   overflow-x: hidden;
 }
 .side-menu:not(.el-menu--collapse) {
-  width: 220px;
+  width: 240px;
 }
 .collapse-btn {
   flex-shrink: 0;

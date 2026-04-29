@@ -2,7 +2,7 @@
   <el-card shadow="never" class="page-card">
     <template #header>
       <div class="card-header">
-        <span>主动扫描 · 任务</span>
+        <span>Git仓库扫描 · 下发任务管理</span>
         <el-button type="primary" @click="openCreate">新建任务</el-button>
       </div>
     </template>
