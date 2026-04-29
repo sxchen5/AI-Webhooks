@@ -3,7 +3,19 @@
     <template #header>
       <div class="card-header">
         <span>Git仓库扫描 · 仓库管理</span>
-        <el-button type="primary" @click="openCreate">新建仓库</el-button>
+        <div class="header-actions">
+          <el-select
+            v-model="filterRepoName"
+            clearable
+            filterable
+            placeholder="项目名称"
+            style="width: 220px"
+            @change="onFilterChange"
+          >
+            <el-option v-for="n in repoNameOptions" :key="n" :label="n" :value="n" />
+          </el-select>
+          <el-button type="primary" @click="openCreate">新建仓库</el-button>
+        </div>
       </div>
     </template>
     <p class="tip">支持多个 HTTP(S) 仓库；用户名/密码用于非交互克隆。凭据存库请注意权限；密码不会在列表中回显。</p>
@@ -102,6 +114,10 @@
       <el-form-item label="Agent 命令" prop="agentCommand">
         <el-input v-model="form.agentCommand" type="textarea" :rows="3" maxlength="1000" show-word-limit placeholder="与技能二选一；仅技能可填 echo 占位" />
       </el-form-item>
+      <el-form-item label="展示检出 Commit">
+        <el-switch :active-value="1" :inactive-value="0" v-model="form.displayCommit" />
+        <span class="form-hint">关闭后列表与邮件不强调单次提交 hash，适合全仓类技能</span>
+      </el-form-item>
       <el-form-item label="通知邮箱" prop="receiveEmail">
         <el-input v-model="form.receiveEmail" maxlength="500" placeholder="逗号分隔，可选" clearable />
       </el-form-item>
@@ -154,6 +170,7 @@ const form = reactive({
   scanSkillName: '',
   scanSkillPrompt: '',
   receiveEmail: '',
+  displayCommit: 1,
   status: 1,
   /** none | platform | custom */
   skillPickMode: 'none',
@@ -224,6 +241,7 @@ function resetForm() {
   form.scanSkillName = ''
   form.scanSkillPrompt = ''
   form.receiveEmail = ''
+  form.displayCommit = 1
   form.status = 1
   form.skillPickMode = 'none'
 }
@@ -256,6 +274,7 @@ function openEdit(row) {
     scanSkillName: skillName,
     scanSkillPrompt: row.scanSkillPrompt || '',
     receiveEmail: row.receiveEmail || '',
+    displayCommit: row.displayCommit === 0 ? 0 : 1,
     status: row.status,
     skillPickMode: inferSkillPickMode(skillName),
   })
@@ -299,6 +318,7 @@ async function saveDialog() {
       scanSkillName: skillOut,
       scanSkillPrompt: form.scanSkillPrompt?.trim() || null,
       receiveEmail: form.receiveEmail || null,
+      displayCommit: form.displayCommit === 0 ? 0 : 1,
       status: form.status,
     }
     if (isEdit.value) {
@@ -348,5 +368,11 @@ onMounted(async () => {
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+}
+.form-hint {
+  margin-left: 8px;
+  font-size: 12px;
+  color: #909399;
+  vertical-align: middle;
 }
 </style>

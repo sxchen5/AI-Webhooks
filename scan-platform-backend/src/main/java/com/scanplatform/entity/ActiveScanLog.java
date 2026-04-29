@@ -43,6 +43,10 @@ public class ActiveScanLog {
     @Column(name = "commit_hash", length = 255)
     private String commitHash;
 
+    /** 1 展示 commit 列；0 表示非单次提交类扫描，界面弱化 hash */
+    @Column(name = "display_commit", nullable = false)
+    private Integer displayCommit = 1;
+
     @Column(name = "clone_log", columnDefinition = "TEXT")
     private String cloneLog;
 

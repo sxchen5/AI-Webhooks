@@ -21,8 +21,9 @@ public class ActiveScanRepoController {
     @GetMapping
     public ApiResponse<Page<ActiveScanRepo>> page(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        return ApiResponse.ok(service.page(PageRequest.of(page, size, Sort.by("id").descending())));
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String projectName) {
+        return ApiResponse.ok(service.page(projectName, PageRequest.of(page, size, Sort.by("id").descending())));
     }
 
     @GetMapping("/{id}")

@@ -3,7 +3,24 @@
     <template #header>
       <div class="card-header">
         <span>WebHooks回调 · 仓库管理</span>
-        <el-button type="primary" @click="openCreate">新建项目</el-button>
+        <div class="header-actions">
+          <el-select
+            v-model="filterProjectName"
+            clearable
+            filterable
+            placeholder="项目名称"
+            style="width: 220px"
+            @change="onFilterChange"
+          >
+            <el-option
+              v-for="o in projectOptions"
+              :key="o.id"
+              :label="o.name"
+              :value="o.name"
+            />
+          </el-select>
+          <el-button type="primary" @click="openCreate">新建项目</el-button>
+        </div>
       </div>
     </template>
     <el-table :data="tableData" v-loading="loading" border stripe>
@@ -99,12 +116,15 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { createProject, deleteProject, fetchProjects, updateProject } from '@/api/project'
+import { fetchWebhookProjectOptions } from '@/api/projectOptions'
 
 const loading = ref(false)
 const tableData = ref([])
 const total = ref(0)
 const page = ref(1)
 const size = ref(10)
+const filterProjectName = ref('')
+const projectOptions = ref([])
 
 const dialogVisible = ref(false)
 const isEdit = ref(false)
@@ -145,13 +165,27 @@ const dialogRules = {
 async function load() {
   loading.value = true
   try {
-    const res = await fetchProjects(page.value - 1, size.value)
+    const res = await fetchProjects(page.value - 1, size.value, filterProjectName.value || undefined)
     tableData.value = res.content || []
     total.value = res.totalElements || 0
   } finally {
     loading.value = false
   }
 }
+
+function onFilterChange() {
+  page.value = 1
+  load()
+}
+
+onMounted(async () => {
+  try {
+    projectOptions.value = await fetchWebhookProjectOptions()
+  } catch {
+    projectOptions.value = []
+  }
+  await load()
+})
 
 function resetForm() {
   dialogForm.id = null
@@ -225,7 +259,6 @@ async function onDelete(row) {
   await load()
 }
 
-onMounted(load)
 </script>
 
 <style scoped lang="scss">
@@ -237,6 +270,11 @@ onMounted(load)
   align-items: center;
   justify-content: space-between;
   font-weight: 600;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 .pager {
   margin-top: 16px;

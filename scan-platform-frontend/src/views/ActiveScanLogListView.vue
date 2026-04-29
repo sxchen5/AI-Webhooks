@@ -18,7 +18,12 @@
         </template>
       </el-table-column>
       <el-table-column prop="branch" label="分支" width="100" show-overflow-tooltip />
-      <el-table-column prop="commitHash" label="Commit" min-width="120" show-overflow-tooltip />
+      <el-table-column prop="commitHash" label="Commit" min-width="120" show-overflow-tooltip>
+        <template #default="{ row }">
+          <span v-if="row.displayCommit === 0" class="muted">—</span>
+          <span v-else>{{ row.commitHash || '—' }}</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="execStatus" label="执行" width="90">
         <template #default="{ row }">
           <el-tag v-if="row.execStatus === 1" type="success">成功</el-tag>
@@ -60,7 +65,11 @@
         <el-descriptions-item label="仓库">{{ detail.repoName }}</el-descriptions-item>
         <el-descriptions-item label="触发">{{ detail.triggerType }}</el-descriptions-item>
         <el-descriptions-item label="Git">{{ detail.gitUrl }}</el-descriptions-item>
-        <el-descriptions-item label="分支 / Commit">{{ detail.branch }} / {{ detail.commitHash }}</el-descriptions-item>
+        <el-descriptions-item label="分支 / Commit">
+          {{ detail.branch }} /
+          <template v-if="detail.displayCommit === 0">（未强调单次提交）</template>
+          <template v-else>{{ detail.commitHash || '—' }}</template>
+        </el-descriptions-item>
         <el-descriptions-item label="执行">
           <el-tag v-if="detail.execStatus === 1" type="success">成功</el-tag>
           <el-tag v-else-if="detail.execStatus === 2" type="danger">失败</el-tag>
@@ -136,5 +145,8 @@ onMounted(load)
 }
 h4 {
   margin: 16px 0 8px;
+}
+.muted {
+  color: #c0c4cc;
 }
 </style>
