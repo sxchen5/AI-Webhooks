@@ -76,7 +76,6 @@ public class AgentCommandBuilder {
                     .replace("{{commit}}", c);
             body.append(extra.trim()).append("\n");
         }
-        body.append("请输出清晰可读的结论；除技能明确要求外不要修改仓库文件。\n");
 
         Files.writeString(promptFile, body.toString(), StandardCharsets.UTF_8);
 
