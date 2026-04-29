@@ -2,6 +2,7 @@ package com.scanplatform.service;
 
 import com.scanplatform.dto.ActiveScanRepoDto;
 import com.scanplatform.entity.ActiveScanRepo;
+import com.scanplatform.entity.GitProject;
 import com.scanplatform.repository.ActiveScanJobRepository;
 import com.scanplatform.repository.ActiveScanRepoRepository;
 import com.scanplatform.repository.GitProjectRepository;
@@ -69,8 +70,11 @@ public class ActiveScanRepoService {
     private void apply(ActiveScanRepoDto dto, ActiveScanRepo e, boolean isNew) {
         e.setRepoName(dto.getRepoName());
         if (dto.getGitProjectId() != null) {
-            gitProjectRepository.findById(dto.getGitProjectId())
+            GitProject gp = gitProjectRepository.findById(dto.getGitProjectId())
                     .orElseThrow(() -> new IllegalArgumentException("Git 项目不存在"));
+            if (gp.getStatus() == null || gp.getStatus() != 1) {
+                throw new IllegalArgumentException("所选 Git 项目已禁用，请启用后重试或改为手动填写");
+            }
         }
         e.setGitProjectId(dto.getGitProjectId());
         e.setGitUrl(dto.getGitUrl());

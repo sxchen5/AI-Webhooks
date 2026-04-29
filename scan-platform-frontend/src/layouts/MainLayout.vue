@@ -34,17 +34,6 @@
           text-color="rgba(255,255,255,0.75)"
           active-text-color="#fff"
         >
-          <el-sub-menu index="system-mgmt">
-            <template #title>
-              <el-icon><Setting /></el-icon>
-              <span class="submenu-title-text">系统配置管理</span>
-            </template>
-            <el-menu-item index="/system/mail">
-              <el-icon><Message /></el-icon>
-              <template #title>邮件配置</template>
-            </el-menu-item>
-          </el-sub-menu>
-
           <el-sub-menu index="git-scan-mgmt">
             <template #title>
               <el-icon><Folder /></el-icon>
@@ -76,6 +65,17 @@
             <el-menu-item index="/platform-skills">
               <el-icon><Collection /></el-icon>
               <template #title>平台技能</template>
+            </el-menu-item>
+          </el-sub-menu>
+
+          <el-sub-menu index="system-mgmt">
+            <template #title>
+              <el-icon><Setting /></el-icon>
+              <span class="submenu-title-text">系统配置管理</span>
+            </template>
+            <el-menu-item index="/system/mail">
+              <el-icon><Message /></el-icon>
+              <template #title>邮件配置</template>
             </el-menu-item>
           </el-sub-menu>
         </el-menu>

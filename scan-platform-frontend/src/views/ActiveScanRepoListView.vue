@@ -343,7 +343,19 @@ function openCreate() {
   dialogVisible.value = true
 }
 
-function openEdit(row) {
+/** 下拉仅含启用项目；若当前关联项已禁用则改为手动并清除关联 */
+function ensureLinkModeForDisabledProject() {
+  if (form.repoLinkMode !== 'project' || form.gitProjectId == null) return
+  const ok = gitProjectOptions.value.some((o) => o.id === form.gitProjectId)
+  if (!ok) {
+    form.repoLinkMode = 'manual'
+    form.gitProjectId = null
+    ElMessage.warning('关联的 Git 项目已禁用或已删除，已改为手动填写，请确认项目名称与 Git URL 后保存')
+  }
+}
+
+async function openEdit(row) {
+  await loadGitProjectOptions()
   isEdit.value = true
   isCopy.value = false
   const skillName = row.scanSkillName || ''
@@ -366,10 +378,12 @@ function openEdit(row) {
     status: row.status,
     skillPickMode: inferSkillPickMode(skillName),
   })
+  ensureLinkModeForDisabledProject()
   dialogVisible.value = true
 }
 
-function openCopy(row) {
+async function openCopy(row) {
+  await loadGitProjectOptions()
   isEdit.value = false
   isCopy.value = true
   const skillName = row.scanSkillName || ''
@@ -392,6 +406,7 @@ function openCopy(row) {
     status: row.status,
     skillPickMode: inferSkillPickMode(skillName),
   })
+  ensureLinkModeForDisabledProject()
   dialogVisible.value = true
 }
 

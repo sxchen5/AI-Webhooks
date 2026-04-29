@@ -38,7 +38,10 @@ public class GitProjectService {
 
     @Transactional(readOnly = true)
     public List<GitProject> listForOptions() {
-        return repository.findAll(org.springframework.data.domain.Sort.by("projectName"));
+        return repository.findAll(
+                org.springframework.data.domain.Sort.by("projectName")).stream()
+                .filter(p -> p.getStatus() != null && p.getStatus() == 1)
+                .toList();
     }
 
     @Transactional

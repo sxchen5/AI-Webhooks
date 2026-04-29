@@ -32,7 +32,7 @@ public class GitProjectController {
     @GetMapping("/options")
     public ApiResponse<List<IdNameUrlOption>> options() {
         return ApiResponse.ok(service.listForOptions().stream()
-                .map(p -> new IdNameUrlOption(p.getId(), p.getProjectName(), p.getGitUrl()))
+                .map(p -> new IdNameUrlOption(p.getId(), p.getProjectName(), p.getGitUrl(), p.getStatus()))
                 .collect(Collectors.toList()));
     }
 
@@ -57,6 +57,6 @@ public class GitProjectController {
         return ApiResponse.ok();
     }
 
-    public record IdNameUrlOption(Long id, String projectName, String gitUrl) {
+    public record IdNameUrlOption(Long id, String projectName, String gitUrl, Integer status) {
     }
 }
