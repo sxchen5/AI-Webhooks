@@ -125,6 +125,17 @@ agent -p "review these changes for security issues" --output-format text --model
 ## 主动扫描（非 WebHook）
 
 - 菜单：**主动扫描仓库 / 任务 / 日志**。仓库支持多条 Git URL、HTTPS 用户名密码（存库为明文，请控制库与文件权限）、分支、可选固定本地目录（留空则克隆到 `scan.active-scan.work-base-dir` 下 `repo-{id}`）。
+
+**Windows 上执行 agent 命令**：平台默认用 **`cmd.exe /c`** 执行配置的命令（不再使用 `/bin/bash`）。若命令是 `.sh` 或依赖 bash 语法，请在 `application.yml` 或环境变量中指定 Git Bash，例如：
+
+```yaml
+scan:
+  shell:
+    executable: "C:\\Program Files\\Git\\bin\\bash.exe"
+```
+
+或环境变量 `SCAN_SHELL_EXECUTABLE` 指向同一路径。WebHook 与主动扫描共用该配置。
+
 - **任务**可绑定仓库，配置 **Cron**（Spring 6 段：`秒 分 时 日 月 周`，例 `0 0 2 * * ?` 每天 2 点）、是否失败/成功发邮件（使用仓库上的通知邮箱与系统 SMTP）、可选覆盖 agent 命令。
 - **立即扫描**：任务列表「立即扫描」→ `POST /api/active-scan/jobs/{id}/run`。
 - 子进程除 `{{path}}` 等占位符外，额外注入 `ACTIVE_SCAN_*` 环境变量；仍兼容 `WEBHOOK_*` 供现有脚本使用。

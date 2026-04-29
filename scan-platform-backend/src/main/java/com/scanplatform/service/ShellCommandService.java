@@ -1,7 +1,9 @@
 package com.scanplatform.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -9,17 +11,24 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 在指定工作目录下异步执行 Shell 命令（通过 bash -c），收集标准输出与错误输出。
+ * 在指定工作目录下执行 Shell 命令并收集输出。
+ * Windows 默认使用 {@code cmd.exe /c}；类 Unix 使用 {@code /bin/bash -c}；可通过 {@code scan.shell.executable} 指定 Git Bash 等。
  */
 @Service
 @Slf4j
 public class ShellCommandService {
 
     private static final Duration DEFAULT_TIMEOUT = Duration.ofHours(2);
+
+    /** 非空则作为可执行文件，参数为 {@code -c} 与命令行（须支持 -c，如 bash、sh） */
+    @Value("${scan.shell.executable:}")
+    private String shellExecutable;
 
     /**
      * @param workingDir 工作目录，可为空则使用 JVM 当前目录
@@ -28,12 +37,13 @@ public class ShellCommandService {
      */
     public ShellResult execute(String command, Path workingDir, Map<String, String> extraEnv) throws Exception {
         Path dir = workingDir != null && Files.isDirectory(workingDir) ? workingDir : Path.of("").toAbsolutePath();
-        ProcessBuilder pb = new ProcessBuilder("/bin/bash", "-c", command);
+        List<String> cmdLine = buildShellCommandLine(command);
+        ProcessBuilder pb = new ProcessBuilder(cmdLine);
         pb.directory(dir.toFile());
         if (extraEnv != null && !extraEnv.isEmpty()) {
             pb.environment().putAll(extraEnv);
         }
-        log.debug("执行 Shell: dir={} envKeys={}", dir, extraEnv != null ? extraEnv.keySet() : "none");
+        log.debug("执行 Shell: {} dir={} envKeys={}", cmdLine.get(0), dir, extraEnv != null ? extraEnv.keySet() : "none");
         pb.redirectErrorStream(true);
         Process process = pb.start();
         StringBuilder out = new StringBuilder();
@@ -55,6 +65,31 @@ public class ShellCommandService {
             log.warn("Shell 退出码非零: exitCode={} dir={}", code, dir);
         }
         return new ShellResult(out.toString(), code);
+    }
+
+    private List<String> buildShellCommandLine(String command) {
+        List<String> list = new ArrayList<>();
+        if (StringUtils.hasText(shellExecutable)) {
+            list.add(shellExecutable.trim());
+            list.add("-c");
+            list.add(command);
+            return list;
+        }
+        if (isWindows()) {
+            list.add("cmd.exe");
+            list.add("/c");
+            list.add(command);
+            return list;
+        }
+        list.add("/bin/bash");
+        list.add("-c");
+        list.add(command);
+        return list;
+    }
+
+    private static boolean isWindows() {
+        String os = System.getProperty("os.name", "");
+        return os.toLowerCase().contains("win");
     }
 
     /** 不注入额外环境变量时的便捷重载。 */

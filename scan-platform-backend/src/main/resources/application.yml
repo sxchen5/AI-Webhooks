@@ -46,3 +46,8 @@ scan:
   # 主动扫描：未配置 local_clone_path 时，克隆到此目录下（需进程可写）
   active-scan:
     work-base-dir: ${SCAN_ACTIVE_WORK_DIR:./active-scan-work}
+  # 执行 agent_command 时使用的 Shell（Windows 默认 cmd，Linux/macOS 默认 bash）
+  # 若在 Windows 上要跑 .sh 或 bash 语法，可填 Git Bash 绝对路径，例如：
+  # scan.shell.executable: "C:\\Program Files\\Git\\bin\\bash.exe"
+  shell:
+    executable: ${SCAN_SHELL_EXECUTABLE:}
