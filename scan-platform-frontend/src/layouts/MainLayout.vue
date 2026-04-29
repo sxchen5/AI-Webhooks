@@ -2,23 +2,15 @@
   <el-container class="layout-root">
     <el-aside :width="asideWidth" class="aside" :class="{ 'aside--collapsed': collapsed }">
       <div class="aside-inner">
-        <div class="logo-row">
+        <!-- 展开时：品牌与收起在侧栏；收起时移到顶栏，避免折叠子菜单弹出层盖住侧栏图标 -->
+        <div v-if="!collapsed" class="logo-row">
           <div class="logo-brand">
             <el-icon class="logo-icon" :size="26"><Monitor /></el-icon>
-            <span class="logo-text">{{ collapsed ? '' : '代码扫描平台' }}</span>
+            <span class="logo-text">代码扫描平台</span>
           </div>
-          <el-tooltip :content="collapsed ? '展开菜单' : '收起菜单'" placement="right">
-            <el-button
-              class="collapse-toggle"
-              :class="{ 'collapse-toggle--mini': collapsed }"
-              type="primary"
-              link
-              @click.stop="collapsed = !collapsed"
-            >
-              <el-icon :size="20">
-                <Expand v-if="collapsed" />
-                <Fold v-else />
-              </el-icon>
+          <el-tooltip content="收起菜单" placement="right">
+            <el-button class="collapse-toggle" type="primary" link @click.stop="collapsed = true">
+              <el-icon :size="20"><Fold /></el-icon>
             </el-button>
           </el-tooltip>
         </div>
@@ -83,6 +75,14 @@
     </el-aside>
     <el-container>
       <el-header class="header">
+        <div v-if="collapsed" class="header-brand-bar">
+          <el-icon class="header-brand-icon" :size="24"><Monitor /></el-icon>
+          <el-tooltip content="展开菜单" placement="bottom">
+            <el-button class="header-collapse-btn" type="primary" link @click.stop="collapsed = false">
+              <el-icon :size="20"><Expand /></el-icon>
+            </el-button>
+          </el-tooltip>
+        </div>
         <div class="header-title">
           <template v-if="breadcrumb.parent">
             <span class="header-parent">{{ breadcrumb.parent }}</span>
@@ -161,7 +161,7 @@ function onLogout() {
   flex-direction: column;
   height: 100%;
 }
-/* 顶栏：平台图标 + 标题与「展开/收起」同一行，收起时图标与按钮并排，不与下方一级菜单图标挤成一列 */
+/* 展开侧栏时：品牌与收起在侧栏顶部 */
 .logo-row {
   flex-shrink: 0;
   min-height: 56px;
@@ -191,29 +191,12 @@ function onLogout() {
   color: #fff;
   white-space: nowrap;
   overflow: hidden;
-  opacity: 1;
-  max-width: 200px;
-  transition: opacity 0.22s ease, max-width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.aside--collapsed .logo-text {
-  opacity: 0;
-  max-width: 0;
 }
 .collapse-toggle {
   flex-shrink: 0;
   color: rgba(255, 255, 255, 0.88) !important;
   padding: 6px !important;
   margin: 0 !important;
-}
-.collapse-toggle--mini {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: inline-flex !important;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.06) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 .collapse-toggle:hover {
   color: #fff !important;
@@ -248,12 +231,27 @@ function onLogout() {
 .header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 16px;
   background: #fff;
   border-bottom: 1px solid #f0f0f0;
   padding: 0 20px;
 }
+.header-brand-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.header-brand-icon {
+  color: #409eff;
+}
+.header-collapse-btn {
+  padding: 6px !important;
+  margin: 0 !important;
+}
 .header-title {
+  flex: 1;
+  min-width: 0;
   font-size: 16px;
   font-weight: 500;
   color: #303133;
@@ -274,6 +272,8 @@ function onLogout() {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 .user-name {
   color: #666;
