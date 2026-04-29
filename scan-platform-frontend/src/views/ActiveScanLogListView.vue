@@ -2,7 +2,7 @@
   <el-card shadow="never" class="page-card">
     <template #header>
       <div class="card-header">
-        <span>Git仓库扫描 · 下发任务日志</span>
+        <span>下发任务日志</span>
         <el-button @click="load">刷新</el-button>
       </div>
     </template>
@@ -36,7 +36,7 @@
       <el-table-column prop="taskStartTime" label="开始时间" width="170">
         <template #default="{ row }">{{ formatBackendDateTime(row.taskStartTime) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="100" fixed="right">
+      <el-table-column label="操作" width="120" fixed="right">
         <template #default="{ row }">
           <el-button type="primary" link @click="openDetail(row)">详情</el-button>
         </template>
@@ -54,14 +54,14 @@
     </div>
   </el-card>
 
-  <el-drawer v-model="drawerVisible" title="下发扫描详情" size="62%">
+  <el-drawer v-model="drawerVisible" title="下发任务日志详情" size="62%">
     <template v-if="detail">
       <el-descriptions :column="1" border size="small">
         <el-descriptions-item label="任务">{{ detail.jobName }} (ID {{ detail.jobId }})</el-descriptions-item>
         <el-descriptions-item label="仓库">{{ detail.repoName }}</el-descriptions-item>
         <el-descriptions-item label="触发">{{ detail.triggerType }}</el-descriptions-item>
         <el-descriptions-item label="Git">{{ detail.gitUrl }}</el-descriptions-item>
-        <el-descriptions-item label="分支">{{ detail.branch || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="检出 Commit">{{ detail.commitHash || '—' }}</el-descriptions-item>
         <el-descriptions-item label="执行">
           <el-tag v-if="detail.execStatus === 1" type="success">成功</el-tag>
           <el-tag v-else-if="detail.execStatus === 2" type="danger">失败</el-tag>

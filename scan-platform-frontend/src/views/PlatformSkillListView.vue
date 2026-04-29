@@ -2,7 +2,7 @@
   <el-card shadow="never" class="page-card">
     <template #header>
       <div class="card-header">
-        <span>技能管理 · 平台技能</span>
+        <span>平台技能</span>
         <el-button type="primary" @click="openCreate">新建技能</el-button>
       </div>
     </template>
@@ -19,8 +19,9 @@
           <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="140" fixed="right">
+      <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
+          <el-button type="primary" link @click="openDetail(row)">详情</el-button>
           <el-button type="primary" link @click="openEdit(row)">编辑</el-button>
           <el-button type="danger" link @click="onDelete(row)">删除</el-button>
         </template>
@@ -37,6 +38,23 @@
       />
     </div>
   </el-card>
+
+  <el-drawer v-model="detailVisible" title="平台技能详情" size="62%">
+    <template v-if="detail">
+      <el-descriptions :column="1" border size="small" class="detail-desc">
+        <el-descriptions-item label="ID">{{ detail.id }}</el-descriptions-item>
+        <el-descriptions-item label="技能名">{{ detail.skillName }}</el-descriptions-item>
+        <el-descriptions-item label="说明">{{ detail.description || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="detail.status === 1 ? 'success' : 'info'">{{ detail.status === 1 ? '启用' : '禁用' }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="创建时间">{{ formatBackendDateTime(detail.createTime) }}</el-descriptions-item>
+        <el-descriptions-item label="更新时间">{{ formatBackendDateTime(detail.updateTime) }}</el-descriptions-item>
+      </el-descriptions>
+      <h4>SKILL.md 预览</h4>
+      <MarkdownPreview :source="detail.skillBody || ''" />
+    </template>
+  </el-drawer>
 
   <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑平台技能' : '新建平台技能'" width="92%" top="4vh" class="skill-dialog" destroy-on-close>
     <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
@@ -103,8 +121,10 @@ import {
   createPlatformSkill,
   deletePlatformSkill,
   fetchPlatformSkills,
+  getPlatformSkill,
   updatePlatformSkill,
 } from '@/api/platformSkill'
+import { formatBackendDateTime } from '@/utils/formatTime'
 
 const skillBodyViewMode = ref('edit')
 
@@ -113,6 +133,9 @@ const tableData = ref([])
 const total = ref(0)
 const page = ref(1)
 const size = ref(10)
+
+const detailVisible = ref(false)
+const detail = ref(null)
 
 const dialogVisible = ref(false)
 const isEdit = ref(false)
@@ -163,6 +186,11 @@ function openCreate() {
   isEdit.value = false
   resetForm()
   dialogVisible.value = true
+}
+
+async function openDetail(row) {
+  detail.value = await getPlatformSkill(row.id)
+  detailVisible.value = true
 }
 
 function openEdit(row) {
@@ -259,6 +287,12 @@ onMounted(load)
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+}
+.detail-desc {
+  margin-bottom: 16px;
+}
+h4 {
+  margin: 16px 0 8px;
 }
 .skill-toolbar {
   display: flex;

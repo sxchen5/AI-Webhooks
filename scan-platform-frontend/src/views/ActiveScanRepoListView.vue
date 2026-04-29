@@ -2,7 +2,7 @@
   <el-card shadow="never" class="page-card">
     <template #header>
       <div class="card-header">
-        <span>Git仓库扫描 · Git项目配置</span>
+        <span>Git项目配置</span>
         <div class="header-actions">
           <el-input
             v-model="filterRepoName"
@@ -35,8 +35,9 @@
           <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="260" fixed="right">
         <template #default="{ row }">
+          <el-button type="primary" link @click="openDetail(row)">详情</el-button>
           <el-button type="primary" link @click="openEdit(row)">编辑</el-button>
           <el-button type="info" link @click="openCopy(row)">复制</el-button>
           <el-button type="danger" link @click="onDelete(row)">删除</el-button>
@@ -54,6 +55,31 @@
       />
     </div>
   </el-card>
+
+  <el-drawer v-model="detailVisible" title="Git 项目配置详情" size="56%">
+    <template v-if="detail">
+      <el-descriptions :column="1" border size="small">
+        <el-descriptions-item label="ID">{{ detail.id }}</el-descriptions-item>
+        <el-descriptions-item label="关联 Git 项目 ID">{{ detail.gitProjectId ?? '—' }}</el-descriptions-item>
+        <el-descriptions-item label="项目名称">{{ detail.repoName }}</el-descriptions-item>
+        <el-descriptions-item label="Git URL">{{ detail.gitUrl }}</el-descriptions-item>
+        <el-descriptions-item label="用户名">{{ detail.gitUsername || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="分支">{{ detail.branch || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="本地克隆目录">{{ detail.localClonePath || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="扫描技能">{{ detail.scanSkillName || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="技能补充说明">{{ detail.scanSkillPrompt || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="Agent 命令">
+          <el-input type="textarea" :rows="4" readonly :model-value="detail.agentCommand || ''" />
+        </el-descriptions-item>
+        <el-descriptions-item label="通知邮箱">{{ detail.receiveEmail || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="detail.status === 1 ? 'success' : 'info'">{{ detail.status === 1 ? '启用' : '禁用' }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="创建时间">{{ formatBackendDateTime(detail.createTime) }}</el-descriptions-item>
+        <el-descriptions-item label="更新时间">{{ formatBackendDateTime(detail.updateTime) }}</el-descriptions-item>
+      </el-descriptions>
+    </template>
+  </el-drawer>
 
   <el-dialog v-model="dialogVisible" :title="dialogTitle" width="640px" destroy-on-close>
     <el-form ref="formRef" :model="form" :rules="rules" label-width="120px">
@@ -165,10 +191,12 @@ import {
   createActiveRepo,
   deleteActiveRepo,
   fetchActiveRepos,
+  getActiveRepo,
   updateActiveRepo,
 } from '@/api/activeScan'
 import { fetchGitProjectOptions } from '@/api/gitProject'
 import { fetchPlatformSkillOptions } from '@/api/platformSkill'
+import { formatBackendDateTime } from '@/utils/formatTime'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -179,6 +207,9 @@ const filterRepoName = ref('')
 
 const platformSkillOptions = ref([])
 const gitProjectOptions = ref([])
+
+const detailVisible = ref(false)
+const detail = ref(null)
 
 const dialogVisible = ref(false)
 const isEdit = ref(false)
@@ -348,6 +379,11 @@ function ensureLinkModeForDisabledProject() {
   }
 }
 
+async function openDetail(row) {
+  detail.value = await getActiveRepo(row.id)
+  detailVisible.value = true
+}
+
 async function openEdit(row) {
   await loadGitProjectOptions()
   isEdit.value = true
@@ -499,11 +535,5 @@ onMounted(async () => {
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
-}
-.form-hint {
-  margin-left: 8px;
-  font-size: 12px;
-  color: #909399;
-  vertical-align: middle;
 }
 </style>

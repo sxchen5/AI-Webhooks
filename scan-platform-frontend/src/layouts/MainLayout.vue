@@ -83,7 +83,14 @@
     </el-aside>
     <el-container>
       <el-header class="header">
-        <div class="header-title">{{ title }}</div>
+        <div class="header-title">
+          <template v-if="breadcrumb.parent">
+            <span class="header-parent">{{ breadcrumb.parent }}</span>
+            <span class="header-sep">·</span>
+            <span class="header-child">{{ breadcrumb.child }}</span>
+          </template>
+          <template v-else>{{ breadcrumb.child }}</template>
+        </div>
         <div class="header-right">
           <span class="user-name">{{ user.username }}</span>
           <el-button type="primary" link @click="onLogout">退出</el-button>
@@ -126,7 +133,12 @@ const defaultOpenSubmenus = computed(() => {
   return open
 })
 
-const title = computed(() => route.meta.title || '控制台')
+const breadcrumb = computed(() => {
+  const m = route.meta || {}
+  const child = m.title || '控制台'
+  const parent = m.parentTitle || ''
+  return { parent, child }
+})
 
 function onLogout() {
   user.logout()
@@ -244,6 +256,19 @@ function onLogout() {
 .header-title {
   font-size: 16px;
   font-weight: 500;
+  color: #303133;
+}
+.header-parent {
+  color: #909399;
+  font-weight: 400;
+}
+.header-sep {
+  margin: 0 8px;
+  color: #c0c4cc;
+  font-weight: 400;
+}
+.header-child {
+  font-weight: 600;
 }
 .header-right {
   display: flex;

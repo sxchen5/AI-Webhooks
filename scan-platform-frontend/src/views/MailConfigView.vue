@@ -3,7 +3,10 @@
     <template #header>
       <div class="card-header">
         <span>邮件配置</span>
-        <el-button type="primary" :loading="saving" @click="onSave">保存</el-button>
+        <div class="header-actions">
+          <el-button @click="openDetail">详情</el-button>
+          <el-button type="primary" :loading="saving" @click="onSave">保存</el-button>
+        </div>
       </div>
     </template>
     <el-form v-loading="loading" :model="form" label-width="140px" class="form">
@@ -36,6 +39,17 @@
       />
     </el-form>
   </el-card>
+
+  <el-drawer v-model="detailVisible" title="邮件配置详情" size="480px">
+    <el-descriptions v-if="detailSnapshot" :column="1" border size="small">
+      <el-descriptions-item label="配置 ID">{{ detailSnapshot.id ?? '—' }}</el-descriptions-item>
+      <el-descriptions-item label="SMTP 主机">{{ detailSnapshot.smtpHost || '—' }}</el-descriptions-item>
+      <el-descriptions-item label="SMTP 端口">{{ detailSnapshot.smtpPort ?? '—' }}</el-descriptions-item>
+      <el-descriptions-item label="SMTP 用户名">{{ detailSnapshot.smtpUsername || '—' }}</el-descriptions-item>
+      <el-descriptions-item label="SMTP 密码">已配置时显示为 ******；未配置为 —</el-descriptions-item>
+      <el-descriptions-item label="邮件标题前缀">{{ detailSnapshot.emailTitlePrefix || '—' }}</el-descriptions-item>
+    </el-descriptions>
+  </el-drawer>
 </template>
 
 <script setup>
@@ -53,6 +67,9 @@ const form = reactive({
   emailTitlePrefix: '',
 })
 
+const detailVisible = ref(false)
+const detailSnapshot = ref(null)
+
 async function load() {
   loading.value = true
   try {
@@ -65,6 +82,11 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+async function openDetail() {
+  detailSnapshot.value = await getSysConfig()
+  detailVisible.value = true
 }
 
 async function onSave() {
@@ -97,6 +119,11 @@ onMounted(load)
   align-items: center;
   justify-content: space-between;
   font-weight: 600;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .form {
   max-width: 720px;

@@ -2,7 +2,7 @@
   <el-card shadow="never" class="page-card">
     <template #header>
       <div class="card-header">
-        <span>Git仓库扫描 · 下发任务管理</span>
+        <span>下发任务管理</span>
         <el-button type="primary" @click="openCreate">新建任务</el-button>
       </div>
     </template>
@@ -27,8 +27,9 @@
           <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="260" fixed="right">
+      <el-table-column label="操作" width="320" fixed="right">
         <template #default="{ row }">
+          <el-button type="primary" link @click="openDetail(row)">详情</el-button>
           <el-button type="success" link :disabled="row.status !== 1" @click="onRun(row)">立即扫描</el-button>
           <el-button type="primary" link @click="openEdit(row)">编辑</el-button>
           <el-button type="info" link @click="openCopy(row)">复制</el-button>
@@ -47,6 +48,36 @@
       />
     </div>
   </el-card>
+
+  <el-drawer v-model="detailVisible" title="下发任务详情" size="520px">
+    <template v-if="detail">
+      <el-descriptions :column="1" border size="small">
+        <el-descriptions-item label="ID">{{ detail.id }}</el-descriptions-item>
+        <el-descriptions-item label="任务名称">{{ detail.jobName }}</el-descriptions-item>
+        <el-descriptions-item label="关联 Git 项目配置">
+          {{ repoName(detail.repoId) }} (repoId {{ detail.repoId }})
+        </el-descriptions-item>
+        <el-descriptions-item label="启用定时">
+          <el-tag :type="detail.scheduleEnabled === 1 ? 'success' : 'info'">{{ detail.scheduleEnabled === 1 ? '开' : '关' }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="Cron">{{ detail.cronExpression || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="下次执行">{{ formatBackendDateTime(detail.nextScheduleRun) }}</el-descriptions-item>
+        <el-descriptions-item label="上次执行">{{ formatBackendDateTime(detail.lastScheduleRun) }}</el-descriptions-item>
+        <el-descriptions-item label="覆盖技能名">{{ detail.scanSkillName || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="覆盖技能说明">{{ detail.scanSkillPrompt || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="覆盖 Agent 命令">
+          <el-input type="textarea" :rows="3" readonly :model-value="detail.agentCommandOverride || ''" />
+        </el-descriptions-item>
+        <el-descriptions-item label="失败发邮件">{{ detail.notifyOnFailure === 1 ? '是' : '否' }}</el-descriptions-item>
+        <el-descriptions-item label="成功发邮件">{{ detail.notifyOnSuccess === 1 ? '是' : '否' }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="detail.status === 1 ? 'success' : 'info'">{{ detail.status === 1 ? '启用' : '禁用' }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="创建时间">{{ formatBackendDateTime(detail.createTime) }}</el-descriptions-item>
+        <el-descriptions-item label="更新时间">{{ formatBackendDateTime(detail.updateTime) }}</el-descriptions-item>
+      </el-descriptions>
+    </template>
+  </el-drawer>
 
   <el-dialog v-model="dialogVisible" :title="dialogTitle" width="640px" destroy-on-close>
     <el-form ref="formRef" :model="form" :rules="rules" label-width="130px">
@@ -101,6 +132,7 @@ import {
   deleteActiveJob,
   fetchActiveJobs,
   fetchActiveRepos,
+  getActiveJob,
   runActiveJob,
   updateActiveJob,
 } from '@/api/activeScan'
@@ -113,6 +145,9 @@ const page = ref(1)
 const size = ref(10)
 const repoOptions = ref([])
 const repoMap = ref({})
+
+const detailVisible = ref(false)
+const detail = ref(null)
 
 const dialogVisible = ref(false)
 const isEdit = ref(false)
@@ -188,6 +223,11 @@ function openCreate() {
   isCopy.value = false
   resetForm()
   dialogVisible.value = true
+}
+
+async function openDetail(row) {
+  detail.value = await getActiveJob(row.id)
+  detailVisible.value = true
 }
 
 function openEdit(row) {

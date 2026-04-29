@@ -2,7 +2,7 @@
   <el-card shadow="never" class="page-card">
     <template #header>
       <div class="card-header">
-        <span>Git仓库扫描 · Git项目管理</span>
+        <span>Git项目管理</span>
         <div class="header-actions">
           <el-input
             v-model="filterKeyword"
@@ -26,8 +26,9 @@
           <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="250" fixed="right">
         <template #default="{ row }">
+          <el-button type="primary" link @click="openDetail(row)">详情</el-button>
           <el-button type="primary" link @click="openEdit(row)">编辑</el-button>
           <el-button type="info" link @click="openCopy(row)">复制</el-button>
           <el-button type="danger" link @click="onDelete(row)">删除</el-button>
@@ -45,6 +46,21 @@
       />
     </div>
   </el-card>
+
+  <el-drawer v-model="detailVisible" title="Git 项目详情" size="480px">
+    <template v-if="detail">
+      <el-descriptions :column="1" border size="small">
+        <el-descriptions-item label="ID">{{ detail.id }}</el-descriptions-item>
+        <el-descriptions-item label="项目名称">{{ detail.projectName }}</el-descriptions-item>
+        <el-descriptions-item label="Git 项目地址">{{ detail.gitUrl }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="detail.status === 1 ? 'success' : 'info'">{{ detail.status === 1 ? '启用' : '禁用' }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="创建时间">{{ formatBackendDateTime(detail.createTime) }}</el-descriptions-item>
+        <el-descriptions-item label="更新时间">{{ formatBackendDateTime(detail.updateTime) }}</el-descriptions-item>
+      </el-descriptions>
+    </template>
+  </el-drawer>
 
   <el-dialog v-model="dialogVisible" :title="dialogTitle" width="560px" destroy-on-close>
     <el-form ref="formRef" :model="form" :rules="rules" label-width="120px">
@@ -75,8 +91,10 @@ import {
   createGitProject,
   deleteGitProject,
   fetchGitProjects,
+  getGitProject,
   updateGitProject,
 } from '@/api/gitProject'
+import { formatBackendDateTime } from '@/utils/formatTime'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -84,6 +102,9 @@ const total = ref(0)
 const page = ref(1)
 const size = ref(10)
 const filterKeyword = ref('')
+
+const detailVisible = ref(false)
+const detail = ref(null)
 
 const dialogVisible = ref(false)
 const isEdit = ref(false)
@@ -136,6 +157,11 @@ function openCreate() {
   isCopy.value = false
   resetForm()
   dialogVisible.value = true
+}
+
+async function openDetail(row) {
+  detail.value = await getGitProject(row.id)
+  detailVisible.value = true
 }
 
 function openEdit(row) {
