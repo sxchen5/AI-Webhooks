@@ -2,7 +2,7 @@
   <el-card shadow="never" class="page-card">
     <template #header>
       <div class="card-header">
-        <span>Git仓库扫描 · 项目管理</span>
+        <span>Git仓库扫描 · 仓库管理</span>
         <el-button type="primary" @click="openCreate">新建仓库</el-button>
       </div>
     </template>
@@ -65,8 +65,36 @@
         <el-input v-model="form.localClonePath" maxlength="500" placeholder="留空则自动生成到工作区" clearable />
       </el-form-item>
       <el-divider content-position="left">Cursor 技能（可选）</el-divider>
-      <el-form-item label="扫描技能名">
-        <el-input v-model="form.scanSkillName" maxlength="128" placeholder="与平台技能或仓库 .cursor/skills 目录名一致" clearable />
+      <el-form-item label="扫描技能">
+        <el-radio-group v-model="form.skillPickMode">
+          <el-radio label="none">不使用技能</el-radio>
+          <el-radio label="platform">选择平台技能</el-radio>
+          <el-radio label="custom">手动输入技能名</el-radio>
+        </el-radio-group>
+      </el-form-item>
+      <el-form-item v-if="form.skillPickMode === 'platform'" label="平台技能">
+        <el-select
+          v-model="form.scanSkillName"
+          clearable
+          filterable
+          placeholder="从已启用的平台技能中选择"
+          style="width: 100%"
+        >
+          <el-option
+            v-for="o in platformSkillOptions"
+            :key="o.skillName"
+            :label="o.description ? `${o.skillName} — ${o.description}` : o.skillName"
+            :value="o.skillName"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item v-if="form.skillPickMode === 'custom'" label="技能名">
+        <el-input
+          v-model="form.scanSkillName"
+          maxlength="128"
+          placeholder="与仓库 .cursor/skills 下目录名一致"
+          clearable
+        />
       </el-form-item>
       <el-form-item label="技能补充说明">
         <el-input v-model="form.scanSkillPrompt" type="textarea" :rows="2" placeholder="漏洞、供应链风险等" clearable />
@@ -92,7 +120,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   createActiveRepo,
@@ -100,12 +128,15 @@ import {
   fetchActiveRepos,
   updateActiveRepo,
 } from '@/api/activeScan'
+import { fetchPlatformSkillOptions } from '@/api/platformSkill'
 
 const loading = ref(false)
 const tableData = ref([])
 const total = ref(0)
 const page = ref(1)
 const size = ref(10)
+
+const platformSkillOptions = ref([])
 
 const dialogVisible = ref(false)
 const isEdit = ref(false)
@@ -124,6 +155,8 @@ const form = reactive({
   scanSkillPrompt: '',
   receiveEmail: '',
   status: 1,
+  /** none | platform | custom */
+  skillPickMode: 'none',
 })
 
 const rules = {
@@ -132,15 +165,40 @@ const rules = {
   agentCommand: [
     {
       validator: (_, v, cb) => {
-        if (!form.scanSkillName?.trim() && !(v && String(v).trim())) {
-          cb(new Error('请填写 Agent 命令或扫描技能名'))
-        } else {
-          cb()
+        if (form.skillPickMode === 'none') {
+          if (!(v && String(v).trim())) {
+            cb(new Error('未使用技能时请填写 Agent 命令'))
+          } else {
+            cb()
+          }
+          return
         }
+        if ((form.skillPickMode === 'platform' || form.skillPickMode === 'custom') && !form.scanSkillName?.trim()) {
+          cb(new Error('请选择或填写扫描技能名'))
+          return
+        }
+        cb()
       },
       trigger: 'blur',
     },
   ],
+}
+
+watch(
+  () => form.skillPickMode,
+  (mode) => {
+    if (mode === 'none') {
+      form.scanSkillName = ''
+    }
+  }
+)
+
+async function loadPlatformSkillOptions() {
+  try {
+    platformSkillOptions.value = (await fetchPlatformSkillOptions()) || []
+  } catch {
+    platformSkillOptions.value = []
+  }
 }
 
 async function load() {
@@ -167,6 +225,14 @@ function resetForm() {
   form.scanSkillPrompt = ''
   form.receiveEmail = ''
   form.status = 1
+  form.skillPickMode = 'none'
+}
+
+function inferSkillPickMode(savedName) {
+  const n = (savedName || '').trim()
+  if (!n) return 'none'
+  if (platformSkillOptions.value.some((o) => o.skillName === n)) return 'platform'
+  return 'custom'
 }
 
 function openCreate() {
@@ -177,6 +243,7 @@ function openCreate() {
 
 function openEdit(row) {
   isEdit.value = true
+  const skillName = row.scanSkillName || ''
   Object.assign(form, {
     id: row.id,
     repoName: row.repoName,
@@ -185,17 +252,35 @@ function openEdit(row) {
     gitPassword: '',
     branch: row.branch || 'main',
     localClonePath: row.localClonePath || '',
-    agentCommand: row.agentCommand,
-    scanSkillName: row.scanSkillName || '',
+    agentCommand: row.agentCommand === '(cursor-skill)' ? '' : row.agentCommand,
+    scanSkillName: skillName,
     scanSkillPrompt: row.scanSkillPrompt || '',
     receiveEmail: row.receiveEmail || '',
     status: row.status,
+    skillPickMode: inferSkillPickMode(skillName),
   })
   dialogVisible.value = true
 }
 
 async function saveDialog() {
   await formRef.value.validate()
+  if (form.skillPickMode === 'none') {
+    form.scanSkillName = ''
+  }
+  if (form.skillPickMode === 'platform' && !form.scanSkillName?.trim()) {
+    ElMessage.warning('请选择平台技能，或改为「手动输入」/「不使用技能」')
+    return
+  }
+  if (form.skillPickMode === 'custom' && !form.scanSkillName?.trim()) {
+    ElMessage.warning('请填写技能名')
+    return
+  }
+  const skillOut = form.skillPickMode === 'none' ? null : form.scanSkillName?.trim() || null
+  const cmdTrim = form.agentCommand?.trim() || ''
+  if (!skillOut && !cmdTrim) {
+    ElMessage.warning('请填写 Agent 命令，或选择/填写扫描技能')
+    return
+  }
   const u = (form.gitUrl || '').toLowerCase()
   if (!isEdit.value && u.startsWith('http') && form.gitUsername && !form.gitPassword) {
     ElMessage.warning('已填写用户名时，请填写密码或 Token')
@@ -210,8 +295,8 @@ async function saveDialog() {
       gitPassword: form.gitPassword || null,
       branch: form.branch || 'main',
       localClonePath: form.localClonePath || null,
-      agentCommand: form.agentCommand?.trim() || '(cursor-skill)',
-      scanSkillName: form.scanSkillName?.trim() || null,
+      agentCommand: skillOut ? (cmdTrim || '(cursor-skill)') : cmdTrim,
+      scanSkillName: skillOut,
       scanSkillPrompt: form.scanSkillPrompt?.trim() || null,
       receiveEmail: form.receiveEmail || null,
       status: form.status,
@@ -238,7 +323,10 @@ async function onDelete(row) {
   await load()
 }
 
-onMounted(load)
+onMounted(async () => {
+  await loadPlatformSkillOptions()
+  await load()
+})
 </script>
 
 <style scoped lang="scss">

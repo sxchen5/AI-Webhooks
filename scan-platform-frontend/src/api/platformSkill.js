@@ -1,5 +1,10 @@
 import http from './http'
 
+/** 启用中的平台技能（下拉） */
+export function fetchPlatformSkillOptions() {
+  return http.get('/platform-skills/options/enabled')
+}
+
 export function fetchPlatformSkills(page, size) {
   return http.get('/platform-skills', { params: { page, size } })
 }

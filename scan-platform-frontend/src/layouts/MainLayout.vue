@@ -40,7 +40,7 @@
             </template>
             <el-menu-item index="/projects">
               <el-icon><FolderOpened /></el-icon>
-              <template #title>项目管理</template>
+              <template #title>仓库管理</template>
             </el-menu-item>
             <el-menu-item index="/sys-config">
               <el-icon><Setting /></el-icon>
@@ -59,7 +59,7 @@
             </template>
             <el-menu-item index="/active-scan/repos">
               <el-icon><Link /></el-icon>
-              <template #title>项目管理</template>
+              <template #title>仓库管理</template>
             </el-menu-item>
             <el-menu-item index="/active-scan/jobs">
               <el-icon><Timer /></el-icon>
@@ -67,14 +67,20 @@
             </el-menu-item>
             <el-menu-item index="/active-scan/logs">
               <el-icon><Clock /></el-icon>
-              <template #title>下发日志</template>
+              <template #title>下发任务日志</template>
             </el-menu-item>
           </el-sub-menu>
 
-          <el-menu-item index="/platform-skills">
-            <el-icon><Collection /></el-icon>
-            <template #title>平台技能</template>
-          </el-menu-item>
+          <el-sub-menu index="skill-mgmt">
+            <template #title>
+              <el-icon><Collection /></el-icon>
+              <span>技能管理</span>
+            </template>
+            <el-menu-item index="/platform-skills">
+              <el-icon><Collection /></el-icon>
+              <template #title>平台技能</template>
+            </el-menu-item>
+          </el-sub-menu>
         </el-menu>
       </div>
     </el-aside>
@@ -105,11 +111,11 @@ const user = useUserStore()
 
 /** 侧边栏折叠：窄栏仅图标，宽栏图标+文案 */
 const collapsed = ref(false)
-const asideWidth = computed(() => (collapsed.value ? '64px' : '220px'))
+const asideWidth = computed(() => (collapsed.value ? '64px' : '240px'))
 
 const active = computed(() => route.path)
 
-/** 根据当前路由展开对应一级菜单，避免刷新后子菜单折叠 */
+/** 根据当前路由展开对应一级菜单 */
 const defaultOpenSubmenus = computed(() => {
   const p = route.path
   const open = []
@@ -118,6 +124,9 @@ const defaultOpenSubmenus = computed(() => {
   }
   if (p.startsWith('/active-scan')) {
     open.push('git-scan-mgmt')
+  }
+  if (p.startsWith('/platform-skills')) {
+    open.push('skill-mgmt')
   }
   return open
 })

@@ -1,6 +1,7 @@
 package com.scanplatform.service;
 
 import com.scanplatform.dto.PlatformSkillDto;
+import com.scanplatform.dto.PlatformSkillOptionDto;
 import com.scanplatform.entity.PlatformSkill;
 import com.scanplatform.repository.PlatformSkillRepository;
 import lombok.RequiredArgsConstructor;
@@ -10,6 +11,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +25,14 @@ public class PlatformSkillService {
     @Transactional(readOnly = true)
     public Page<PlatformSkill> page(Pageable pageable) {
         return repository.findAll(pageable);
+    }
+
+    /** 启用中的平台技能，供前端下拉 */
+    @Transactional(readOnly = true)
+    public List<PlatformSkillOptionDto> listEnabledOptions() {
+        return repository.findByStatusOrderBySkillNameAsc(1).stream()
+                .map(s -> new PlatformSkillOptionDto(s.getSkillName(), s.getDescription()))
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)

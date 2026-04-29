@@ -2,6 +2,7 @@ package com.scanplatform.web;
 
 import com.scanplatform.common.ApiResponse;
 import com.scanplatform.dto.PlatformSkillDto;
+import com.scanplatform.dto.PlatformSkillOptionDto;
 import com.scanplatform.entity.PlatformSkill;
 import com.scanplatform.service.PlatformSkillService;
 import jakarta.validation.Valid;
@@ -11,12 +12,19 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/platform-skills")
 @RequiredArgsConstructor
 public class PlatformSkillController {
 
     private final PlatformSkillService service;
+
+    @GetMapping("/options/enabled")
+    public ApiResponse<List<PlatformSkillOptionDto>> enabledOptions() {
+        return ApiResponse.ok(service.listEnabledOptions());
+    }
 
     @GetMapping
     public ApiResponse<Page<PlatformSkill>> page(

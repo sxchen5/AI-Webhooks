@@ -2,7 +2,7 @@
   <el-card shadow="never" class="page-card">
     <template #header>
       <div class="card-header">
-        <span>项目管理</span>
+        <span>WebHooks回调 · 仓库管理</span>
         <el-button type="primary" @click="openCreate">新建项目</el-button>
       </div>
     </template>

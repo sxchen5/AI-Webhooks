@@ -2,7 +2,7 @@
   <el-card shadow="never" class="page-card">
     <template #header>
       <div class="card-header">
-        <span>平台技能（Cursor）</span>
+        <span>技能管理 · 平台技能</span>
         <el-button type="primary" @click="openCreate">新建技能</el-button>
       </div>
     </template>

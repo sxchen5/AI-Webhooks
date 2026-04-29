@@ -2,7 +2,7 @@
   <el-card shadow="never" class="page-card">
     <template #header>
       <div class="card-header">
-        <span>Git仓库扫描 · 下发日志</span>
+        <span>Git仓库扫描 · 下发任务日志</span>
         <el-button @click="load">刷新</el-button>
       </div>
     </template>
