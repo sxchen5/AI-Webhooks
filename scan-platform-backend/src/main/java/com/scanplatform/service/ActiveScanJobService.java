@@ -4,15 +4,19 @@ import com.scanplatform.dto.ActiveScanJobDto;
 import com.scanplatform.entity.ActiveScanJob;
 import com.scanplatform.repository.ActiveScanJobRepository;
 import com.scanplatform.repository.ActiveScanRepoRepository;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -24,8 +28,22 @@ public class ActiveScanJobService {
     private final ActiveScanCronHelper cronHelper;
 
     @Transactional(readOnly = true)
-    public Page<ActiveScanJob> page(Pageable pageable) {
-        return jobRepository.findAll(pageable);
+    public Page<ActiveScanJob> page(String jobName, Long repoId, Pageable pageable) {
+        Specification<ActiveScanJob> spec = (root, query, cb) -> {
+            List<Predicate> preds = new ArrayList<>();
+            if (repoId != null) {
+                preds.add(cb.equal(root.get("repoId"), repoId));
+            }
+            if (StringUtils.hasText(jobName)) {
+                String j = escapeLike(jobName.trim());
+                preds.add(cb.like(root.get("jobName"), "%" + j + "%", '\\'));
+            }
+            if (preds.isEmpty()) {
+                return cb.conjunction();
+            }
+            return cb.and(preds.toArray(new Predicate[0]));
+        };
+        return jobRepository.findAll(spec, pageable);
     }
 
     @Transactional(readOnly = true)
@@ -68,6 +86,7 @@ public class ActiveScanJobService {
         j.setNotifyOnFailure(dto.getNotifyOnFailure() != null ? dto.getNotifyOnFailure() : 1);
         j.setNotifyOnSuccess(dto.getNotifyOnSuccess() != null ? dto.getNotifyOnSuccess() : 0);
         j.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
+        j.setDisplayCommit(dto.getDisplayCommit());
     }
 
     private void computeNextRun(ActiveScanJob j) {
@@ -77,5 +96,9 @@ public class ActiveScanJobService {
         } else {
             j.setNextScheduleRun(null);
         }
+    }
+
+    private static String escapeLike(String s) {
+        return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 }

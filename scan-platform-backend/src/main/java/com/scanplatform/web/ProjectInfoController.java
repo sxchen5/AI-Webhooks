@@ -24,8 +24,9 @@ public class ProjectInfoController {
     @GetMapping
     public ApiResponse<Page<ProjectInfo>> page(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        Page<ProjectInfo> data = projectInfoService.page(PageRequest.of(page, size, Sort.by("id").descending()));
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String projectName) {
+        Page<ProjectInfo> data = projectInfoService.page(projectName, PageRequest.of(page, size, Sort.by("id").descending()));
         return ApiResponse.ok(data);
     }
 

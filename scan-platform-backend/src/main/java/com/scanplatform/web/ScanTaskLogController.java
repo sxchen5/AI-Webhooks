@@ -6,6 +6,7 @@ import com.scanplatform.service.ScanTaskLogQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -21,8 +22,9 @@ public class ScanTaskLogController {
     @GetMapping
     public ApiResponse<Page<ScanTaskLog>> page(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        return ApiResponse.ok(scanTaskLogQueryService.page(PageRequest.of(page, size)));
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Long projectId) {
+        return ApiResponse.ok(scanTaskLogQueryService.page(projectId, PageRequest.of(page, size, Sort.by("id").descending())));
     }
 
     @GetMapping("/{id}")

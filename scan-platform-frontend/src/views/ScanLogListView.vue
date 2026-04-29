@@ -3,7 +3,24 @@
     <template #header>
       <div class="card-header">
         <span>扫描任务日志</span>
-        <el-button @click="load">刷新</el-button>
+        <div class="header-actions">
+          <el-select
+            v-model="filterProjectId"
+            clearable
+            filterable
+            placeholder="项目名称"
+            style="width: 220px"
+            @change="onFilterChange"
+          >
+            <el-option
+              v-for="o in projectOptions"
+              :key="o.id"
+              :label="o.name"
+              :value="o.id"
+            />
+          </el-select>
+          <el-button @click="load">刷新</el-button>
+        </div>
       </div>
     </template>
     <el-table :data="tableData" v-loading="loading" border stripe>
@@ -75,12 +92,15 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { fetchScanLogs, getScanLog } from '@/api/scanLog'
+import { fetchWebhookProjectOptions } from '@/api/projectOptions'
 
 const loading = ref(false)
 const tableData = ref([])
 const total = ref(0)
 const page = ref(1)
 const size = ref(10)
+const filterProjectId = ref(null)
+const projectOptions = ref([])
 
 const drawerVisible = ref(false)
 const detail = ref(null)
@@ -95,7 +115,7 @@ function emailLabel(v) {
 async function load() {
   loading.value = true
   try {
-    const res = await fetchScanLogs(page.value - 1, size.value)
+    const res = await fetchScanLogs(page.value - 1, size.value, filterProjectId.value ?? undefined)
     tableData.value = res.content || []
     total.value = res.totalElements || 0
   } finally {
@@ -103,12 +123,25 @@ async function load() {
   }
 }
 
+function onFilterChange() {
+  page.value = 1
+  load()
+}
+
+onMounted(async () => {
+  try {
+    projectOptions.value = await fetchWebhookProjectOptions()
+  } catch {
+    projectOptions.value = []
+  }
+  await load()
+})
+
 async function openDetail(row) {
   detail.value = await getScanLog(row.id)
   drawerVisible.value = true
 }
 
-onMounted(load)
 </script>
 
 <style scoped lang="scss">
@@ -120,6 +153,11 @@ onMounted(load)
   align-items: center;
   justify-content: space-between;
   font-weight: 600;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 .pager {
   margin-top: 16px;

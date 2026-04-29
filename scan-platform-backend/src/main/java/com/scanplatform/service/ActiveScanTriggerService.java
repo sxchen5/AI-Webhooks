@@ -51,6 +51,9 @@ public class ActiveScanTriggerService {
         row.setTriggerType(triggerType);
         row.setGitUrl(repo.getGitUrl());
         row.setBranch(repo.getBranch());
+        int dc = job.getDisplayCommit() != null ? job.getDisplayCommit()
+                : (repo.getDisplayCommit() != null ? repo.getDisplayCommit() : 1);
+        row.setDisplayCommit(dc);
         row.setEmailStatus(0);
         row = logRepository.save(row);
 

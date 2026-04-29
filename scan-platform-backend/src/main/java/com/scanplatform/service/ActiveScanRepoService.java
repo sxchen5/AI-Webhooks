@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -21,8 +23,17 @@ public class ActiveScanRepoService {
     private final ActiveScanJobRepository jobRepository;
 
     @Transactional(readOnly = true)
-    public Page<ActiveScanRepo> page(Pageable pageable) {
-        return repository.findAll(pageable);
+    public Page<ActiveScanRepo> page(String projectName, Pageable pageable) {
+        if (!StringUtils.hasText(projectName)) {
+            return repository.findAll(pageable);
+        }
+        String n = projectName.trim();
+        return repository.findAll((root, q, cb) -> cb.equal(root.get("repoName"), n), pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ActiveScanRepo> listForOptions() {
+        return repository.findAll(org.springframework.data.domain.Sort.by("repoName"));
     }
 
     @Transactional(readOnly = true)
@@ -66,6 +77,7 @@ public class ActiveScanRepoService {
         e.setScanSkillName(StringUtils.hasText(dto.getScanSkillName()) ? dto.getScanSkillName().trim() : null);
         e.setScanSkillPrompt(StringUtils.hasText(dto.getScanSkillPrompt()) ? dto.getScanSkillPrompt().trim() : null);
         e.setReceiveEmail(dto.getReceiveEmail());
+        e.setDisplayCommit(dto.getDisplayCommit() != null ? dto.getDisplayCommit() : 1);
         e.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
     }
 }

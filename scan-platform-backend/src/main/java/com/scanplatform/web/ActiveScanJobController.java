@@ -25,8 +25,10 @@ public class ActiveScanJobController {
     @GetMapping
     public ApiResponse<Page<ActiveScanJob>> page(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        return ApiResponse.ok(jobService.page(PageRequest.of(page, size, Sort.by("id").descending())));
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String jobName,
+            @RequestParam(required = false) Long repoId) {
+        return ApiResponse.ok(jobService.page(jobName, repoId, PageRequest.of(page, size, Sort.by("id").descending())));
     }
 
     @GetMapping("/{id}")

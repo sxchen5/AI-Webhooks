@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.List;
+
 /**
  * 项目配置 CRUD，按 gitlab_project_id 唯一约束。
  */
@@ -22,8 +24,17 @@ public class ProjectInfoService {
     private final ProjectInfoRepository repository;
 
     @Transactional(readOnly = true)
-    public Page<ProjectInfo> page(Pageable pageable) {
-        return repository.findAll(pageable);
+    public Page<ProjectInfo> page(String projectName, Pageable pageable) {
+        if (!StringUtils.hasText(projectName)) {
+            return repository.findAll(pageable);
+        }
+        String n = projectName.trim();
+        return repository.findAll((root, q, cb) -> cb.equal(root.get("projectName"), n), pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProjectInfo> listAllForOptions() {
+        return repository.findAll(org.springframework.data.domain.Sort.by("projectName"));
     }
 
     @Transactional(readOnly = true)
