@@ -67,8 +67,7 @@ public class AgentCommandBuilder {
         StringBuilder body = new StringBuilder();
         body.append("/").append(slug).append(" ");
         body.append("请按上述技能执行本次任务。上下文：").append(label);
-        body.append("；工作目录: ").append(p);
-        body.append("；分支: ").append(b).append("；Commit: ").append(c).append("。\n");
+        body.append("；工作目录: ").append(p).append("。\n");
         if (StringUtils.hasText(skillPrompt)) {
             String extra = skillPrompt
                     .replace("{{path}}", p)
