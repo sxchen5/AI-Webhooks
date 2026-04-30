@@ -62,11 +62,6 @@
                   <el-icon :size="msgActionIconSize"><DocumentCopy /></el-icon>
                 </el-button>
               </el-tooltip>
-              <el-tooltip v-if="m.id != null" content="删除" placement="top">
-                <el-button text type="danger" class="icon-action" @click="onDeleteMessage(m)">
-                  <el-icon :size="msgActionIconSize"><Delete /></el-icon>
-                </el-button>
-              </el-tooltip>
             </div>
           </div>
           <div
@@ -85,18 +80,33 @@
                   <el-icon :size="msgActionIconSize"><RefreshRight /></el-icon>
                 </el-button>
               </el-tooltip>
-              <el-tooltip content="朗读" placement="top">
-                <el-button text class="icon-action" @click="onSpeak(m.content)">
-                  <el-icon :size="msgActionIconSize"><IconSpeak /></el-icon>
+              <el-tooltip :content="isSpeakingThis(m) ? '停止朗读' : '朗读'" placement="top">
+                <el-button text class="icon-action" @click="onSpeak(m)">
+                  <el-icon :size="msgActionIconSize">
+                    <VideoPlay v-if="isSpeakingThis(m)" />
+                    <Headset v-else />
+                  </el-icon>
                 </el-button>
               </el-tooltip>
               <el-tooltip content="点赞" placement="top">
-                <el-button text class="icon-action" @click="onFeedback(m, true)">
+                <el-button
+                  text
+                  class="icon-action"
+                  :class="{ 'icon-action--feedback-on': m.feedback === 1 }"
+                  :disabled="replying || m.id == null"
+                  @click="onFeedback(m, true)"
+                >
                   <el-icon :size="msgActionIconSize"><IconThumbUp /></el-icon>
                 </el-button>
               </el-tooltip>
               <el-tooltip content="点踩" placement="top">
-                <el-button text class="icon-action" @click="onFeedback(m, false)">
+                <el-button
+                  text
+                  class="icon-action"
+                  :class="{ 'icon-action--feedback-on': m.feedback === -1 }"
+                  :disabled="replying || m.id == null"
+                  @click="onFeedback(m, false)"
+                >
                   <el-icon :size="msgActionIconSize"><IconThumbDown /></el-icon>
                 </el-button>
               </el-tooltip>
@@ -178,13 +188,21 @@
 <script setup>
 import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, ChatDotRound, Delete, DocumentCopy, Promotion, RefreshRight, Right } from '@element-plus/icons-vue'
+import {
+  ArrowLeft,
+  ChatDotRound,
+  DocumentCopy,
+  Headset,
+  RefreshRight,
+  Right,
+  VideoPlay,
+} from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   clearAllGitQaChatMessages,
-  deleteGitQaChatMessage,
   fetchGitQaChatMessages,
   getGitQaProject,
+  patchGitQaChatMessageFeedback,
   streamGitQaChat,
 } from '@/api/gitQaProject'
 import MarkdownOutputPanel from '@/components/MarkdownOutputPanel.vue'
@@ -238,9 +256,6 @@ const IconThumbDown = () =>
     ],
   )
 
-/** 朗读按钮：广播/喇叭图标（与 Element Plus Promotion 一致） */
-const IconSpeak = Promotion
-
 /** 消息下方工具栏与回到底部等操作图标统一尺寸 */
 const msgActionIconSize = 15
 
@@ -268,6 +283,9 @@ const hoveredMsgIndex = ref(null)
 /** 距底部小于该像素视为在底部，避免浮点抖动 */
 const scrollBottomTolerance = 48
 const isAtBottom = ref(true)
+
+/** 正在朗读的助手消息 clientKey（与气泡一一对应） */
+const speakingClientKey = ref(null)
 
 let abortCtrl = null
 let sseBuffer = ''
@@ -400,6 +418,7 @@ async function onRegenerateAssistant(assistantMsg) {
   assistantMsg.content = ''
   assistantMsg.displayStream = true
   assistantMsg.id = null
+  assistantMsg.feedback = null
   lastMeta.value = null
   replying.value = true
   scrollToBottom()
@@ -430,37 +449,57 @@ async function onRegenerateAssistant(assistantMsg) {
   }
 }
 
-function onSpeak(text) {
-  const t = (text ?? '').trim()
-  if (!t) {
+function isSpeakingThis(m) {
+  return m.role === 'assistant' && speakingClientKey.value != null && speakingClientKey.value === m.clientKey
+}
+
+function cancelSpeech() {
+  if (typeof window !== 'undefined' && window.speechSynthesis) {
+    window.speechSynthesis.cancel()
+  }
+  speakingClientKey.value = null
+}
+
+function onSpeak(m) {
+  if (m.role !== 'assistant') return
+  if (isSpeakingThis(m)) {
+    cancelSpeech()
+    return
+  }
+  const text = (m.content ?? '').trim()
+  if (!text) {
     ElMessage.warning('没有可朗读的内容')
     return
   }
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-    window.speechSynthesis.cancel()
-    const u = new SpeechSynthesisUtterance(t)
-    u.lang = 'zh-CN'
-    window.speechSynthesis.speak(u)
-    ElMessage.success('开始朗读')
-  } else {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
     ElMessage.warning('当前浏览器不支持语音朗读')
+    return
   }
+  cancelSpeech()
+  const key = m.clientKey
+  const u = new SpeechSynthesisUtterance(text)
+  u.lang = 'zh-CN'
+  u.onend = () => {
+    if (speakingClientKey.value === key) speakingClientKey.value = null
+  }
+  u.onerror = () => {
+    if (speakingClientKey.value === key) speakingClientKey.value = null
+  }
+  speakingClientKey.value = key
+  window.speechSynthesis.speak(u)
+  ElMessage.success('开始朗读')
 }
 
-function onFeedback(_m, positive) {
-  ElMessage.success(positive ? '已记录点赞' : '已记录点踩')
-}
-
-async function onDeleteMessage(m) {
-  if (m.id == null) return
+async function onFeedback(m, positive) {
+  if (!project.value?.id || m.id == null || m.role !== 'assistant') return
+  const nextVal = positive ? 1 : -1
+  const body = m.feedback === nextVal ? null : nextVal
   try {
-    await ElMessageBox.confirm('确定删除这条消息？', '删除', { type: 'warning' })
-    await deleteGitQaChatMessage(project.value.id, m.id)
-    const i = messages.value.findIndex((x) => x === m)
-    if (i >= 0) messages.value.splice(i, 1)
-    ElMessage.success('已删除')
+    await patchGitQaChatMessageFeedback(project.value.id, m.id, body)
+    m.feedback = body
+    ElMessage.success(body == null ? '已取消反馈' : body === 1 ? '已点赞' : '已点踩')
   } catch {
-    /* cancel */
+    /* axios 拦截器已提示错误 */
   }
 }
 
@@ -535,6 +574,7 @@ async function loadHistory() {
       id: row.id,
       role: row.role === 'USER' ? 'user' : 'assistant',
       content: row.content || '',
+      feedback: row.role === 'ASSISTANT' ? row.feedback ?? null : null,
       displayStream: false,
       clientKey: nextClientKey(),
     }))
@@ -556,6 +596,7 @@ async function send() {
     role: 'assistant',
     content: '',
     displayStream: true,
+    feedback: null,
     clientKey: nextClientKey(),
   }
   messages.value.push(userMsg, botMsg)
@@ -607,9 +648,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   abortCtrl?.abort()
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-    window.speechSynthesis.cancel()
-  }
+  cancelSpeech()
 })
 </script>
 
@@ -790,6 +829,12 @@ onBeforeUnmount(() => {
 .assistant-toolbar .icon-action:hover {
   color: #409eff;
 }
+.assistant-toolbar .icon-action--feedback-on {
+  color: #409eff;
+}
+.assistant-toolbar .icon-action--feedback-on:hover {
+  color: #66b1ff;
+}
 .welcome {
   text-align: center;
   padding: 32px 16px 8px;
@@ -949,7 +994,7 @@ onBeforeUnmount(() => {
 .composer-model-inner {
   position: absolute;
   left: 12px;
-  bottom: 28px;
+  bottom: 12px;
   z-index: 2;
   display: flex;
   align-items: center;

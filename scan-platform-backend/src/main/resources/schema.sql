@@ -125,6 +125,7 @@ CREATE TABLE IF NOT EXISTS git_qa_chat_message (
     project_id BIGINT NOT NULL COMMENT 'git_qa_project.id',
     role VARCHAR(16) NOT NULL COMMENT 'USER 或 ASSISTANT',
     content LONGTEXT NOT NULL COMMENT '消息正文（Markdown/纯文本）',
+    feedback TINYINT NULL COMMENT '助手消息反馈：1点赞 -1点踩',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     KEY idx_git_qa_chat_project_id (project_id),
     KEY idx_git_qa_chat_project_time (project_id, id)

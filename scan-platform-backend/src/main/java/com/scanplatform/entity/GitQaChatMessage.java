@@ -29,6 +29,12 @@ public class GitQaChatMessage {
     @Column(name = "content", columnDefinition = "LONGTEXT", nullable = false)
     private String content;
 
+    /**
+     * 用户对助手回复的反馈：1=点赞，-1=点踩，null=未选。
+     */
+    @Column(name = "feedback")
+    private Integer feedback;
+
     @Column(name = "create_time", insertable = false, updatable = false)
     private LocalDateTime createTime;
 }

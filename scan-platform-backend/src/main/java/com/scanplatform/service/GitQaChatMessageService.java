@@ -42,7 +42,28 @@ public class GitQaChatMessageService {
         m.setProjectId(projectId);
         m.setRole("ASSISTANT");
         m.setContent(content);
+        m.setFeedback(null);
         return repository.save(m).getId();
+    }
+
+    /**
+     * 更新助手消息的点赞/点踩；feedback 为 null 表示清除。
+     */
+    @Transactional
+    public void updateAssistantFeedback(Long projectId, Long messageId, Integer feedback) {
+        GitQaChatMessage m = repository.findById(messageId)
+                .orElseThrow(() -> new IllegalArgumentException("消息不存在"));
+        if (!projectId.equals(m.getProjectId())) {
+            throw new IllegalArgumentException("消息不属于该问答配置");
+        }
+        if (!"ASSISTANT".equals(m.getRole())) {
+            throw new IllegalArgumentException("只能对助手回复进行点赞或点踩");
+        }
+        if (feedback != null && feedback != 1 && feedback != -1) {
+            throw new IllegalArgumentException("feedback 只能为 1、-1 或 null");
+        }
+        m.setFeedback(feedback);
+        repository.save(m);
     }
 
     @Transactional

@@ -1,5 +1,6 @@
 package com.scanplatform.web;
 
+import com.scanplatform.dto.GitQaChatMessageFeedbackRequest;
 import com.scanplatform.common.ApiResponse;
 import com.scanplatform.entity.GitQaChatMessage;
 import com.scanplatform.service.GitQaChatMessageService;
@@ -26,6 +27,17 @@ public class GitQaChatMessageController {
         projectService.get(projectId);
         return ApiResponse.ok(
                 chatMessageService.page(projectId, PageRequest.of(page, size, Sort.by("id").ascending())));
+    }
+
+    @PatchMapping("/{messageId}/feedback")
+    public ApiResponse<Void> patchFeedback(
+            @PathVariable Long projectId,
+            @PathVariable Long messageId,
+            @RequestBody GitQaChatMessageFeedbackRequest body) {
+        projectService.get(projectId);
+        body.validate();
+        chatMessageService.updateAssistantFeedback(projectId, messageId, body.getFeedback());
+        return ApiResponse.ok();
     }
 
     @DeleteMapping("/{messageId}")

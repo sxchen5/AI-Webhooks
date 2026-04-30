@@ -33,6 +33,11 @@ export function clearAllGitQaChatMessages(projectId) {
   return http.delete(`/ai-git-qa/projects/${projectId}/messages`)
 }
 
+/** 助手消息点赞/点踩：feedback 为 1、-1 或 null（清除） */
+export function patchGitQaChatMessageFeedback(projectId, messageId, feedback) {
+  return http.patch(`/ai-git-qa/projects/${projectId}/messages/${messageId}/feedback`, { feedback })
+}
+
 /**
  * SSE：POST /chat，返回 fetch Response（body 为 ReadableStream）。
  * 需自行解析 event/data；超时由调用方 AbortSignal 控制。
