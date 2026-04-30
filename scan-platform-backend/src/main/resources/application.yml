@@ -7,6 +7,10 @@ spring:
   application:
     # 与 logback 中 springProperty spring.application.name 一致 → scan-platform-backend.log
     name: scan-platform-backend
+  # StreamingResponseBody（Git 问答 SSE）走异步派发，默认约 30s 会 AsyncRequestTimeoutException
+  mvc:
+    async:
+      request-timeout: ${SPRING_MVC_ASYNC_REQUEST_TIMEOUT:2h}
   datasource:
     url: jdbc:mysql://localhost:3306/scan_platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
     username: root
