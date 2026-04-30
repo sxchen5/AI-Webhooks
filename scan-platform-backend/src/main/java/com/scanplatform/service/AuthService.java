@@ -22,9 +22,13 @@ public class AuthService {
     private final SysUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final LoginCaptchaService loginCaptchaService;
 
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest req) {
+        if (!loginCaptchaService.verifyAndConsume(req.getCaptchaId(), req.getCaptchaCode())) {
+            throw new IllegalArgumentException("验证码错误或已过期，请刷新后重试");
+        }
         SysUser user = userRepository.findByUsername(req.getUsername())
                 .orElseThrow(() -> new IllegalArgumentException("用户名或密码错误"));
         if (user.getStatus() == null || user.getStatus() != 1) {

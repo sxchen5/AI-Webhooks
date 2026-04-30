@@ -2,16 +2,24 @@ export default {
   login: {
     username: '用户名',
     password: '密码',
+    captcha: '验证码',
+    captchaPlaceholder: '请输入验证码',
+    captchaRequired: '请输入验证码',
+    captchaRefresh: '看不清？换一张',
     submit: '登录',
     usernameRequired: '请输入用户名',
     passwordRequired: '请输入密码',
     success: '登录成功',
-    hint: '默认账号 admin / admin123（首次启动由数据库初始化）',
+    captchaLoadFailed: '验证码加载失败',
+  },
+  session: {
+    expiredTitle: '登录已过期',
+    expiredBody: '登录已过期，请重新登录',
+    confirm: '确定',
   },
   app: {
     title: '代码扫描平台',
     loginTitle: '代码扫描平台',
-    loginSub: 'GitLab WebHook 触发 · 异步扫描 · 邮件告警',
   },
   nav: {
     console: '控制台',

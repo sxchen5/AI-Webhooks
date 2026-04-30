@@ -11,4 +11,10 @@ public class LoginRequest {
 
     @NotBlank
     private String password;
+
+    @NotBlank
+    private String captchaId;
+
+    @NotBlank
+    private String captchaCode;
 }

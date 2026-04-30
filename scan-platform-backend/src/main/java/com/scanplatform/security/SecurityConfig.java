@@ -48,7 +48,7 @@ public class SecurityConfig {
                                 "/favicon.svg",
                                 "/assets/**"
                         ).permitAll()
-                        .requestMatchers("/api/auth/login").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/captcha").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )

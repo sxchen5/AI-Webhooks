@@ -1,5 +1,8 @@
 package com.scanplatform.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.scanplatform.common.ApiResponse;
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -8,6 +11,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,6 +21,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 
 /**
@@ -31,6 +36,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     static final String JWT_AUTH_REQUEST_ATTR = JwtAuthFilter.class.getName() + ".AUTHENTICATION";
 
     private final JwtUtil jwtUtil;
+    private final ObjectMapper objectMapper;
 
     @Override
     protected boolean shouldNotFilterAsyncDispatch() {
@@ -62,11 +68,22 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(auth);
                 request.setAttribute(JWT_AUTH_REQUEST_ATTR, auth);
+            } catch (ExpiredJwtException ex) {
+                SecurityContextHolder.clearContext();
+                writeUnauthorized(response, "登录已过期，请重新登录");
+                return;
             } catch (Exception ex) {
                 log.debug("JWT 解析失败: {}", ex.getMessage());
                 SecurityContextHolder.clearContext();
             }
         }
         filterChain.doFilter(request, response);
+    }
+
+    private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        objectMapper.writeValue(response.getOutputStream(), ApiResponse.fail(401000, message));
     }
 }

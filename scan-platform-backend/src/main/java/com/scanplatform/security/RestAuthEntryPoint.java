@@ -31,7 +31,7 @@ public class RestAuthEntryPoint implements AuthenticationEntryPoint {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         objectMapper.writeValue(
                 response.getOutputStream(),
-                ApiResponse.fail(401, "未登录或登录已过期")
+                ApiResponse.fail(401000, "登录已过期，请重新登录")
         );
     }
 }

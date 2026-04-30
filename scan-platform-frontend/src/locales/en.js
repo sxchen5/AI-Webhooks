@@ -2,16 +2,24 @@ export default {
   login: {
     username: 'Username',
     password: 'Password',
+    captcha: 'Captcha',
+    captchaPlaceholder: 'Enter the code',
+    captchaRequired: 'Captcha is required',
+    captchaRefresh: 'Refresh',
     submit: 'Sign in',
     usernameRequired: 'Username is required',
     passwordRequired: 'Password is required',
     success: 'Signed in',
-    hint: 'Default admin / admin123 (initialized on first startup)',
+    captchaLoadFailed: 'Failed to load captcha',
+  },
+  session: {
+    expiredTitle: 'Session expired',
+    expiredBody: 'Your session has expired. Please sign in again.',
+    confirm: 'OK',
   },
   app: {
     title: 'Code Scan Platform',
     loginTitle: 'Code Scan Platform',
-    loginSub: 'GitLab WebHooks · async scans · email alerts',
   },
   nav: {
     console: 'Home',
