@@ -7,7 +7,7 @@
           <el-input
             v-model="filterDraft"
             clearable
-            placeholder="项目名称（留空查全部）"
+            placeholder="项目名称"
             style="width: 220px"
             @keyup.enter="runSearch"
           />
@@ -16,7 +16,7 @@
         </div>
       </div>
     </template>
-    <p class="tip">维护项目名称与 Git 地址主数据；「Git 项目配置」中可选择此处项目并自动带出地址。进入页面后请点击<strong>查询</strong>加载列表；条件留空为全部。</p>
+    <p class="tip">维护项目名称与 Git 地址主数据；「Git 项目配置」中可选择此处项目并自动带出地址。进入页面后请点击<strong>查询</strong>加载列表。</p>
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column prop="id" label="ID" width="70" />
       <el-table-column prop="projectName" label="项目名称" min-width="160" show-overflow-tooltip />

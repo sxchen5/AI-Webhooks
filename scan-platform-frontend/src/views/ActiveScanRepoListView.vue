@@ -7,7 +7,7 @@
           <el-input
             v-model="filterDraft"
             clearable
-            placeholder="项目名称（留空查全部）"
+            placeholder="项目名称"
             style="width: 220px"
             @keyup.enter="runSearch"
           />
@@ -16,7 +16,7 @@
         </div>
       </div>
     </template>
-    <p class="tip">支持多个 HTTP(S) 仓库；用户名/密码用于非交互克隆。可从「Git项目管理」选择项目自动带出地址。通知邮箱用于主动扫描结果邮件，发信账号在<strong>系统配置管理 → 邮件配置</strong>中维护。进入页面后请点击<strong>查询</strong>加载列表；条件留空为全部。</p>
+    <p class="tip">支持多个 HTTP(S) 仓库；用户名/密码用于非交互克隆。可从「Git项目管理」选择项目自动带出地址。通知邮箱用于主动扫描结果邮件，发信账号在<strong>系统配置管理 → 邮件配置</strong>中维护。进入页面后请点击<strong>查询</strong>加载列表。</p>
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column prop="id" label="ID" width="70" />
       <el-table-column prop="repoName" label="项目名称" min-width="120" />

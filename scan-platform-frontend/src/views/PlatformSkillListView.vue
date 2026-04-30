@@ -7,7 +7,7 @@
           <el-input
             v-model="keywordDraft"
             clearable
-            placeholder="技能名或说明关键词（留空查全部）"
+            placeholder="技能名或说明关键词"
             style="width: 260px"
             @keyup.enter="runSearch"
           />
@@ -18,7 +18,7 @@
     </template>
     <p class="tip">
       与仓库内 <code>.cursor/skills/&lt;技能名&gt;/SKILL.md</code> 同名时，<strong>每次扫描前</strong>由平台写入工作区，<strong>覆盖仓库文件</strong>，优先级最高；未在平台配置时仍使用仓库自带技能。
-      「扫描技能名」须与下方「技能名」一致。进入页面后请点击<strong>查询</strong>加载列表；条件留空为全部。
+      「扫描技能名」须与下方「技能名」一致。进入页面后请点击<strong>查询</strong>加载列表。
     </p>
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column prop="id" label="ID" width="70" />

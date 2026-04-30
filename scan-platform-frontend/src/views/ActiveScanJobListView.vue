@@ -7,7 +7,7 @@
           <el-input
             v-model="jobNameDraft"
             clearable
-            placeholder="任务名（留空查全部）"
+            placeholder="任务名"
             style="width: 200px"
             @keyup.enter="runSearch"
           />
@@ -15,7 +15,7 @@
             v-model="repoIdDraft"
             clearable
             filterable
-            placeholder="关联配置（留空查全部）"
+            placeholder="关联配置"
             style="width: 240px"
           >
             <el-option v-for="r in repoOptions" :key="r.id" :label="r.name" :value="r.id" />
@@ -33,7 +33,7 @@
         </div>
       </div>
     </template>
-    <p class="tip">定时使用 Spring 6 段 Cron（秒 分 时 日 月 周），例：每天 2 点 <code>0 0 2 * * ?</code>；启用定时后保存会自动计算下次执行时间。邮件通知使用<strong>系统配置管理 → 邮件配置</strong>中的 SMTP，收件人请在<strong>Git项目配置</strong>中配置通知邮箱。进入页面后请点击<strong>查询</strong>加载列表；条件留空为全部。</p>
+    <p class="tip">定时使用 Spring 6 段 Cron（秒 分 时 日 月 周），例：每天 2 点 <code>0 0 2 * * ?</code>；启用定时后保存会自动计算下次执行时间。邮件通知使用<strong>系统配置管理 → 邮件配置</strong>中的 SMTP，收件人请在<strong>Git项目配置</strong>中配置通知邮箱。进入页面后请点击<strong>查询</strong>加载列表。</p>
     <el-table
       :data="tableData"
       v-loading="loading"

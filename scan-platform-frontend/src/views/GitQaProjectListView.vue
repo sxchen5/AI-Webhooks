@@ -7,7 +7,7 @@
           <el-input
             v-model="keywordDraft"
             clearable
-            placeholder="机器人名称或 Git URL（留空查全部）"
+            placeholder="机器人名称或 Git URL"
             style="width: 280px"
             @keyup.enter="runSearch"
           />
@@ -18,7 +18,7 @@
     </template>
     <p class="tip">
       配置机器人名称与 Git 克隆；对话时默认在仓库目录执行
-      <code>agent --print -f &lt;问题&gt; --output-format stream-json</code>。可选填写平台技能或自定义 Agent（将自动追加 stream-json）。保存后点「AI问答」进入对话。进入页面后请点击<strong>查询</strong>加载列表；条件留空为全部。
+      <code>agent --print -f &lt;问题&gt; --output-format stream-json</code>。可选填写平台技能或自定义 Agent（将自动追加 stream-json）。保存后点「AI问答」进入对话。进入页面后请点击<strong>查询</strong>加载列表。
     </p>
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column prop="id" label="ID" width="70" />
