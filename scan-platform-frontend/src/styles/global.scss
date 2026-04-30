@@ -6,3 +6,8 @@ body,
   font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
   background: #f0f2f5;
 }
+
+html.dark body,
+html.dark #app {
+  background: #0a0a0a;
+}

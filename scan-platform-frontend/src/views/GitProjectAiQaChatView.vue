@@ -59,12 +59,12 @@
             <div class="msg-actions-inner">
               <el-tooltip content="复制" placement="top">
                 <el-button text class="icon-action icon-action--copy" @click="copyMessage(m.content)">
-                  <el-icon :size="18"><DocumentCopy /></el-icon>
+                  <el-icon :size="msgActionIconSize"><DocumentCopy /></el-icon>
                 </el-button>
               </el-tooltip>
               <el-tooltip v-if="m.id != null" content="删除" placement="top">
                 <el-button text type="danger" class="icon-action" @click="onDeleteMessage(m)">
-                  <el-icon :size="18"><Delete /></el-icon>
+                  <el-icon :size="msgActionIconSize"><Delete /></el-icon>
                 </el-button>
               </el-tooltip>
             </div>
@@ -77,27 +77,27 @@
             <div class="msg-actions-inner">
               <el-tooltip content="复制" placement="top">
                 <el-button text class="icon-action icon-action--copy" @click="copyMessage(m.content)">
-                  <el-icon :size="18"><DocumentCopy /></el-icon>
+                  <el-icon :size="msgActionIconSize"><DocumentCopy /></el-icon>
                 </el-button>
               </el-tooltip>
               <el-tooltip content="重新生成" placement="top">
                 <el-button text class="icon-action" :disabled="replying" @click="onRegenerateAssistant(m)">
-                  <el-icon :size="18"><RefreshRight /></el-icon>
+                  <el-icon :size="msgActionIconSize"><RefreshRight /></el-icon>
                 </el-button>
               </el-tooltip>
               <el-tooltip content="朗读" placement="top">
                 <el-button text class="icon-action" @click="onSpeak(m.content)">
-                  <el-icon :size="18"><IconSpeak /></el-icon>
+                  <el-icon :size="msgActionIconSize"><IconSpeak /></el-icon>
                 </el-button>
               </el-tooltip>
               <el-tooltip content="点赞" placement="top">
                 <el-button text class="icon-action" @click="onFeedback(m, true)">
-                  <el-icon :size="18"><IconThumbUp /></el-icon>
+                  <el-icon :size="msgActionIconSize"><IconThumbUp /></el-icon>
                 </el-button>
               </el-tooltip>
               <el-tooltip content="点踩" placement="top">
                 <el-button text class="icon-action" @click="onFeedback(m, false)">
-                  <el-icon :size="18"><IconThumbDown /></el-icon>
+                  <el-icon :size="msgActionIconSize"><IconThumbDown /></el-icon>
                 </el-button>
               </el-tooltip>
             </div>
@@ -119,7 +119,7 @@
           <div v-show="!isAtBottom" class="scroll-to-bottom-wrap">
             <el-tooltip content="回到底部" placement="top">
               <el-button circle class="scroll-to-bottom-btn" @click="scrollToBottomImmediate">
-                <el-icon :size="18"><ArrowDown /></el-icon>
+                <el-icon :size="msgActionIconSize"><ArrowDown /></el-icon>
               </el-button>
             </el-tooltip>
           </div>
@@ -133,8 +133,6 @@
             :autosize="{ minRows: 2, maxRows: 6 }"
             placeholder="输入问题后发送…"
             :disabled="replying || !project"
-            maxlength="8000"
-            show-word-limit
             class="composer-textarea"
             @keydown.enter.exact.prevent="onEnterSend"
           />
@@ -164,7 +162,7 @@
               :disabled="!draft.trim() || !project"
               @click="send"
             >
-              <el-icon v-if="!replying" :size="20"><Right /></el-icon>
+              <el-icon v-if="!replying" :size="msgActionIconSize"><Right /></el-icon>
             </el-button>
           </el-tooltip>
         </div>
@@ -241,6 +239,9 @@ const IconThumbDown = () =>
 
 /** 朗读按钮：广播/喇叭图标（与 Element Plus Promotion 一致） */
 const IconSpeak = Promotion
+
+/** 消息下方工具栏与回到底部等操作图标统一尺寸 */
+const msgActionIconSize = 15
 
 const route = useRoute()
 const router = useRouter()
@@ -710,7 +711,7 @@ onBeforeUnmount(() => {
 .msg-actions-inner {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 0;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease;
@@ -719,6 +720,10 @@ onBeforeUnmount(() => {
   opacity: 1;
   pointer-events: auto;
 }
+.msg-actions .icon-action {
+  padding: 2px 4px;
+  min-height: auto;
+}
 .icon-action--copy {
   color: #7f7f7f;
 }
@@ -726,8 +731,6 @@ onBeforeUnmount(() => {
   color: #409eff;
 }
 .assistant-toolbar .icon-action {
-  padding: 6px 8px;
-  min-height: auto;
   color: #606266;
 }
 .assistant-toolbar .icon-action:hover {
@@ -938,9 +941,7 @@ onBeforeUnmount(() => {
   line-height: 1.55;
 }
 .composer-textarea :deep(.el-input__count) {
-  background: transparent;
-  bottom: 8px;
-  right: 52px;
+  display: none;
 }
 .send-btn-inner {
   position: absolute;
