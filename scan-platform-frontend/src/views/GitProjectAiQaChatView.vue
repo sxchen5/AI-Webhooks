@@ -7,7 +7,7 @@
       </el-button>
       <div class="header-center">
         <div class="bot-avatar" aria-hidden="true">
-          <el-icon :size="22"><ChatDotRound /></el-icon>
+          <el-icon :size="20"><ChatDotRound /></el-icon>
         </div>
         <div class="header-text">
           <h1 class="title">{{ project?.botName || 'AI 问答' }}</h1>
@@ -32,10 +32,10 @@
       wrap-class="git-qa-scroll-wrap"
       @scroll="onScrollWrap"
     >
-      <div class="messages">
-        <div v-if="!messages.length && !historyLoading" class="welcome">
-          <p class="welcome-title">{{ t('gitQaChat.welcomeEmpty') }}</p>
-        </div>
+      <div v-if="!messages.length && !historyLoading" class="welcome-full">
+        <p class="welcome-title">{{ t('gitQaChat.welcomeEmpty') }}</p>
+      </div>
+      <div v-else class="messages">
         <div
           v-for="(m, idx) in messages"
           :key="m.clientKey || m.id || idx"
@@ -741,9 +741,9 @@ onBeforeUnmount(() => {
   flex: 1;
 }
 .bot-avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   background: linear-gradient(135deg, #409eff, #6366f1);
   display: flex;
   align-items: center;
@@ -793,10 +793,26 @@ onBeforeUnmount(() => {
   margin: 0 auto;
   padding-top: 16px;
   padding-bottom: 24px;
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
   box-sizing: border-box;
+}
+.welcome-full {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 24px 16px;
+}
+.welcome-title {
+  margin: 0;
+  max-width: 880px;
+  font-size: 25px;
+  color: var(--chat-welcome-title);
+  font-weight: 600;
+  line-height: 1.45;
+  text-align: center;
 }
 .msg-block {
   margin-bottom: 6px;
@@ -848,24 +864,6 @@ onBeforeUnmount(() => {
 }
 .assistant-toolbar .icon-action--feedback-on:hover {
   color: #66b1ff;
-}
-.welcome {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 24px 16px;
-  min-height: 0;
-  color: var(--chat-muted);
-}
-.welcome-title {
-  margin: 0;
-  font-size: 18px;
-  color: var(--chat-welcome-title);
-  font-weight: 600;
-  line-height: 1.5;
 }
 .msg-row {
   display: flex;
