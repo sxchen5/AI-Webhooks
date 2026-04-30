@@ -34,4 +34,12 @@ public class GitQaChatMessageController {
         chatMessageService.delete(projectId, messageId);
         return ApiResponse.ok();
     }
+
+    /** 清空该问答配置下全部聊天记录 */
+    @DeleteMapping
+    public ApiResponse<Void> deleteAll(@PathVariable Long projectId) {
+        projectService.get(projectId);
+        chatMessageService.deleteAllByProject(projectId);
+        return ApiResponse.ok();
+    }
 }

@@ -29,6 +29,10 @@ export function deleteGitQaChatMessage(projectId, messageId) {
   return http.delete(`/ai-git-qa/projects/${projectId}/messages/${messageId}`)
 }
 
+export function clearAllGitQaChatMessages(projectId) {
+  return http.delete(`/ai-git-qa/projects/${projectId}/messages`)
+}
+
 /**
  * SSE：POST /chat，返回 fetch Response（body 为 ReadableStream）。
  * 需自行解析 event/data；超时由调用方 AbortSignal 控制。

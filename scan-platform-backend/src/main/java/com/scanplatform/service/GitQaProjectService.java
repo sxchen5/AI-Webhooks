@@ -3,6 +3,7 @@ package com.scanplatform.service;
 import com.scanplatform.dto.GitQaChatRequest;
 import com.scanplatform.dto.GitQaProjectDto;
 import com.scanplatform.entity.GitProject;
+import com.scanplatform.entity.GitQaChatMessage;
 import com.scanplatform.entity.GitQaProject;
 import com.scanplatform.repository.GitProjectRepository;
 import com.scanplatform.repository.GitQaProjectRepository;
@@ -73,7 +74,21 @@ public class GitQaProjectService {
         if (qp.getStatus() == null || qp.getStatus() != 1) {
             throw new IllegalArgumentException("该问答配置已禁用");
         }
-        Long userMessageId = gitQaChatMessageService.saveUser(id, req.getQuestion());
+        boolean regenerate = Boolean.TRUE.equals(req.getRegenerate());
+        Long userMessageId;
+        if (regenerate) {
+            if (req.getUserMessageId() == null) {
+                throw new IllegalArgumentException("重新生成需指定 userMessageId");
+            }
+            GitQaChatMessage userRow = gitQaChatMessageService.requireUserMessage(id, req.getUserMessageId());
+            if (!req.getQuestion().trim().equals(userRow.getContent() != null ? userRow.getContent().trim() : "")) {
+                throw new IllegalArgumentException("重新生成时 question 须与该用户消息内容一致");
+            }
+            userMessageId = userRow.getId();
+            gitQaChatMessageService.deleteAssistantAfterUserIfPresent(id, userMessageId);
+        } else {
+            userMessageId = gitQaChatMessageService.saveUser(id, req.getQuestion());
+        }
 
         // 仅用 \n 写 SSE，避免 Windows 上 PrintWriter.println 产生 CRLF 导致前端按 \n\n 分块失败
         PrintWriter pw = new PrintWriter(new OutputStreamWriter(rawOut, StandardCharsets.UTF_8), true);
@@ -94,7 +109,9 @@ public class GitQaProjectService {
         try {
             cmd = resolveChatShellCommand(qp, workPath, branch, commit, req.getQuestion(), req.getModel());
         } catch (Exception e) {
-            gitQaChatMessageService.delete(id, userMessageId);
+            if (!regenerate) {
+                gitQaChatMessageService.delete(id, userMessageId);
+            }
             sseJson(pw, "error", "{\"message\":\"" + jsonEscape(e.getMessage()) + "\"}");
             sseDone(pw, -1, false);
             return;
@@ -127,7 +144,9 @@ public class GitQaProjectService {
             });
         } catch (Exception e) {
             log.warn("Git 问答 agent 执行异常: projectId={} msg={}", qp.getId(), e.getMessage(), e);
-            gitQaChatMessageService.delete(id, userMessageId);
+            if (!regenerate) {
+                gitQaChatMessageService.delete(id, userMessageId);
+            }
             sseJson(pw, "error", "{\"message\":\"" + jsonEscape(e.getMessage()) + "\"}");
             sseDone(pw, -1, false);
             return;
@@ -143,7 +162,7 @@ public class GitQaProjectService {
                     exit,
                     replyText.length());
         } else {
-            if (!success) {
+            if (!success && !regenerate) {
                 gitQaChatMessageService.delete(id, userMessageId);
             }
             log.info(

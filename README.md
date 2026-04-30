@@ -21,7 +21,7 @@ Spring Boot 3 + Vue3 + Element Plus + MySQL。支持 **主动 Git 扫描**（多
 
 **Git 问答 agent_command 默认值**：若表由旧脚本创建且 `agent_command` 无默认值，可执行 `migration-git-qa-agent-default.sql`（允许空串表示使用默认 stream-json 问答命令）。
 
-**Git 问答聊天记录**：已有库执行 `migration-git-qa-chat-message.sql`（新建 `git_qa_chat_message` 表，用于会话持久化与单条删除）。
+**Git 问答聊天记录**：已有库执行 `migration-git-qa-chat-message.sql`（新建 `git_qa_chat_message` 表，用于会话持久化与单条删除）。`DELETE /api/ai-git-qa/projects/{id}/messages/{messageId}` 删除单条；`DELETE /api/ai-git-qa/projects/{id}/messages`（无子路径）清空该配置下全部记录。重新生成时 `POST .../chat` 请求体可带 `regenerate: true` 与 `userMessageId`，`question` 须与该用户消息一致，服务端不重复插入用户行。
 
 默认登录：`admin` / `admin123`（BCrypt 存储在 `data.sql`）。
 

@@ -15,6 +15,15 @@
         </div>
       </div>
       <div class="header-spacer" />
+      <el-button
+        v-if="project"
+        text
+        type="danger"
+        :disabled="replying || !messages.length"
+        @click="onClearAllChats"
+      >
+        清空记录
+      </el-button>
     </header>
 
     <el-scrollbar ref="scrollbarRef" class="chat-scroll">
@@ -40,24 +49,42 @@
               <MarkdownOutputPanel v-else :text="m.content" :rows="8" hide-toolbar />
             </div>
           </div>
-          <div class="msg-actions" :class="m.role === 'user' ? 'msg-actions--user' : 'msg-actions--bot'">
-            <el-button
-              text
-              type="primary"
-              class="copy-btn"
-              :aria-label="'复制' + (m.role === 'user' ? '用户' : '助手') + '消息'"
-              @click="copyMessage(m.content)"
-            >
-              <el-icon :size="16"><DocumentCopy /></el-icon>
-            </el-button>
+          <div v-if="m.role === 'user'" class="msg-actions msg-actions--user">
             <el-button
               v-if="m.id != null"
               text
               type="danger"
-              class="del-btn"
+              class="icon-action"
+              aria-label="删除用户消息"
               @click="onDeleteMessage(m)"
             >
-              <el-icon :size="16"><Delete /></el-icon>
+              <el-icon :size="18"><Delete /></el-icon>
+            </el-button>
+          </div>
+          <div
+            v-else-if="!(replying && m.displayStream)"
+            class="msg-actions msg-actions--bot assistant-toolbar"
+          >
+            <el-button text class="icon-action" aria-label="复制" @click="copyMessage(m.content)">
+              <el-icon :size="18"><DocumentCopy /></el-icon>
+            </el-button>
+            <el-button
+              text
+              class="icon-action"
+              aria-label="重新生成"
+              :disabled="replying"
+              @click="onRegenerateAssistant(m)"
+            >
+              <el-icon :size="18"><RefreshRight /></el-icon>
+            </el-button>
+            <el-button text class="icon-action" aria-label="朗读" @click="onSpeak(m.content)">
+              <el-icon :size="18"><Headset /></el-icon>
+            </el-button>
+            <el-button text class="icon-action" aria-label="点赞" @click="onFeedback(m, true)">
+              <el-icon :size="18"><Top /></el-icon>
+            </el-button>
+            <el-button text class="icon-action" aria-label="点踩" @click="onFeedback(m, false)">
+              <el-icon :size="18"><Bottom /></el-icon>
             </el-button>
           </div>
         </div>
@@ -125,9 +152,10 @@
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, ChatDotRound, Delete, DocumentCopy } from '@element-plus/icons-vue'
+import { ArrowLeft, Bottom, ChatDotRound, Delete, DocumentCopy, Headset, RefreshRight, Top } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
+  clearAllGitQaChatMessages,
   deleteGitQaChatMessage,
   fetchGitQaChatMessages,
   getGitQaProject,
@@ -192,6 +220,89 @@ async function copyMessage(text) {
   } catch {
     ElMessage.error('复制失败，请手动选择文本')
   }
+}
+
+async function onClearAllChats() {
+  if (!project.value?.id) return
+  try {
+    await ElMessageBox.confirm('确定清空该机器人的全部聊天记录？此操作不可恢复。', '清空记录', {
+      type: 'warning',
+    })
+    await clearAllGitQaChatMessages(project.value.id)
+    messages.value = []
+    ElMessage.success('已清空')
+  } catch {
+    /* cancel */
+  }
+}
+
+function findUserMessageBeforeAssistant(assistantMsg) {
+  const i = messages.value.indexOf(assistantMsg)
+  if (i <= 0) return null
+  const prev = messages.value[i - 1]
+  if (prev.role !== 'user' || prev.id == null) return null
+  return prev
+}
+
+async function onRegenerateAssistant(assistantMsg) {
+  if (replying.value) return
+  const userRow = findUserMessageBeforeAssistant(assistantMsg)
+  if (!userRow) {
+    ElMessage.warning('找不到对应的用户问题，无法重新生成')
+    return
+  }
+  assistantMsg.content = ''
+  assistantMsg.displayStream = true
+  assistantMsg.id = null
+  lastMeta.value = null
+  replying.value = true
+  scrollToBottom()
+  abortCtrl = new AbortController()
+  const body = {
+    question: userRow.content,
+    regenerate: true,
+    userMessageId: userRow.id,
+    ...(selectedModel.value ? { model: selectedModel.value } : {}),
+  }
+  try {
+    const res = await streamGitQaChat(project.value.id, body, abortCtrl.signal)
+    const reader = res.body?.getReader()
+    if (!reader) throw new Error('浏览器不支持流式响应')
+    await consumeSseStream(reader, userRow, assistantMsg)
+  } catch (e) {
+    if (e?.name !== 'AbortError') {
+      assistantMsg.content = `请求失败：${e?.message || String(e)}`
+      ElMessage.error('执行失败')
+    }
+    assistantMsg.displayStream = false
+    await loadHistory()
+  } finally {
+    replying.value = false
+    abortCtrl = null
+    assistantMsg.displayStream = false
+    scrollToBottom()
+  }
+}
+
+function onSpeak(text) {
+  const t = (text ?? '').trim()
+  if (!t) {
+    ElMessage.warning('没有可朗读的内容')
+    return
+  }
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    window.speechSynthesis.cancel()
+    const u = new SpeechSynthesisUtterance(t)
+    u.lang = 'zh-CN'
+    window.speechSynthesis.speak(u)
+    ElMessage.success('开始朗读')
+  } else {
+    ElMessage.warning('当前浏览器不支持语音朗读')
+  }
+}
+
+function onFeedback(_m, positive) {
+  ElMessage.success(positive ? '已记录点赞' : '已记录点踩')
 }
 
 async function onDeleteMessage(m) {
@@ -349,6 +460,9 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   abortCtrl?.abort()
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    window.speechSynthesis.cancel()
+  }
 })
 </script>
 
@@ -414,8 +528,8 @@ onBeforeUnmount(() => {
   max-width: min(560px, 70vw);
 }
 .header-spacer {
-  width: 72px;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 8px;
 }
 .chat-scroll {
   flex: 1;
@@ -443,15 +557,18 @@ onBeforeUnmount(() => {
 .msg-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
-  margin-top: 2px;
+  gap: 4px;
+  margin-top: 4px;
   margin-bottom: 10px;
-  padding: 0 4px;
+  padding: 0 2px;
 }
-.copy-btn,
-.del-btn {
-  padding: 4px 6px;
+.assistant-toolbar .icon-action {
+  padding: 6px 8px;
   min-height: auto;
+  color: #606266;
+}
+.assistant-toolbar .icon-action:hover {
+  color: #409eff;
 }
 .welcome {
   text-align: center;
@@ -489,6 +606,7 @@ onBeforeUnmount(() => {
 .bubble--user {
   background: #f5f5f5;
   color: #303133;
+  padding: 5px 14px;
 }
 .bubble--assistant {
   background: transparent;

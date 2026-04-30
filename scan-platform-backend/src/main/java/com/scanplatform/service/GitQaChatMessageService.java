@@ -59,4 +59,27 @@ public class GitQaChatMessageService {
     public void deleteAllByProject(Long projectId) {
         repository.deleteByProjectId(projectId);
     }
+
+    /**
+     * 删除紧跟在某条用户消息之后的助手回复（用于「重新生成」覆盖旧答案）。
+     */
+    @Transactional
+    public void deleteAssistantAfterUserIfPresent(Long projectId, Long userMessageId) {
+        repository.findFirstByProjectIdAndIdGreaterThanOrderByIdAsc(projectId, userMessageId)
+                .filter(m -> "ASSISTANT".equals(m.getRole()))
+                .ifPresent(m -> repository.deleteById(m.getId()));
+    }
+
+    @Transactional(readOnly = true)
+    public GitQaChatMessage requireUserMessage(Long projectId, Long messageId) {
+        GitQaChatMessage m = repository.findById(messageId)
+                .orElseThrow(() -> new IllegalArgumentException("消息不存在"));
+        if (!projectId.equals(m.getProjectId())) {
+            throw new IllegalArgumentException("消息不属于该问答配置");
+        }
+        if (!"USER".equals(m.getRole())) {
+            throw new IllegalArgumentException("只能基于用户消息重新生成");
+        }
+        return m;
+    }
 }
