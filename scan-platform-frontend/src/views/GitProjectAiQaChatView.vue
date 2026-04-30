@@ -101,24 +101,6 @@
     <footer class="chat-footer">
       <div class="composer">
         <div class="composer-input-wrap">
-          <div class="composer-toolbar">
-            <span class="toolbar-label">模型</span>
-            <el-select
-              v-model="selectedModel"
-              placeholder="默认（不指定）"
-              clearable
-              filterable
-              class="model-select"
-              :disabled="replying || !project"
-            >
-              <el-option
-                v-for="opt in modelOptions"
-                :key="opt"
-                :label="opt"
-                :value="opt"
-              />
-            </el-select>
-          </div>
           <el-input
             v-model="draft"
             type="textarea"
@@ -131,6 +113,25 @@
             class="composer-textarea"
             @keydown.enter.exact.prevent="onEnterSend"
           />
+          <div class="composer-model-inner">
+            <el-select
+              v-model="selectedModel"
+              placeholder="默认"
+              clearable
+              size="small"
+              fit-input-width
+              class="model-select-inner"
+              popper-class="git-qa-model-popper"
+              :disabled="replying || !project"
+            >
+              <el-option
+                v-for="opt in modelOptions"
+                :key="opt"
+                :label="opt"
+                :value="opt"
+              />
+            </el-select>
+          </div>
         </div>
         <el-button
           type="primary"
@@ -534,7 +535,7 @@ onBeforeUnmount(() => {
 .chat-scroll {
   flex: 1;
   min-height: 0;
-  padding: 20px 16px;
+  padding: 0px 16px;
   background: #fff;
 }
 :deep(.chat-scroll .el-scrollbar__wrap) {
@@ -543,6 +544,7 @@ onBeforeUnmount(() => {
 .messages {
   max-width: 880px;
   margin: 0 auto;
+  padding-top: 16px;
   padding-bottom: 24px;
 }
 .msg-block {
@@ -695,39 +697,48 @@ onBeforeUnmount(() => {
   margin: 0 auto;
   display: flex;
   gap: 14px;
-  align-items: flex-end;
+  align-items: center;
 }
 .composer-input-wrap {
   flex: 1;
   min-width: 0;
+  position: relative;
   border-radius: 16px;
   border: 1px solid #dcdfe6;
   background: #fff;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
-.composer-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  background: #fafbfc;
-  border-bottom: 1px solid #ebeef5;
+.composer-model-inner {
+  position: absolute;
+  left: 10px;
+  bottom: 30px;
+  z-index: 2;
+  pointer-events: auto;
 }
-.toolbar-label {
+.model-select-inner {
+  max-width: calc(100% - 100px);
+}
+.model-select-inner :deep(.el-select__wrapper) {
+  min-height: 28px;
+  padding: 2px 10px;
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px #e4e7ed inset;
+  background: rgba(255, 255, 255, 0.95);
   font-size: 12px;
-  color: #909399;
-  flex-shrink: 0;
+  font-weight: 500;
+  color: #606266;
 }
-.model-select {
-  width: min(240px, 55vw);
+.model-select-inner :deep(.el-select__wrapper.is-hovering),
+.model-select-inner :deep(.el-select__wrapper.is-focused) {
+  box-shadow: 0 0 0 1px #c0c4cc inset, 0 2px 8px rgba(64, 158, 255, 0.12);
 }
 .composer-textarea :deep(.el-textarea__inner) {
   border: none;
   box-shadow: none;
-  border-radius: 0;
+  border-radius: 16px;
   resize: none;
-  padding: 12px 14px;
+  padding: 12px 14px 44px 14px;
   font-size: 14px;
   line-height: 1.55;
 }
@@ -741,11 +752,20 @@ onBeforeUnmount(() => {
   padding: 14px 24px;
   font-weight: 600;
   flex-shrink: 0;
+  align-self: center;
 }
 .meta-warn {
   max-width: 880px;
   margin: 10px auto 0;
   font-size: 12px;
   color: #e6a23c;
+}
+</style>
+
+<style lang="scss">
+/* 下拉挂载在 body，需非 scoped */
+.git-qa-model-popper.el-popper {
+  border-radius: 10px;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.12);
 }
 </style>
