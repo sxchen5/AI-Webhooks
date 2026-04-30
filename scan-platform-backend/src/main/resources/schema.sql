@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS active_scan_repo (
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     KEY idx_git_project_id (git_project_id)
-) COMMENT '主动扫描-Git项目配置';
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT '主动扫描-Git项目配置';
 
 CREATE TABLE IF NOT EXISTS active_scan_job (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS active_scan_job (
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     KEY idx_repo_id (repo_id),
     KEY idx_next_run (next_schedule_run, schedule_enabled, status)
-) COMMENT '主动扫描-任务';
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT '主动扫描-任务';
 
 CREATE TABLE IF NOT EXISTS active_scan_log (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS active_scan_log (
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     KEY idx_job_id (job_id),
     KEY idx_create_time (create_time)
-) COMMENT '主动扫描-执行日志';
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT '主动扫描-执行日志';
 
 CREATE TABLE IF NOT EXISTS platform_skill (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS platform_skill (
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_skill_name (skill_name)
-) COMMENT '平台技能：扫描前写入工作区，优先级高于仓库 .cursor/skills';
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT '平台技能：扫描前写入工作区，优先级高于仓库 .cursor/skills';
 
 CREATE TABLE IF NOT EXISTS git_qa_project (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS git_qa_project (
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     KEY idx_git_qa_git_project_id (git_project_id)
-) COMMENT 'Git 项目 AI 问答配置';
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT 'Git 项目 AI 问答配置';
 
 CREATE TABLE IF NOT EXISTS git_qa_chat_message (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
