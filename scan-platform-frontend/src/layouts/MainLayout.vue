@@ -30,17 +30,6 @@
           router
           :ellipsis="false"
         >
-          <el-sub-menu index="ai-qa-mgmt">
-            <template #title>
-              <el-icon><ChatDotRound /></el-icon>
-              <span class="submenu-title-text">{{ t('nav.aiQa') }}</span>
-            </template>
-            <el-menu-item index="/ai-git-qa/projects">
-              <el-icon><FolderOpened /></el-icon>
-              <template #title>{{ t('nav.gitQaProjects') }}</template>
-            </el-menu-item>
-          </el-sub-menu>
-
           <el-sub-menu index="git-scan-mgmt">
             <template #title>
               <el-icon><Folder /></el-icon>
@@ -83,6 +72,17 @@
             <el-menu-item index="/system/mail">
               <el-icon><Message /></el-icon>
               <template #title>{{ t('nav.mail') }}</template>
+            </el-menu-item>
+          </el-sub-menu>
+
+          <el-sub-menu index="ai-qa-mgmt">
+            <template #title>
+              <el-icon><ChatDotRound /></el-icon>
+              <span class="submenu-title-text">{{ t('nav.aiQa') }}</span>
+            </template>
+            <el-menu-item index="/ai-git-qa/projects">
+              <el-icon><FolderOpened /></el-icon>
+              <template #title>{{ t('nav.gitQaProjects') }}</template>
             </el-menu-item>
           </el-sub-menu>
         </el-menu>
@@ -213,7 +213,7 @@ const prefs = usePreferencesStore()
 const { t } = useI18n()
 
 const collapsed = ref(false)
-const asideWidth = computed(() => (collapsed.value ? '64px' : '240px'))
+const asideWidth = computed(() => (collapsed.value ? '64px' : '280px'))
 const settingsOpen = ref(false)
 const draftAvatarPreset = ref(prefs.avatarPreset || DEFAULT_AVATAR_PRESET_ID)
 const draftLocale = ref(prefs.locale)
@@ -234,10 +234,10 @@ const active = computed(() => route.path)
 const defaultOpenSubmenus = computed(() => {
   const p = route.path
   const open = []
-  if (p.startsWith('/system')) open.push('system-mgmt')
-  if (p.startsWith('/ai-git-qa')) open.push('ai-qa-mgmt')
   if (p.startsWith('/active-scan')) open.push('git-scan-mgmt')
   if (p.startsWith('/platform-skills')) open.push('skill-mgmt')
+  if (p.startsWith('/system')) open.push('system-mgmt')
+  if (p.startsWith('/ai-git-qa')) open.push('ai-qa-mgmt')
   return open
 })
 
@@ -357,7 +357,7 @@ async function onLogoutFromDrawer() {
   --el-menu-active-color: var(--sp-aside-active-color);
 }
 .side-menu:not(.el-menu--collapse) {
-  width: 240px;
+  width: 280px;
 }
 .side-menu :deep(.el-menu),
 .side-menu :deep(.el-menu--vertical),
@@ -403,7 +403,6 @@ async function onLogoutFromDrawer() {
   flex-shrink: 0;
   border-top: 1px solid var(--sp-aside-border);
   padding: 10px 12px;
-  background: var(--sp-aside-user-strip);
 }
 .aside-user--collapsed {
   padding: 10px 8px;

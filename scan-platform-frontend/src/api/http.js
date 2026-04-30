@@ -27,7 +27,7 @@ http.interceptors.response.use(
   },
   (err) => {
     const status = err.response?.status
-    if (status === 401 || status === 403) {
+    if (status === 401) {
       const user = useUserStore()
       user.logout()
       router.push({ name: 'Login' })
