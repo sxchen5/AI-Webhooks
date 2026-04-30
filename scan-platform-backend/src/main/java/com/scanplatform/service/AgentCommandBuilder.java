@@ -9,7 +9,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 /**
- * 当配置了 Cursor 技能名时，生成 {@code agent --print -p} 行内提示命令（不再写入工作区 txt）；
+ * 当配置了 Cursor 技能名时，生成 {@code agent --print -f} 行内提示命令（不再写入工作区 txt）；
  * 提示首行使用 {@code /技能目录名} 显式触发技能（与 Cursor 文档一致）。
  * 未配置技能时返回 empty，由调用方使用原始 {@code agent_command} 模板。
  */
@@ -90,14 +90,14 @@ public class AgentCommandBuilder {
     }
 
     /**
-     * {@code agent --print -p} 行内提示；Windows cmd 下换行会破坏引号参数，故压成空格。
+     * {@code agent --print -f} 行内提示；Windows cmd 下换行会破坏引号参数，故压成空格。
      */
     private static String wrapAgentPrintInline(String prompt) {
         if (isWindows()) {
             String oneLine = prompt.replace('\r', ' ').replace('\n', ' ').trim();
-            return "agent --print -p \"" + escapeForCmdDoubleQuoted(oneLine) + "\"";
+            return "agent --print -f \"" + escapeForCmdDoubleQuoted(oneLine) + "\"";
         }
-        return "agent --print -p '" + escapeForBashSingleQuoted(prompt) + "'";
+        return "agent --print -f '" + escapeForBashSingleQuoted(prompt) + "'";
     }
 
     private static String sanitizeSkillSlug(String name) {
@@ -165,7 +165,7 @@ public class AgentCommandBuilder {
     }
 
     /**
-     * Git 问答默认：用户问题通过 {@code agent --print -p} 行内传入，并追加 {@code stream-json}。
+     * Git 问答默认：用户问题通过 {@code agent --print -f} 行内传入，并追加 {@code stream-json}。
      */
     public String buildGitQaStreamJsonCommand(String userQuestion) {
         String q = userQuestion != null ? userQuestion : "";
