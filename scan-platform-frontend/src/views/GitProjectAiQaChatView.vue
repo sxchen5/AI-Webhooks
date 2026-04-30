@@ -26,7 +26,7 @@
       </el-button>
     </header>
 
-    <el-scrollbar ref="scrollbarRef" class="chat-scroll">
+    <el-scrollbar ref="scrollbarRef" class="chat-scroll" @scroll="onScrollWrap">
       <div class="messages">
         <div v-if="!messages.length && !historyLoading" class="welcome">
           <p class="welcome-title">开始对话</p>
@@ -58,7 +58,7 @@
           >
             <div class="msg-actions-inner">
               <el-tooltip content="复制" placement="top">
-                <el-button text class="icon-action" @click="copyMessage(m.content)">
+                <el-button text class="icon-action icon-action--copy" @click="copyMessage(m.content)">
                   <el-icon :size="18"><DocumentCopy /></el-icon>
                 </el-button>
               </el-tooltip>
@@ -76,7 +76,7 @@
           >
             <div class="msg-actions-inner">
               <el-tooltip content="复制" placement="top">
-                <el-button text class="icon-action" @click="copyMessage(m.content)">
+                <el-button text class="icon-action icon-action--copy" @click="copyMessage(m.content)">
                   <el-icon :size="18"><DocumentCopy /></el-icon>
                 </el-button>
               </el-tooltip>
@@ -87,7 +87,7 @@
               </el-tooltip>
               <el-tooltip content="朗读" placement="top">
                 <el-button text class="icon-action" @click="onSpeak(m.content)">
-                  <el-icon :size="18"><Promotion /></el-icon>
+                  <el-icon :size="18"><IconSpeak /></el-icon>
                 </el-button>
               </el-tooltip>
               <el-tooltip content="点赞" placement="top">
@@ -114,7 +114,17 @@
     </el-scrollbar>
 
     <footer class="chat-footer">
-      <div class="composer">
+      <div class="footer-stack">
+        <transition name="fade-slide">
+          <div v-show="!isAtBottom" class="scroll-to-bottom-wrap">
+            <el-tooltip content="回到底部" placement="top">
+              <el-button circle class="scroll-to-bottom-btn" @click="scrollToBottomImmediate">
+                <el-icon :size="18"><ArrowDown /></el-icon>
+              </el-button>
+            </el-tooltip>
+          </div>
+        </transition>
+        <div class="composer">
         <div class="composer-input-wrap">
           <el-input
             v-model="draft"
@@ -129,7 +139,6 @@
             @keydown.enter.exact.prevent="onEnterSend"
           />
           <div class="composer-model-inner">
-            <span class="model-hint">选择模型</span>
             <el-select
               v-model="selectedModel"
               placeholder="默认"
@@ -140,6 +149,9 @@
               popper-class="git-qa-model-popper"
               :disabled="replying || !project"
             >
+              <template #prefix>
+                <span class="model-prefix">选择模型</span>
+              </template>
               <el-option v-for="opt in modelOptions" :key="opt" :label="opt" :value="opt" />
             </el-select>
           </div>
@@ -156,6 +168,7 @@
             </el-button>
           </el-tooltip>
         </div>
+        </div>
       </div>
       <p v-if="lastMeta && !lastMeta.success" class="meta-warn">
         Agent 退出码 {{ lastMeta.exitCode }}，请查看上方回复或错误提示。
@@ -165,7 +178,7 @@
 </template>
 
 <script setup>
-import { computed, h, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, ChatDotRound, Delete, DocumentCopy, Promotion, RefreshRight, Right } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -226,6 +239,9 @@ const IconThumbDown = () =>
     ],
   )
 
+/** 朗读按钮：广播/喇叭图标（与 Element Plus Promotion 一致） */
+const IconSpeak = Promotion
+
 const route = useRoute()
 const router = useRouter()
 const project = ref(null)
@@ -246,6 +262,9 @@ const historyLoading = ref(false)
 const scrollbarRef = ref(null)
 const lastMeta = ref(null)
 const hoveredMsgIndex = ref(null)
+/** 距底部小于该像素视为在底部，避免浮点抖动 */
+const scrollBottomTolerance = 48
+const isAtBottom = ref(true)
 
 let abortCtrl = null
 let sseBuffer = ''
@@ -295,9 +314,40 @@ function scrollToBottom() {
     const wrap = scrollbarRef.value?.wrapRef
     if (wrap) {
       wrap.scrollTop = wrap.scrollHeight
+      updateAtBottomFromWrap()
     }
   })
 }
+
+function updateAtBottomFromWrap() {
+  const wrap = scrollbarRef.value?.wrapRef
+  if (!wrap) {
+    isAtBottom.value = true
+    return
+  }
+  const { scrollTop, clientHeight, scrollHeight } = wrap
+  isAtBottom.value = scrollTop + clientHeight >= scrollHeight - scrollBottomTolerance
+}
+
+function onScrollWrap() {
+  updateAtBottomFromWrap()
+}
+
+function scrollToBottomImmediate() {
+  const wrap = scrollbarRef.value?.wrapRef
+  if (wrap) {
+    wrap.scrollTop = wrap.scrollHeight
+  }
+  nextTick(() => updateAtBottomFromWrap())
+}
+
+watch(
+  () => [messages.value.length, replying.value, historyLoading.value],
+  () => {
+    nextTick(() => updateAtBottomFromWrap())
+  },
+  { flush: 'post' },
+)
 
 function onEnterSend() {
   if (!draft.value.includes('\n')) {
@@ -545,6 +595,7 @@ onMounted(async () => {
   try {
     project.value = await getGitQaProject(id)
     await loadHistory()
+    nextTick(() => updateAtBottomFromWrap())
   } catch {
     ElMessage.error('加载配置失败')
     goBack()
@@ -667,6 +718,12 @@ onBeforeUnmount(() => {
 .msg-actions--visible .msg-actions-inner {
   opacity: 1;
   pointer-events: auto;
+}
+.icon-action--copy {
+  color: #7f7f7f;
+}
+.icon-action--copy:hover {
+  color: #409eff;
 }
 .assistant-toolbar .icon-action {
   padding: 6px 8px;
@@ -796,9 +853,33 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
   padding: 12px 20px 20px;
 }
-.composer {
+.footer-stack {
+  position: relative;
   max-width: 880px;
   margin: 0 auto;
+}
+.scroll-to-bottom-wrap {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  z-index: 4;
+}
+.scroll-to-bottom-btn {
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.12);
+}
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.fade-slide-enter-from,
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(6px);
+}
+.composer {
+  max-width: none;
+  margin: 0;
 }
 .composer-input-wrap {
   position: relative;
@@ -818,14 +899,19 @@ onBeforeUnmount(() => {
   gap: 8px;
   pointer-events: auto;
 }
-.model-hint {
+.model-prefix {
   font-size: 12px;
   color: #909399;
   white-space: nowrap;
   user-select: none;
+  margin-right: 4px;
 }
 .model-select-inner {
   max-width: calc(100% - 140px);
+}
+.model-select-inner :deep(.el-select__prefix) {
+  border: none;
+  box-shadow: none;
 }
 .model-select-inner :deep(.el-select__wrapper) {
   min-height: 28px;
