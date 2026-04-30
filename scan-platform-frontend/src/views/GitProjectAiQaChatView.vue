@@ -129,7 +129,7 @@
           <div v-show="!isAtBottom" class="scroll-to-bottom-wrap">
             <el-tooltip content="回到底部" placement="top">
               <el-button circle class="scroll-to-bottom-btn" @click="scrollToBottomImmediate">
-                <el-icon :size="msgActionIconSize"><ArrowDown /></el-icon>
+                <el-icon :size="18"><ArrowDown /></el-icon>
               </el-button>
             </el-tooltip>
           </div>
@@ -189,6 +189,7 @@
 import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
+  ArrowDown,
   ArrowLeft,
   ChatDotRound,
   DocumentCopy,
