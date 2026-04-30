@@ -88,8 +88,8 @@ public class GitQaProjectService {
             if (!req.getQuestion().trim().equals(userRow.getContent() != null ? userRow.getContent().trim() : "")) {
                 throw new IllegalArgumentException("重新生成时 question 须与该用户消息内容一致");
             }
-            userMessageId = userRow.getId();
-            gitQaChatMessageService.deleteAssistantAfterUserIfPresent(id, userMessageId);
+            // 再次插入一条用户消息（与重新生成前内容相同），新回复挂在新的问答轮次上，不覆盖旧助手消息
+            userMessageId = gitQaChatMessageService.saveUser(id, req.getQuestion());
         } else {
             userMessageId = gitQaChatMessageService.saveUser(id, req.getQuestion());
         }
@@ -138,12 +138,18 @@ public class GitQaProjectService {
         int exit;
         try {
             exit = shellCommandService.executeStreamingJsonRoots(cmd, Path.of(workPath), env, root -> {
-                rawCapture.append(root.toString()).append('\n');
-                String delta = extractor.consumeRoot(root);
-                if (StringUtils.hasText(delta)) {
-                    assistantReply.append(delta);
-                    log.info("Git 问答 stream-json 增量 projectId={} +{} 字符", qp.getId(), delta.length());
-                    sseJson(pw, "assistant", "{\"delta\":\"" + jsonEscape(delta) + "\"}");
+                try {
+                    String lineJson = root.toString();
+                    rawCapture.append(lineJson).append('\n');
+                    log.info("Git 问答 stream-json 根对象 projectId={} json={}", qp.getId(), previewJson(lineJson, 2000));
+                    String delta = extractor.consumeRoot(root);
+                    if (StringUtils.hasText(delta)) {
+                        assistantReply.append(delta);
+                        log.info("Git 问答 stream-json 增量 projectId={} +{} 字符", qp.getId(), delta.length());
+                        sseJson(pw, "assistant", "{\"delta\":\"" + jsonEscape(delta) + "\"}");
+                    }
+                } catch (Exception ex) {
+                    log.warn("Git 问答 stream-json 单条处理异常 projectId={} msg={}", qp.getId(), ex.getMessage());
                 }
             });
         } catch (Exception e) {
@@ -182,6 +188,18 @@ public class GitQaProjectService {
                     + "\",\"rawTail\":\"" + jsonEscape(tail(rawCapture.toString(), 8000)) + "\"}");
         }
         sseDone(pw, exit, success);
+    }
+
+    /** 日志中单行 JSON 预览（过长截断） */
+    private static String previewJson(String s, int max) {
+        if (s == null) {
+            return "";
+        }
+        String one = s.replace('\n', ' ').replace('\r', ' ');
+        if (one.length() <= max) {
+            return one;
+        }
+        return one.substring(0, max) + "…(len=" + s.length() + ')';
     }
 
     private static void sseJson(PrintWriter pw, String event, String jsonLine) {

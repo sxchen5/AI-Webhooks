@@ -49,7 +49,7 @@
               <MarkdownOutputPanel :text="m.content" :rows="6" hide-toolbar />
             </div>
             <div v-else class="bubble bubble--assistant">
-              <div v-if="m.displayStream" class="stream-plain">{{ m.content }}</div>
+              <div v-if="m.displayStream" class="stream-plain">{{ m.streamPlain != null ? m.streamPlain : m.content }}</div>
               <MarkdownOutputPanel v-else :text="m.content" :rows="8" hide-toolbar />
             </div>
           </div>
@@ -295,6 +295,46 @@ const speakingClientKey = ref(null)
 let abortCtrl = null
 let sseBuffer = ''
 let clientKeySeq = 0
+/** 流式展示打字机：content 为完整文本，streamPlain 为当前显示前缀 */
+const streamAnimTimers = new Map()
+
+function stopStreamAnim(botMsg) {
+  const h = streamAnimTimers.get(botMsg)
+  if (h != null) {
+    cancelAnimationFrame(h)
+    streamAnimTimers.delete(botMsg)
+  }
+  if (botMsg && botMsg.displayStream === false && botMsg.content != null) {
+    botMsg.streamPlain = botMsg.content
+  }
+}
+
+function scheduleStreamAnim(botMsg) {
+  if (!botMsg?.displayStream) return
+  if (streamAnimTimers.has(botMsg)) return
+  const step = () => {
+    const full = botMsg.content || ''
+    let shown = botMsg.streamPlain ?? ''
+    if (shown.length >= full.length) {
+      botMsg.streamPlain = full
+      streamAnimTimers.delete(botMsg)
+      return
+    }
+    const jump = Math.max(1, Math.ceil((full.length - shown.length) / 40))
+    botMsg.streamPlain = full.slice(0, Math.min(full.length, shown.length + jump))
+    streamAnimTimers.set(botMsg, requestAnimationFrame(step))
+  }
+  streamAnimTimers.set(botMsg, requestAnimationFrame(step))
+}
+
+function appendStreamDelta(botMsg, delta) {
+  const d = delta ?? ''
+  if (!d) return
+  botMsg.content = (botMsg.content || '') + d
+  if (botMsg.displayStream) {
+    scheduleStreamAnim(botMsg)
+  }
+}
 
 const lastAssistantIndex = computed(() => {
   for (let i = messages.value.length - 1; i >= 0; i--) {
@@ -420,16 +460,37 @@ async function onRegenerateAssistant(assistantMsg) {
     ElMessage.warning('找不到对应的用户问题，无法重新生成')
     return
   }
-  assistantMsg.content = ''
-  assistantMsg.displayStream = true
-  assistantMsg.id = null
-  assistantMsg.feedback = null
+  const idx = messages.value.indexOf(assistantMsg)
+  if (idx < 0) return
+  const q = (userRow.content ?? '').trim()
+  if (!q) {
+    ElMessage.warning('原问题为空，无法重新生成')
+    return
+  }
+  const newUserMsg = {
+    id: null,
+    role: 'user',
+    content: q,
+    displayStream: false,
+    streamPlain: null,
+    clientKey: nextClientKey(),
+  }
+  const newBotMsg = {
+    id: null,
+    role: 'assistant',
+    content: '',
+    displayStream: true,
+    streamPlain: '',
+    feedback: null,
+    clientKey: nextClientKey(),
+  }
+  messages.value.splice(idx + 1, 0, newUserMsg, newBotMsg)
   lastMeta.value = null
   replying.value = true
   scrollToBottom()
   abortCtrl = new AbortController()
   const body = {
-    question: userRow.content,
+    question: q,
     regenerate: true,
     userMessageId: userRow.id,
     ...(selectedModel.value ? { model: selectedModel.value } : {}),
@@ -438,18 +499,22 @@ async function onRegenerateAssistant(assistantMsg) {
     const res = await streamGitQaChat(project.value.id, body, abortCtrl.signal)
     const reader = res.body?.getReader()
     if (!reader) throw new Error('浏览器不支持流式响应')
-    await consumeSseStream(reader, userRow, assistantMsg)
+    await consumeSseStream(reader, newUserMsg, newBotMsg)
   } catch (e) {
     if (e?.name !== 'AbortError') {
-      assistantMsg.content = `请求失败：${e?.message || String(e)}`
+      newBotMsg.content = `请求失败：${e?.message || String(e)}`
       ElMessage.error('执行失败')
     }
-    assistantMsg.displayStream = false
+    newBotMsg.displayStream = false
+    stopStreamAnim(newBotMsg)
+    newBotMsg.streamPlain = null
     await loadHistory()
   } finally {
     replying.value = false
     abortCtrl = null
-    assistantMsg.displayStream = false
+    stopStreamAnim(newBotMsg)
+    newBotMsg.displayStream = false
+    newBotMsg.streamPlain = null
     scrollToBottom()
   }
 }
@@ -540,7 +605,7 @@ async function consumeSseStream(reader, userMsg, botMsg) {
         if (event === 'meta' && obj.userMessageId != null) {
           userMsg.id = obj.userMessageId
         } else if (event === 'assistant' && obj.delta) {
-          botMsg.content += obj.delta
+          appendStreamDelta(botMsg, obj.delta)
           scrollToBottom()
         } else if (event === 'saved' && obj.assistantMessageId != null) {
           botMsg.id = obj.assistantMessageId
@@ -551,13 +616,18 @@ async function consumeSseStream(reader, userMsg, botMsg) {
             botMsg.content += `\n\n【原始输出尾部】\n${obj.rawTail}`
           }
           ElMessage.error(msg)
+          stopStreamAnim(botMsg)
+          botMsg.displayStream = false
+          botMsg.streamPlain = null
           await loadHistory()
         } else if (event === 'done') {
           lastMeta.value = {
             success: !!obj.success,
             exitCode: obj.exitCode ?? -1,
           }
+          stopStreamAnim(botMsg)
           botMsg.displayStream = false
+          botMsg.streamPlain = null
           if (!obj.success) {
             ElMessage.warning('Agent 执行未成功（退出码非 0）')
           }
@@ -572,6 +642,8 @@ async function consumeSseStream(reader, userMsg, botMsg) {
 async function loadHistory() {
   const id = route.params.id
   historyLoading.value = true
+  streamAnimTimers.forEach((h) => cancelAnimationFrame(h))
+  streamAnimTimers.clear()
   try {
     const page = await fetchGitQaChatMessages(id, 0, 500)
     const list = page.content || []
@@ -579,9 +651,10 @@ async function loadHistory() {
       id: row.id,
       role: row.role === 'USER' ? 'user' : 'assistant',
       content: row.content || '',
-      feedback: row.role === 'ASSISTANT' ? row.feedback ?? null : null,
+      streamPlain: null,
       displayStream: false,
       clientKey: nextClientKey(),
+      feedback: row.role === 'ASSISTANT' ? row.feedback ?? null : null,
     }))
   } catch {
     ElMessage.warning('加载历史记录失败')
@@ -595,12 +668,13 @@ async function send() {
   const q = draft.value.trim()
   if (!q || replying.value || !project.value) return
   draft.value = ''
-  const userMsg = { id: null, role: 'user', content: q, displayStream: false, clientKey: nextClientKey() }
+  const userMsg = { id: null, role: 'user', content: q, displayStream: false, streamPlain: null, clientKey: nextClientKey() }
   const botMsg = {
     id: null,
     role: 'assistant',
     content: '',
     displayStream: true,
+    streamPlain: '',
     feedback: null,
     clientKey: nextClientKey(),
   }
@@ -631,10 +705,14 @@ async function send() {
       ElMessage.error('执行失败')
     }
     botMsg.displayStream = false
+    stopStreamAnim(botMsg)
+    botMsg.streamPlain = null
   } finally {
     replying.value = false
     abortCtrl = null
+    stopStreamAnim(botMsg)
     botMsg.displayStream = false
+    botMsg.streamPlain = null
     scrollToBottom()
   }
 }
@@ -654,6 +732,8 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   abortCtrl?.abort()
   cancelSpeech()
+  streamAnimTimers.forEach((h) => cancelAnimationFrame(h))
+  streamAnimTimers.clear()
 })
 </script>
 
