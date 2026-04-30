@@ -39,6 +39,8 @@
           :key="m.clientKey || m.id || idx"
           class="msg-block"
           :class="m.role === 'user' ? 'msg-block--user' : 'msg-block--bot'"
+          @mouseenter="hoveredMsgIndex = idx"
+          @mouseleave="hoveredMsgIndex = null"
         >
           <div class="msg-row" :class="m.role === 'user' ? 'msg-row--user' : 'msg-row--bot'">
             <div v-if="m.role === 'user'" class="bubble bubble--user">
@@ -49,43 +51,56 @@
               <MarkdownOutputPanel v-else :text="m.content" :rows="8" hide-toolbar />
             </div>
           </div>
-          <div v-if="m.role === 'user'" class="msg-actions msg-actions--user">
-            <el-button
-              v-if="m.id != null"
-              text
-              type="danger"
-              class="icon-action"
-              aria-label="删除用户消息"
-              @click="onDeleteMessage(m)"
-            >
-              <el-icon :size="18"><Delete /></el-icon>
-            </el-button>
+          <div
+            v-if="m.role === 'user'"
+            class="msg-actions msg-actions--user"
+            :class="{ 'msg-actions--visible': showUserToolbar(idx) }"
+          >
+            <div class="msg-actions-inner">
+              <el-tooltip content="复制" placement="top">
+                <el-button text class="icon-action" @click="copyMessage(m.content)">
+                  <el-icon :size="18"><DocumentCopy /></el-icon>
+                </el-button>
+              </el-tooltip>
+              <el-tooltip v-if="m.id != null" content="删除" placement="top">
+                <el-button text type="danger" class="icon-action" @click="onDeleteMessage(m)">
+                  <el-icon :size="18"><Delete /></el-icon>
+                </el-button>
+              </el-tooltip>
+            </div>
           </div>
           <div
             v-else-if="!(replying && m.displayStream)"
             class="msg-actions msg-actions--bot assistant-toolbar"
+            :class="{ 'msg-actions--visible': showAssistantToolbar(idx, m) }"
           >
-            <el-button text class="icon-action" aria-label="复制" @click="copyMessage(m.content)">
-              <el-icon :size="18"><DocumentCopy /></el-icon>
-            </el-button>
-            <el-button
-              text
-              class="icon-action"
-              aria-label="重新生成"
-              :disabled="replying"
-              @click="onRegenerateAssistant(m)"
-            >
-              <el-icon :size="18"><RefreshRight /></el-icon>
-            </el-button>
-            <el-button text class="icon-action" aria-label="朗读" @click="onSpeak(m.content)">
-              <el-icon :size="18"><Headset /></el-icon>
-            </el-button>
-            <el-button text class="icon-action" aria-label="点赞" @click="onFeedback(m, true)">
-              <el-icon :size="18"><Top /></el-icon>
-            </el-button>
-            <el-button text class="icon-action" aria-label="点踩" @click="onFeedback(m, false)">
-              <el-icon :size="18"><Bottom /></el-icon>
-            </el-button>
+            <div class="msg-actions-inner">
+              <el-tooltip content="复制" placement="top">
+                <el-button text class="icon-action" @click="copyMessage(m.content)">
+                  <el-icon :size="18"><DocumentCopy /></el-icon>
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="重新生成" placement="top">
+                <el-button text class="icon-action" :disabled="replying" @click="onRegenerateAssistant(m)">
+                  <el-icon :size="18"><RefreshRight /></el-icon>
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="朗读" placement="top">
+                <el-button text class="icon-action" @click="onSpeak(m.content)">
+                  <el-icon :size="18"><Promotion /></el-icon>
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="点赞" placement="top">
+                <el-button text class="icon-action" @click="onFeedback(m, true)">
+                  <el-icon :size="18"><IconThumbUp /></el-icon>
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="点踩" placement="top">
+                <el-button text class="icon-action" @click="onFeedback(m, false)">
+                  <el-icon :size="18"><IconThumbDown /></el-icon>
+                </el-button>
+              </el-tooltip>
+            </div>
           </div>
         </div>
         <div v-if="replying" class="thinking-row">
@@ -104,8 +119,8 @@
           <el-input
             v-model="draft"
             type="textarea"
-            :rows="4"
-            :autosize="{ minRows: 4, maxRows: 10 }"
+            :rows="2"
+            :autosize="{ minRows: 2, maxRows: 6 }"
             placeholder="输入问题后发送…"
             :disabled="replying || !project"
             maxlength="8000"
@@ -114,6 +129,7 @@
             @keydown.enter.exact.prevent="onEnterSend"
           />
           <div class="composer-model-inner">
+            <span class="model-hint">选择模型</span>
             <el-select
               v-model="selectedModel"
               placeholder="默认"
@@ -124,24 +140,22 @@
               popper-class="git-qa-model-popper"
               :disabled="replying || !project"
             >
-              <el-option
-                v-for="opt in modelOptions"
-                :key="opt"
-                :label="opt"
-                :value="opt"
-              />
+              <el-option v-for="opt in modelOptions" :key="opt" :label="opt" :value="opt" />
             </el-select>
           </div>
+          <el-tooltip content="发送" placement="left">
+            <el-button
+              type="primary"
+              circle
+              class="send-btn-inner"
+              :loading="replying"
+              :disabled="!draft.trim() || !project"
+              @click="send"
+            >
+              <el-icon v-if="!replying" :size="20"><Right /></el-icon>
+            </el-button>
+          </el-tooltip>
         </div>
-        <el-button
-          type="primary"
-          class="send-btn"
-          :loading="replying"
-          :disabled="!draft.trim() || !project"
-          @click="send"
-        >
-          发送
-        </el-button>
       </div>
       <p v-if="lastMeta && !lastMeta.success" class="meta-warn">
         Agent 退出码 {{ lastMeta.exitCode }}，请查看上方回复或错误提示。
@@ -151,9 +165,9 @@
 </template>
 
 <script setup>
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, h, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Bottom, ChatDotRound, Delete, DocumentCopy, Headset, RefreshRight, Top } from '@element-plus/icons-vue'
+import { ArrowLeft, ChatDotRound, Delete, DocumentCopy, Promotion, RefreshRight, Right } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   clearAllGitQaChatMessages,
@@ -163,6 +177,54 @@ import {
   streamGitQaChat,
 } from '@/api/gitQaProject'
 import MarkdownOutputPanel from '@/components/MarkdownOutputPanel.vue'
+
+/** 线框大拇指朝上 */
+const IconThumbUp = () =>
+  h(
+    'svg',
+    {
+      xmlns: 'http://www.w3.org/2000/svg',
+      viewBox: '0 0 24 24',
+      width: '1em',
+      height: '1em',
+      fill: 'none',
+      stroke: 'currentColor',
+      'stroke-width': '1.75',
+      'stroke-linecap': 'round',
+      'stroke-linejoin': 'round',
+    },
+    [
+      h('path', { d: 'M7 11v8a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-8H7z' }),
+      h('path', {
+        d: 'M11 10.5V18a1 1 0 0 0 1 1h4.5a2 2 0 0 0 1.9-1.4l1.6-5.5a1.5 1.5 0 0 0-1.4-1.9H15l.4-2.2A2 2 0 0 0 13.5 5 1.5 1.5 0 0 0 12 6.5V10l-1 .5z',
+      }),
+    ],
+  )
+
+/** 线框大拇指朝下（与朝上对称） */
+const IconThumbDown = () =>
+  h(
+    'svg',
+    {
+      xmlns: 'http://www.w3.org/2000/svg',
+      viewBox: '0 0 24 24',
+      width: '1em',
+      height: '1em',
+      fill: 'none',
+      stroke: 'currentColor',
+      'stroke-width': '1.75',
+      'stroke-linecap': 'round',
+      'stroke-linejoin': 'round',
+    },
+    [
+      h('g', { transform: 'translate(12 12) scale(1 -1) translate(-12 -12)' }, [
+        h('path', { d: 'M7 11v8a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-8H7z' }),
+        h('path', {
+          d: 'M11 10.5V18a1 1 0 0 0 1 1h4.5a2 2 0 0 0 1.9-1.4l1.6-5.5a1.5 1.5 0 0 0-1.4-1.9H15l.4-2.2A2 2 0 0 0 13.5 5 1.5 1.5 0 0 0 12 6.5V10l-1 .5z',
+        }),
+      ]),
+    ],
+  )
 
 const route = useRoute()
 const router = useRouter()
@@ -183,10 +245,40 @@ const replying = ref(false)
 const historyLoading = ref(false)
 const scrollbarRef = ref(null)
 const lastMeta = ref(null)
+const hoveredMsgIndex = ref(null)
 
 let abortCtrl = null
 let sseBuffer = ''
 let clientKeySeq = 0
+
+const lastAssistantIndex = computed(() => {
+  for (let i = messages.value.length - 1; i >= 0; i--) {
+    if (messages.value[i].role === 'assistant') return i
+  }
+  return -1
+})
+
+const lastUserIndex = computed(() => {
+  for (let i = messages.value.length - 1; i >= 0; i--) {
+    if (messages.value[i].role === 'user') return i
+  }
+  return -1
+})
+
+function assistantToolbarEligible(m) {
+  return !(replying.value && m.displayStream)
+}
+
+function showAssistantToolbar(idx, m) {
+  if (!assistantToolbarEligible(m)) return false
+  if (idx === lastAssistantIndex.value) return true
+  return hoveredMsgIndex.value === idx
+}
+
+function showUserToolbar(idx) {
+  if (idx === lastUserIndex.value) return true
+  return hoveredMsgIndex.value === idx
+}
 
 function nextClientKey() {
   clientKeySeq += 1
@@ -557,12 +649,24 @@ onBeforeUnmount(() => {
   justify-content: flex-start;
 }
 .msg-actions {
+  min-height: 36px;
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-top: 4px;
-  margin-bottom: 10px;
+  margin-top: 2px;
+  margin-bottom: 8px;
   padding: 0 2px;
+}
+.msg-actions-inner {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.msg-actions--visible .msg-actions-inner {
+  opacity: 1;
+  pointer-events: auto;
 }
 .assistant-toolbar .icon-action {
   padding: 6px 8px;
@@ -695,13 +799,8 @@ onBeforeUnmount(() => {
 .composer {
   max-width: 880px;
   margin: 0 auto;
-  display: flex;
-  gap: 14px;
-  align-items: center;
 }
 .composer-input-wrap {
-  flex: 1;
-  min-width: 0;
   position: relative;
   border-radius: 16px;
   border: 1px solid #dcdfe6;
@@ -711,48 +810,60 @@ onBeforeUnmount(() => {
 }
 .composer-model-inner {
   position: absolute;
-  left: 10px;
-  bottom: 30px;
+  left: 12px;
+  bottom: 28px;
   z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   pointer-events: auto;
 }
+.model-hint {
+  font-size: 12px;
+  color: #909399;
+  white-space: nowrap;
+  user-select: none;
+}
 .model-select-inner {
-  max-width: calc(100% - 100px);
+  max-width: calc(100% - 140px);
 }
 .model-select-inner :deep(.el-select__wrapper) {
   min-height: 28px;
-  padding: 2px 10px;
-  border-radius: 10px;
-  box-shadow: 0 0 0 1px #e4e7ed inset;
-  background: rgba(255, 255, 255, 0.95);
+  padding: 2px 8px;
+  border-radius: 8px;
+  box-shadow: none !important;
+  border: none !important;
+  background: transparent;
   font-size: 12px;
   font-weight: 500;
   color: #606266;
 }
 .model-select-inner :deep(.el-select__wrapper.is-hovering),
 .model-select-inner :deep(.el-select__wrapper.is-focused) {
-  box-shadow: 0 0 0 1px #c0c4cc inset, 0 2px 8px rgba(64, 158, 255, 0.12);
+  background: rgba(64, 158, 255, 0.06);
 }
 .composer-textarea :deep(.el-textarea__inner) {
   border: none;
   box-shadow: none;
   border-radius: 16px;
   resize: none;
-  padding: 12px 14px 44px 14px;
+  padding: 12px 52px 40px 12px;
   font-size: 14px;
   line-height: 1.55;
 }
 .composer-textarea :deep(.el-input__count) {
   background: transparent;
   bottom: 8px;
-  right: 12px;
+  right: 52px;
 }
-.send-btn {
-  border-radius: 14px;
-  padding: 14px 24px;
-  font-weight: 600;
-  flex-shrink: 0;
-  align-self: center;
+.send-btn-inner {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  width: 40px;
+  height: 40px;
 }
 .meta-warn {
   max-width: 880px;
@@ -763,7 +874,6 @@ onBeforeUnmount(() => {
 </style>
 
 <style lang="scss">
-/* 下拉挂载在 body，需非 scoped */
 .git-qa-model-popper.el-popper {
   border-radius: 10px;
   box-shadow: 0 4px 18px rgba(15, 23, 42, 0.12);
