@@ -282,6 +282,7 @@ async function onLogoutFromDrawer() {
 .aside {
   background: var(--sp-aside-bg);
   color: var(--sp-aside-text);
+  border-right: 1px solid #e9e9e9;
   overflow: hidden;
   transition:
     width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
@@ -295,7 +296,7 @@ async function onLogoutFromDrawer() {
 }
 .logo-row {
   flex-shrink: 0;
-  min-height: 56px;
+  min-height: 59px;
   display: flex;
   flex-direction: row;
   align-items: center;
