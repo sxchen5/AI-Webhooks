@@ -736,10 +736,10 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .chat-page {
-  --chat-surface: #ffffff;
-  --chat-header-bg: #fafafa;
+  --chat-surface: #f7f7f7;
+  --chat-header-bg: #f7f7f7;
   --chat-header-border: #ebeef5;
-  --chat-scroll-bg: #ffffff;
+  --chat-scroll-bg: #f7f7f7;
   --chat-title: #303133;
   --chat-subtitle: #909399;
   --chat-border: #e4e7ed;
@@ -751,7 +751,7 @@ onBeforeUnmount(() => {
   --chat-thinking-bg: #f5f5f5;
   --chat-dot: #c0c4cc;
   --chat-composer-border: #dcdfe6;
-  --chat-composer-bg: #ffffff;
+  --chat-composer-bg: #f7f7f7;
   --chat-model-text: #606266;
   --chat-model-hint: #909399;
   --chat-toolbar-icon: #606266;
