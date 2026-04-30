@@ -1,5 +1,5 @@
 <template>
-  <div class="login-page">
+  <div class="login-page" :class="{ 'login-page--dark': isDark }">
     <el-card class="login-card" shadow="hover">
       <h2 class="title">{{ t('app.loginTitle') }}</h2>
       <p class="sub">{{ t('app.loginSub') }}</p>
@@ -28,15 +28,20 @@
 
 <script setup>
 import { computed, reactive, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { login } from '@/api/auth'
 import { useUserStore } from '@/stores/user'
+import { usePreferencesStore } from '@/stores/preferences'
 
 const router = useRouter()
 const route = useRoute()
 const user = useUserStore()
+const prefs = usePreferencesStore()
+const { theme } = storeToRefs(prefs)
+const isDark = computed(() => theme.value === 'dark')
 const { t } = useI18n()
 
 const formRef = ref()
@@ -68,14 +73,43 @@ async function onSubmit() {
 
 <style scoped lang="scss">
 .login-page {
+  --login-overlay: rgba(247, 247, 247, 0.72);
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1d39c4 0%, #10239e 50%, #061178 100%);
+  padding: 24px;
+  box-sizing: border-box;
+  background-color: #eef1f6;
+  background-image: url('/login-bg-light.svg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
 }
+
+.login-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--login-overlay);
+  pointer-events: none;
+}
+
+.login-page--dark {
+  --login-overlay: rgba(10, 12, 18, 0.78);
+  background-color: #0a0c10;
+  background-image: url('/login-bg-dark.svg');
+}
+
+.login-page > * {
+  position: relative;
+  z-index: 1;
+}
+
 .login-card {
-  width: 400px;
+  width: 100%;
+  max-width: 400px;
   padding: 8px 8px 4px;
 }
 .title {
@@ -102,5 +136,13 @@ async function onSubmit() {
   color: #909399;
   text-align: center;
   line-height: 1.5;
+}
+
+html.dark .login-page .title {
+  color: var(--el-text-color-primary, #e5eaf3);
+}
+html.dark .login-page .sub,
+html.dark .login-page .hint {
+  color: var(--el-text-color-secondary, #a3a3a3);
 }
 </style>

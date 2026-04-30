@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="d" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f1419"/>
+      <stop offset="50%" stop-color="#0c1017"/>
+      <stop offset="100%" stop-color="#080b10"/>
+    </linearGradient>
+    <pattern id="g" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.06"/>
+    </pattern>
+    <linearGradient id="beam" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#69b1ff" stop-opacity="0"/>
+      <stop offset="42%" stop-color="#69b1ff" stop-opacity="0.09"/>
+      <stop offset="100%" stop-color="#69b1ff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#d)"/>
+  <rect width="1600" height="900" fill="url(#g)"/>
+  <rect width="1600" height="900" fill="url(#beam)"/>
+  <g fill="none" stroke="#69b1ff" stroke-width="1" stroke-linecap="round" opacity="0.18">
+    <path d="M120 720 L380 280 L520 280 L780 720"/>
+    <rect x="360" y="300" width="180" height="120" rx="4" stroke-dasharray="6 10"/>
+    <path d="M980 200 L1120 200 M980 230 L1080 230 M980 260 L1140 260 M980 290 L1060 290"/>
+    <path d="M980 340 L1180 340 M980 370 L1100 370 M980 400 L1160 400"/>
+    <path d="M1320 520 L1480 520 M1320 550 L1420 550 M1320 580 L1500 580"/>
+  </g>
+  <g fill="#94a3b8" opacity="0.15">
+    <circle cx="1280" cy="180" r="3"/>
+    <circle cx="1310" cy="200" r="2"/>
+    <circle cx="200" cy="420" r="2.5"/>
+  </g>
+</svg>
