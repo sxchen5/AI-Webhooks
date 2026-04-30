@@ -29,10 +29,11 @@
           <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="260" fixed="right">
         <template #default="{ row }">
           <el-button type="primary" link @click="openDetail(row)">详情</el-button>
           <el-button type="primary" link @click="openEdit(row)">编辑</el-button>
+          <el-button type="info" link @click="openCopy(row)">复制</el-button>
           <el-button type="danger" link @click="onDelete(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -66,7 +67,7 @@
     </template>
   </el-drawer>
 
-  <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑平台技能' : '新建平台技能'" width="92%" top="4vh" class="skill-dialog" destroy-on-close>
+  <el-dialog v-model="dialogVisible" :title="dialogTitle" width="92%" top="4vh" class="skill-dialog" destroy-on-close>
     <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
       <el-form-item label="技能名" prop="skillName">
         <el-input v-model="form.skillName" maxlength="128" placeholder="仅字母数字及 ._-，与 SKILL 目录名一致" :disabled="isEdit" />
@@ -124,7 +125,7 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import MarkdownPreview from '@/components/MarkdownPreview.vue'
 import {
@@ -152,6 +153,7 @@ const detail = ref(null)
 
 const dialogVisible = ref(false)
 const isEdit = ref(false)
+const isCopy = ref(false)
 const saving = ref(false)
 const formRef = ref()
 const form = reactive({
@@ -166,6 +168,12 @@ const rules = {
   skillName: [{ required: true, message: '必填', trigger: 'blur' }],
   skillBody: [{ required: true, message: '必填', trigger: 'blur' }],
 }
+
+const dialogTitle = computed(() => {
+  if (isEdit.value) return '编辑平台技能'
+  if (isCopy.value) return '复制平台技能'
+  return '新建平台技能'
+})
 
 function runSearch() {
   keywordFilter.value = keywordDraft.value?.trim() || ''
@@ -210,6 +218,7 @@ description: 示例：按需修改 name 与正文
 
 function openCreate() {
   isEdit.value = false
+  isCopy.value = false
   resetForm()
   dialogVisible.value = true
 }
@@ -221,9 +230,24 @@ async function openDetail(row) {
 
 function openEdit(row) {
   isEdit.value = true
+  isCopy.value = false
   Object.assign(form, {
     id: row.id,
     skillName: row.skillName,
+    description: row.description || '',
+    skillBody: row.skillBody || '',
+    status: row.status,
+  })
+  skillBodyViewMode.value = 'edit'
+  dialogVisible.value = true
+}
+
+function openCopy(row) {
+  isEdit.value = false
+  isCopy.value = true
+  Object.assign(form, {
+    id: null,
+    skillName: `${row.skillName}-copy`,
     description: row.description || '',
     skillBody: row.skillBody || '',
     status: row.status,
@@ -247,7 +271,7 @@ async function saveDialog() {
       ElMessage.success('已更新')
     } else {
       await createPlatformSkill(payload)
-      ElMessage.success('已创建')
+      ElMessage.success(isCopy.value ? '已从复制创建' : '已创建')
     }
     dialogVisible.value = false
     if (!hasSearched.value) {

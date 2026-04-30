@@ -52,6 +52,10 @@ public class ActiveScanRepo {
     @Column(name = "scan_skill_prompt", columnDefinition = "TEXT")
     private String scanSkillPrompt;
 
+    /** 非空时在最终 agent 命令末尾追加 --model（与 Git 问答白名单一致） */
+    @Column(name = "agent_model", length = 64)
+    private String agentModel;
+
     @Column(name = "receive_email", length = 500)
     private String receiveEmail;
 

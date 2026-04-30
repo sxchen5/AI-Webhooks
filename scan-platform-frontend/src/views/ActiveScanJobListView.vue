@@ -36,12 +36,13 @@
     <p class="tip">定时使用 Spring 6 段 Cron（秒 分 时 日 月 周），例：每天 2 点 <code>0 0 2 * * ?</code>；启用定时后保存会自动计算下次执行时间。邮件通知使用<strong>系统配置管理 → 邮件配置</strong>中的 SMTP，收件人请在<strong>Git项目配置</strong>中配置通知邮箱。进入页面后请点击<strong>查询</strong>加载列表。</p>
     <el-table
       :data="tableData"
+      row-key="id"
       v-loading="loading"
       border
       stripe
       @selection-change="onSelectionChange"
     >
-      <el-table-column type="selection" width="48" :selectable="rowSelectable" />
+      <el-table-column type="selection" width="48" :reserve-selection="true" :selectable="rowSelectable" />
       <el-table-column prop="id" label="ID" width="70" />
       <el-table-column prop="jobName" label="任务名" min-width="120" />
       <el-table-column label="配置" min-width="120">
@@ -99,6 +100,7 @@
         <el-descriptions-item label="上次执行">{{ formatBackendDateTime(detail.lastScheduleRun) }}</el-descriptions-item>
         <el-descriptions-item label="覆盖技能名">{{ detail.scanSkillName || '—' }}</el-descriptions-item>
         <el-descriptions-item label="覆盖技能说明">{{ detail.scanSkillPrompt || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="覆盖模型">{{ detail.agentModel || '—' }}</el-descriptions-item>
         <el-descriptions-item label="覆盖 Agent 命令">
           <el-input type="textarea" :rows="3" readonly :model-value="detail.agentCommandOverride || ''" />
         </el-descriptions-item>
@@ -138,6 +140,11 @@
       <el-form-item label="覆盖 Agent 命令">
         <el-input v-model="form.agentCommandOverride" type="textarea" :rows="2" maxlength="1000" placeholder="留空使用 Git 项目配置中的命令" clearable />
       </el-form-item>
+      <el-form-item label="覆盖模型名">
+        <el-select v-model="form.agentModel" clearable filterable placeholder="不覆盖则留空" style="width: 100%">
+          <el-option v-for="m in agentModelOptions" :key="m" :label="m" :value="m" />
+        </el-select>
+      </el-form-item>
       <el-form-item label="失败发邮件">
         <el-switch :active-value="1" :inactive-value="0" v-model="form.notifyOnFailure" />
       </el-form-item>
@@ -172,6 +179,9 @@ import {
   updateActiveJob,
 } from '@/api/activeScan'
 import { formatBackendDateTime } from '@/utils/formatTime'
+import { AGENT_MODEL_OPTIONS } from '@/constants/agentModels'
+
+const agentModelOptions = AGENT_MODEL_OPTIONS
 
 const loading = ref(false)
 const tableData = ref([])
@@ -205,6 +215,7 @@ const form = reactive({
   agentCommandOverride: '',
   scanSkillName: '',
   scanSkillPrompt: '',
+  agentModel: undefined,
   notifyOnFailure: 1,
   notifyOnSuccess: 0,
   status: 1,
@@ -263,7 +274,6 @@ async function load() {
     )
     tableData.value = res.content || []
     total.value = res.totalElements || 0
-    selectedRows.value = []
   } finally {
     loading.value = false
   }
@@ -316,6 +326,7 @@ function resetForm() {
   form.agentCommandOverride = ''
   form.scanSkillName = ''
   form.scanSkillPrompt = ''
+  form.agentModel = undefined
   form.notifyOnFailure = 1
   form.notifyOnSuccess = 0
   form.status = 1
@@ -345,6 +356,7 @@ function openEdit(row) {
     agentCommandOverride: row.agentCommandOverride || '',
     scanSkillName: row.scanSkillName || '',
     scanSkillPrompt: row.scanSkillPrompt || '',
+    agentModel: row.agentModel || undefined,
     notifyOnFailure: row.notifyOnFailure,
     notifyOnSuccess: row.notifyOnSuccess,
     status: row.status,
@@ -364,6 +376,7 @@ function openCopy(row) {
     agentCommandOverride: row.agentCommandOverride || '',
     scanSkillName: row.scanSkillName || '',
     scanSkillPrompt: row.scanSkillPrompt || '',
+    agentModel: row.agentModel || undefined,
     notifyOnFailure: row.notifyOnFailure,
     notifyOnSuccess: row.notifyOnSuccess,
     status: row.status,
@@ -387,6 +400,7 @@ async function saveDialog() {
       agentCommandOverride: form.agentCommandOverride?.trim() || null,
       scanSkillName: form.scanSkillName?.trim() || null,
       scanSkillPrompt: form.scanSkillPrompt?.trim() || null,
+      agentModel: form.agentModel || null,
       notifyOnFailure: form.notifyOnFailure,
       notifyOnSuccess: form.notifyOnSuccess,
       status: form.status,

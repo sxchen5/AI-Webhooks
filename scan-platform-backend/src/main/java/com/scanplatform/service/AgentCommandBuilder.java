@@ -120,7 +120,7 @@ public class AgentCommandBuilder {
         return System.getProperty("os.name", "").toLowerCase().contains("win");
     }
 
-    /** 主动扫描：任务层技能字段优先于仓库 */
+    /** 主动扫描：任务层技能字段优先于仓库；末尾按任务/仓库 agent_model 追加 --model */
     public String resolveActiveScanCommand(ActiveScanRepo repo, ActiveScanJob job,
                                              String workPath, String branch, String commit) throws IOException {
         Path dir = Path.of(workPath).toAbsolutePath().normalize();
@@ -130,13 +130,17 @@ public class AgentCommandBuilder {
         String prompt = StringUtils.hasText(job.getScanSkillPrompt())
                 ? job.getScanSkillPrompt()
                 : repo.getScanSkillPrompt();
+        String cmd;
         if (StringUtils.hasText(skill)) {
-            return buildSkillAgentCommand(dir, branch, commit, repo.getRepoName(), skill, prompt, null);
+            cmd = buildSkillAgentCommand(dir, branch, commit, repo.getRepoName(), skill, prompt, null);
+        } else {
+            String template = StringUtils.hasText(job.getAgentCommandOverride())
+                    ? job.getAgentCommandOverride()
+                    : repo.getAgentCommand();
+            cmd = AgentCommandUtil.buildCommand(template, dir.toString(), branch, commit);
         }
-        String template = StringUtils.hasText(job.getAgentCommandOverride())
-                ? job.getAgentCommandOverride()
-                : repo.getAgentCommand();
-        return AgentCommandUtil.buildCommand(template, dir.toString(), branch, commit);
+        String model = StringUtils.hasText(job.getAgentModel()) ? job.getAgentModel() : repo.getAgentModel();
+        return GitQaModelSupport.appendModelFlag(cmd, model);
     }
 
     /** Git 项目 AI 问答：无任务层覆盖，支持将用户问题写入技能提示或 {{question}} 占位符 */

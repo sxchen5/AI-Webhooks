@@ -87,6 +87,7 @@ public class ActiveScanRepoService {
         e.setAgentCommand(StringUtils.hasText(dto.getAgentCommand()) ? dto.getAgentCommand() : "(cursor-skill)");
         e.setScanSkillName(StringUtils.hasText(dto.getScanSkillName()) ? dto.getScanSkillName().trim() : null);
         e.setScanSkillPrompt(StringUtils.hasText(dto.getScanSkillPrompt()) ? dto.getScanSkillPrompt().trim() : null);
+        e.setAgentModel(GitQaModelSupport.normalizeOrNull(dto.getAgentModel()));
         e.setReceiveEmail(dto.getReceiveEmail());
         e.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
     }

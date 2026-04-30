@@ -207,6 +207,7 @@ import {
   streamGitQaChat,
 } from '@/api/gitQaProject'
 import MarkdownOutputPanel from '@/components/MarkdownOutputPanel.vue'
+import { AGENT_MODEL_OPTIONS } from '@/constants/agentModels'
 import { usePreferencesStore } from '@/stores/preferences'
 
 /** 线框大拇指朝上 */
@@ -268,15 +269,7 @@ const project = ref(null)
 const messages = ref([])
 const draft = ref('')
 const selectedModel = ref(undefined)
-const modelOptions = [
-  'auto',
-  'composer-2-fast',
-  'composer-2',
-  'composer-1.5',
-  'grok-4-20',
-  'grok-4-20-thinking',
-  'kimi-k2.5',
-]
+const modelOptions = AGENT_MODEL_OPTIONS
 const replying = ref(false)
 const historyLoading = ref(false)
 const scrollbarRef = ref(null)

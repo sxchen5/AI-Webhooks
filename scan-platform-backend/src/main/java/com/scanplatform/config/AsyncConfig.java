@@ -15,9 +15,10 @@ public class AsyncConfig {
     @Bean(name = "scanTaskExecutor")
     public Executor scanTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(2);
-        executor.setMaxPoolSize(10);
-        executor.setQueueCapacity(100);
+        // 批量手动扫描会并发提交多条异步任务，过小会导致队列堆积、任务长时间排队
+        executor.setCorePoolSize(8);
+        executor.setMaxPoolSize(32);
+        executor.setQueueCapacity(200);
         executor.setThreadNamePrefix("scan-async-");
         executor.initialize();
         return executor;

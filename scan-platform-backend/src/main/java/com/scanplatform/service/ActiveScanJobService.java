@@ -83,6 +83,7 @@ public class ActiveScanJobService {
         j.setAgentCommandOverride(StringUtils.hasText(dto.getAgentCommandOverride()) ? dto.getAgentCommandOverride() : null);
         j.setScanSkillName(StringUtils.hasText(dto.getScanSkillName()) ? dto.getScanSkillName().trim() : null);
         j.setScanSkillPrompt(StringUtils.hasText(dto.getScanSkillPrompt()) ? dto.getScanSkillPrompt().trim() : null);
+        j.setAgentModel(GitQaModelSupport.normalizeOrNull(dto.getAgentModel()));
         j.setNotifyOnFailure(dto.getNotifyOnFailure() != null ? dto.getNotifyOnFailure() : 1);
         j.setNotifyOnSuccess(dto.getNotifyOnSuccess() != null ? dto.getNotifyOnSuccess() : 0);
         j.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);

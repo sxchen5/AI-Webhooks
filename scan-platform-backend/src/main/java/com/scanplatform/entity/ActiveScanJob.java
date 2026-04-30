@@ -46,6 +46,10 @@ public class ActiveScanJob {
     @Column(name = "scan_skill_prompt", columnDefinition = "TEXT")
     private String scanSkillPrompt;
 
+    /** 非空时优先于仓库配置，在最终 agent 命令末尾追加 --model */
+    @Column(name = "agent_model", length = 64)
+    private String agentModel;
+
     @Column(name = "notify_on_failure", nullable = false)
     private Integer notifyOnFailure = 1;
 

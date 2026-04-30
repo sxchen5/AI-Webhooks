@@ -16,6 +16,8 @@ public class ActiveScanJobDto {
     private String agentCommandOverride;
     private String scanSkillName;
     private String scanSkillPrompt;
+    /** 可选：覆盖仓库的模型名，非空则在 agent 命令末尾追加 --model */
+    private String agentModel;
     private Integer notifyOnFailure;
     private Integer notifyOnSuccess;
     private Integer status;

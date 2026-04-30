@@ -68,6 +68,7 @@
         <el-descriptions-item label="本地克隆目录">{{ detail.localClonePath || '—' }}</el-descriptions-item>
         <el-descriptions-item label="扫描技能">{{ detail.scanSkillName || '—' }}</el-descriptions-item>
         <el-descriptions-item label="技能补充说明">{{ detail.scanSkillPrompt || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="模型">{{ detail.agentModel || '—' }}</el-descriptions-item>
         <el-descriptions-item label="Agent 命令">
           <el-input type="textarea" :rows="4" readonly :model-value="detail.agentCommand || ''" />
         </el-descriptions-item>
@@ -164,6 +165,11 @@
       <el-form-item label="技能补充说明">
         <el-input v-model="form.scanSkillPrompt" type="textarea" :rows="2" placeholder="漏洞、供应链风险等" clearable />
       </el-form-item>
+      <el-form-item label="模型">
+        <el-select v-model="form.agentModel" clearable filterable placeholder="不指定则不加 --model" style="width: 100%">
+          <el-option v-for="m in agentModelOptions" :key="m" :label="m" :value="m" />
+        </el-select>
+      </el-form-item>
       <el-form-item label="Agent 命令" prop="agentCommand">
         <el-input v-model="form.agentCommand" type="textarea" :rows="3" maxlength="1000" show-word-limit placeholder="与技能二选一；仅技能可填 echo 占位" />
       </el-form-item>
@@ -197,6 +203,9 @@ import {
 import { fetchGitProjectOptions } from '@/api/gitProject'
 import { fetchPlatformSkillOptions } from '@/api/platformSkill'
 import { formatBackendDateTime } from '@/utils/formatTime'
+import { AGENT_MODEL_OPTIONS } from '@/constants/agentModels'
+
+const agentModelOptions = AGENT_MODEL_OPTIONS
 
 const loading = ref(false)
 const tableData = ref([])
@@ -232,6 +241,7 @@ const form = reactive({
   agentCommand: '',
   scanSkillName: '',
   scanSkillPrompt: '',
+  agentModel: undefined,
   receiveEmail: '',
   status: 1,
   skillPickMode: 'none',
@@ -359,6 +369,7 @@ function resetForm() {
   form.agentCommand = ''
   form.scanSkillName = ''
   form.scanSkillPrompt = ''
+  form.agentModel = undefined
   form.receiveEmail = ''
   form.status = 1
   form.skillPickMode = 'none'
@@ -413,6 +424,7 @@ async function openEdit(row) {
     agentCommand: row.agentCommand === '(cursor-skill)' ? '' : row.agentCommand,
     scanSkillName: skillName,
     scanSkillPrompt: row.scanSkillPrompt || '',
+    agentModel: row.agentModel || undefined,
     receiveEmail: row.receiveEmail || '',
     status: row.status,
     skillPickMode: inferSkillPickMode(skillName),
@@ -440,6 +452,7 @@ async function openCopy(row) {
     agentCommand: row.agentCommand === '(cursor-skill)' ? '' : row.agentCommand,
     scanSkillName: skillName,
     scanSkillPrompt: row.scanSkillPrompt || '',
+    agentModel: row.agentModel || undefined,
     receiveEmail: row.receiveEmail || '',
     status: row.status,
     skillPickMode: inferSkillPickMode(skillName),
@@ -489,6 +502,7 @@ async function saveDialog() {
       agentCommand: skillOut ? (cmdTrim || '(cursor-skill)') : cmdTrim,
       scanSkillName: skillOut,
       scanSkillPrompt: form.scanSkillPrompt?.trim() || null,
+      agentModel: form.agentModel || null,
       receiveEmail: form.receiveEmail || null,
       status: form.status,
     }
