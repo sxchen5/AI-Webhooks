@@ -2,6 +2,8 @@ package com.scanplatform.web;
 
 import com.scanplatform.common.ApiResponse;
 import com.scanplatform.dto.ActiveScanJobDto;
+import com.scanplatform.dto.BatchJobRunRequest;
+import com.scanplatform.dto.BatchJobRunResult;
 import com.scanplatform.entity.ActiveScanJob;
 import com.scanplatform.service.ActiveScanJobService;
 import com.scanplatform.service.ActiveScanTriggerService;
@@ -12,6 +14,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -57,5 +61,20 @@ public class ActiveScanJobController {
     public ApiResponse<Map<String, Long>> run(@PathVariable Long id) {
         Long logId = triggerService.triggerManual(id);
         return ApiResponse.ok(Map.of("logId", logId));
+    }
+
+    /** 批量手动触发：逐条触发，单条失败不影响其余条目 */
+    @PostMapping("/run-batch")
+    public ApiResponse<List<BatchJobRunResult>> runBatch(@Valid @RequestBody BatchJobRunRequest request) {
+        List<BatchJobRunResult> results = new ArrayList<>();
+        for (Long jobId : request.getJobIds()) {
+            try {
+                Long logId = triggerService.triggerManual(jobId);
+                results.add(new BatchJobRunResult(jobId, logId, null));
+            } catch (Exception e) {
+                results.add(new BatchJobRunResult(jobId, null, e.getMessage()));
+            }
+        }
+        return ApiResponse.ok(results);
     }
 }

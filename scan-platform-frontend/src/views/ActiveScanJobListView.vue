@@ -3,11 +3,28 @@
     <template #header>
       <div class="card-header">
         <span>下发任务管理</span>
-        <el-button type="primary" @click="openCreate">新建任务</el-button>
+        <div class="card-header-actions">
+          <el-button
+            type="warning"
+            :disabled="!selectedRows.length || batchRunning"
+            :loading="batchRunning"
+            @click="onBatchRun"
+          >
+            批量手动执行 ({{ selectedRows.length }})
+          </el-button>
+          <el-button type="primary" @click="openCreate">新建任务</el-button>
+        </div>
       </div>
     </template>
     <p class="tip">定时使用 Spring 6 段 Cron（秒 分 时 日 月 周），例：每天 2 点 <code>0 0 2 * * ?</code>；启用定时后保存会自动计算下次执行时间。邮件通知使用<strong>系统配置管理 → 邮件配置</strong>中的 SMTP，收件人请在<strong>Git项目配置</strong>中配置通知邮箱。</p>
-    <el-table :data="tableData" v-loading="loading" border stripe>
+    <el-table
+      :data="tableData"
+      v-loading="loading"
+      border
+      stripe
+      @selection-change="onSelectionChange"
+    >
+      <el-table-column type="selection" width="48" :selectable="rowSelectable" />
       <el-table-column prop="id" label="ID" width="70" />
       <el-table-column prop="jobName" label="任务名" min-width="120" />
       <el-table-column label="配置" min-width="120">
@@ -134,6 +151,7 @@ import {
   fetchActiveRepos,
   getActiveJob,
   runActiveJob,
+  runActiveJobsBatch,
   updateActiveJob,
 } from '@/api/activeScan'
 import { formatBackendDateTime } from '@/utils/formatTime'
@@ -143,6 +161,8 @@ const tableData = ref([])
 const total = ref(0)
 const page = ref(1)
 const size = ref(10)
+const selectedRows = ref([])
+const batchRunning = ref(false)
 const repoOptions = ref([])
 const repoMap = ref({})
 
@@ -199,8 +219,45 @@ async function load() {
     const res = await fetchActiveJobs(page.value - 1, size.value)
     tableData.value = res.content || []
     total.value = res.totalElements || 0
+    selectedRows.value = []
   } finally {
     loading.value = false
+  }
+}
+
+function rowSelectable(row) {
+  return row.status === 1
+}
+
+function onSelectionChange(rows) {
+  selectedRows.value = rows || []
+}
+
+async function onBatchRun() {
+  const rows = selectedRows.value.filter((r) => r.status === 1)
+  if (!rows.length) return
+  await ElMessageBox.confirm(`将对选中的 ${rows.length} 个启用任务各触发一次手动扫描，是否继续？`, '批量执行', {
+    type: 'warning',
+  })
+  batchRunning.value = true
+  try {
+    const jobIds = rows.map((r) => r.id)
+    const list = await runActiveJobsBatch(jobIds)
+    const ok = list.filter((r) => r.logId != null).length
+    const fail = list.filter((r) => r.error).length
+    ElMessage.success(`已提交 ${ok} 条；失败 ${fail} 条`)
+    if (fail > 0) {
+      const lines = list
+        .filter((r) => r.error)
+        .map((r) => `任务 #${r.jobId}: ${r.error}`)
+        .slice(0, 8)
+      ElMessageBox.alert(lines.join('\n') + (list.filter((r) => r.error).length > 8 ? '\n…' : ''), '部分失败', {
+        type: 'warning',
+      })
+    }
+    await load()
+  } finally {
+    batchRunning.value = false
   }
 }
 
@@ -329,6 +386,12 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   font-weight: 600;
+}
+.card-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 .tip {
   margin: 0 0 12px;

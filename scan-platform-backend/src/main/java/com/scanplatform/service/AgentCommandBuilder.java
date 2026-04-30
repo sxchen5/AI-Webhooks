@@ -6,12 +6,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * 当配置了 Cursor 技能名时，生成通过 {@code agent --print -f} 读取提示文件的命令；
+ * 当配置了 Cursor 技能名时，生成 {@code agent --print -p} 行内提示命令（不再写入工作区 txt）；
  * 提示首行使用 {@code /技能目录名} 显式触发技能（与 Cursor 文档一致）。
  * 未配置技能时返回 empty，由调用方使用原始 {@code agent_command} 模板。
  */
@@ -66,11 +64,6 @@ public class AgentCommandBuilder {
         // 平台技能优先：存在则写入工作区 .cursor/skills/<slug>/SKILL.md，覆盖仓库同名技能
         platformSkillMaterializer.materializeIfPresent(workDirAbsolute, slug);
 
-        Path dir = workDirAbsolute.resolve(".scan-platform");
-        Files.createDirectories(dir);
-        String fileName = "scan-prompt-" + System.nanoTime() + ".txt";
-        Path promptFile = dir.resolve(fileName).normalize();
-
         String p = workDirAbsolute.toString();
         String b = branch != null ? branch : "";
         String c = commit != null ? commit : "";
@@ -93,15 +86,18 @@ public class AgentCommandBuilder {
             body.append("\n【用户问题】\n").append(userQuestion.trim()).append("\n");
         }
 
-        Files.writeString(promptFile, body.toString(), StandardCharsets.UTF_8);
+        return wrapAgentPrintInline(body.toString());
+    }
 
-        String promptPath = promptFile.toAbsolutePath().toString();
+    /**
+     * {@code agent --print -p} 行内提示；Windows cmd 下换行会破坏引号参数，故压成空格。
+     */
+    private static String wrapAgentPrintInline(String prompt) {
         if (isWindows()) {
-            // cmd.exe 下双引号包裹路径
-            return "agent --print -f \"" + escapeForCmdDoubleQuoted(promptPath) + "\"";
+            String oneLine = prompt.replace('\r', ' ').replace('\n', ' ').trim();
+            return "agent --print -p \"" + escapeForCmdDoubleQuoted(oneLine) + "\"";
         }
-        // bash: 单引号包裹路径，避免 $ 等展开
-        return "agent --print -f '" + escapeForBashSingleQuoted(promptPath) + "'";
+        return "agent --print -p '" + escapeForBashSingleQuoted(prompt) + "'";
     }
 
     private static String sanitizeSkillSlug(String name) {
@@ -111,8 +107,8 @@ public class AgentCommandBuilder {
         return name;
     }
 
-    private static String escapeForCmdDoubleQuoted(String path) {
-        return path.replace("\"", "\\\"");
+    private static String escapeForCmdDoubleQuoted(String s) {
+        return s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     private static String escapeForBashSingleQuoted(String path) {
@@ -169,17 +165,10 @@ public class AgentCommandBuilder {
     }
 
     /**
-     * Git 问答默认：问题写入临时文件后执行 {@code agent --print -f <file> --output-format stream-json}。
+     * Git 问答默认：用户问题通过 {@code agent --print -p} 行内传入，并追加 {@code stream-json}。
      */
-    public String buildGitQaStreamJsonCommand(String userQuestion) throws IOException {
-        Path dir = Path.of(System.getProperty("java.io.tmpdir", ".")).resolve("scan-platform-git-qa");
-        Files.createDirectories(dir);
-        Path promptFile = dir.resolve("git-qa-q-" + System.nanoTime() + ".txt").normalize();
-        Files.writeString(promptFile, userQuestion != null ? userQuestion : "", StandardCharsets.UTF_8);
-        String promptPath = promptFile.toAbsolutePath().toString();
-        if (isWindows()) {
-            return "agent --print -f \"" + escapeForCmdDoubleQuoted(promptPath) + "\" --output-format stream-json";
-        }
-        return "agent --print -f '" + escapeForBashSingleQuoted(promptPath) + "' --output-format stream-json";
+    public String buildGitQaStreamJsonCommand(String userQuestion) {
+        String q = userQuestion != null ? userQuestion : "";
+        return wrapAgentPrintInline(q) + " --output-format stream-json";
     }
 }

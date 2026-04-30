@@ -53,6 +53,10 @@ export function runActiveJob(id) {
   return http.post(`/active-scan/jobs/${id}/run`)
 }
 
+export function runActiveJobsBatch(jobIds) {
+  return http.post('/active-scan/jobs/run-batch', { jobIds })
+}
+
 export function fetchActiveLogs(page, size, repoId, jobName, repoName, startTimeOrder) {
   const params = { page, size }
   if (repoId != null && repoId !== '') params.repoId = repoId

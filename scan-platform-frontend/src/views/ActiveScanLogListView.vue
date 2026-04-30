@@ -68,7 +68,7 @@
         <el-descriptions-item label="仓库">{{ detail.repoName }}</el-descriptions-item>
         <el-descriptions-item label="触发">{{ detail.triggerType }}</el-descriptions-item>
         <el-descriptions-item label="Git">{{ detail.gitUrl }}</el-descriptions-item>
-        <el-descriptions-item label="检出 Commit">{{ detail.commitHash || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="分支">{{ detail.branch || '—' }}</el-descriptions-item>
         <el-descriptions-item label="执行">
           <el-tag v-if="detail.execStatus === 1" type="success">成功</el-tag>
           <el-tag v-else-if="detail.execStatus === 2" type="danger">失败</el-tag>

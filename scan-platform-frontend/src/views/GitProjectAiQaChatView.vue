@@ -32,7 +32,7 @@
           :class="m.role === 'user' ? 'msg-row--user' : 'msg-row--bot'"
         >
           <div v-if="m.role === 'user'" class="bubble bubble--user">
-            <div class="bubble-plain">{{ m.content }}</div>
+            <MarkdownOutputPanel :text="m.content" :rows="6" hide-toolbar />
           </div>
           <div v-else class="bubble bubble--assistant">
             <MarkdownOutputPanel :text="m.content" :rows="8" hide-toolbar />
@@ -344,9 +344,16 @@ onBeforeUnmount(() => {
   width: 100%;
   max-width: 100%;
 }
-.bubble-plain {
-  white-space: pre-wrap;
-  word-break: break-word;
+.bubble--user :deep(.md-output-panel) {
+  margin: 0;
+}
+.bubble--user :deep(.md-preview) {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  min-height: 0;
+  max-height: none;
 }
 .bubble--assistant :deep(.md-output-panel) {
   margin: 0;
