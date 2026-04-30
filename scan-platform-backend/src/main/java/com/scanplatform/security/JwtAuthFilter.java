@@ -28,6 +28,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
 
     @Override
+    protected boolean shouldNotFilterAsyncDispatch() {
+        // SSE / StreamingResponseBody 会在 ASYNC 派发阶段再次进入过滤器链；需再次解析 JWT，否则会 AccessDenied
+        return false;
+    }
+
+    @Override
     protected void doFilterInternal(
             HttpServletRequest request,
             HttpServletResponse response,

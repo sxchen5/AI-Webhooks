@@ -1,13 +1,13 @@
 <template>
   <div class="md-output-panel">
-    <div v-if="!compact" class="toolbar">
+    <div v-if="!hideToolbar && !compact" class="toolbar">
       <el-radio-group v-model="mode" size="small">
         <el-radio-button label="preview">预览</el-radio-button>
         <el-radio-button label="raw">原文</el-radio-button>
       </el-radio-group>
       <el-button size="small" @click="copyText">复制原文</el-button>
     </div>
-    <div v-else class="toolbar toolbar--compact">
+    <div v-else-if="!hideToolbar && compact" class="toolbar toolbar--compact">
       <el-button size="small" text type="primary" @click="copyText">复制</el-button>
     </div>
     <MarkdownPreview v-if="mode === 'preview'" class="preview-box" :class="{ 'preview-box--dark': dark }" :source="text" />
@@ -24,8 +24,8 @@ const props = defineProps({
   /** 原始 Markdown / 纯文本 */
   text: { type: String, default: '' },
   rows: { type: Number, default: 14 },
-  /** 精简工具栏（仅复制），用于聊天气泡 */
-  compact: { type: Boolean, default: false },
+  /** 完全隐藏工具栏（聊天气泡内纯内容） */
+  hideToolbar: { type: Boolean, default: false },
   /** 深色预览背景（聊天气泡内） */
   dark: { type: Boolean, default: false },
 })

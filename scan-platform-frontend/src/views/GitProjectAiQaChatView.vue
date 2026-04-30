@@ -22,7 +22,7 @@
         <div v-if="!messages.length" class="welcome">
           <p class="welcome-title">开始对话</p>
           <p class="welcome-desc">
-            在仓库克隆目录中执行 Agent（stream-json），助手回复会随流式增量显示。
+            在仓库克隆目录中执行 Agent（stream-json），回复会随流式增量显示。
           </p>
         </div>
         <div
@@ -31,19 +31,17 @@
           class="msg-row"
           :class="m.role === 'user' ? 'msg-row--user' : 'msg-row--bot'"
         >
-          <div v-if="m.role === 'assistant'" class="bubble-avatar bot">
-            <el-icon><Cpu /></el-icon>
+          <div v-if="m.role === 'user'" class="bubble bubble--user">
+            <div class="bubble-plain">{{ m.content }}</div>
           </div>
-          <div class="bubble" :class="m.role === 'user' ? 'bubble--user' : 'bubble--bot'">
-            <MarkdownOutputPanel v-if="m.role === 'assistant'" :text="m.content" :rows="8" compact />
-            <div v-else class="bubble-plain">{{ m.content }}</div>
-          </div>
-          <div v-if="m.role === 'user'" class="bubble-avatar user">
-            <el-icon><User /></el-icon>
+          <div v-else class="bubble bubble--assistant">
+            <MarkdownOutputPanel :text="m.content" :rows="8" hide-toolbar />
           </div>
         </div>
-        <div v-if="replying" class="msg-row msg-row--bot typing-row">
-          <div class="bubble-avatar bot"><el-icon><Cpu /></el-icon></div>
+        <div v-if="replying" class="thinking-row">
+          <div class="thinking-icon" aria-hidden="true">
+            <el-icon :size="20"><Cpu /></el-icon>
+          </div>
           <div class="typing-indicator">
             <span /><span /><span />
           </div>
@@ -84,7 +82,7 @@
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, ChatDotRound, Cpu, User } from '@element-plus/icons-vue'
+import { ArrowLeft, ChatDotRound, Cpu } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { getGitQaProject, streamGitQaChat } from '@/api/gitQaProject'
 import MarkdownOutputPanel from '@/components/MarkdownOutputPanel.vue'
@@ -320,9 +318,7 @@ onBeforeUnmount(() => {
 }
 .msg-row {
   display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 .msg-row--user {
   justify-content: flex-end;
@@ -330,61 +326,67 @@ onBeforeUnmount(() => {
 .msg-row--bot {
   justify-content: flex-start;
 }
-.bubble-avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.bubble-avatar.bot {
-  background: #ecf5ff;
-  color: #409eff;
-}
-.bubble-avatar.user {
-  background: #f0f9ff;
-  color: #409eff;
-}
 .bubble {
-  max-width: min(720px, calc(100% - 80px));
-  border-radius: 14px;
-  padding: 12px 14px;
+  max-width: min(720px, 100%);
+  border-radius: 12px;
+  padding: 10px 14px;
   line-height: 1.55;
   font-size: 14px;
 }
 .bubble--user {
-  background: linear-gradient(135deg, #409eff, #337ecc);
-  color: #fff;
-  border-bottom-right-radius: 4px;
-  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.25);
-}
-.bubble--bot {
-  background: #f9fafc;
-  border: 1px solid #ebeef5;
-  border-bottom-left-radius: 4px;
+  background: #f5f5f5;
   color: #303133;
+}
+.bubble--assistant {
+  background: transparent;
+  border: none;
+  padding: 4px 0;
+  width: 100%;
+  max-width: 100%;
 }
 .bubble-plain {
   white-space: pre-wrap;
   word-break: break-word;
 }
-.typing-row {
-  margin-bottom: 8px;
+.bubble--assistant :deep(.md-output-panel) {
+  margin: 0;
+}
+.bubble--assistant :deep(.md-preview) {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  min-height: 0;
+  max-height: none;
+}
+.thinking-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-left: 2px;
+}
+.thinking-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #909399;
+  background: #f5f5f5;
+  flex-shrink: 0;
 }
 .typing-indicator {
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 12px 18px;
-  background: #f5f7fa;
-  border-radius: 14px;
-  border: 1px solid #ebeef5;
+  padding: 8px 0;
+  background: transparent;
 }
 .typing-indicator span {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: #c0c4cc;
   animation: bounce 1.2s infinite ease-in-out;
