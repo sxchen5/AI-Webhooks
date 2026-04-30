@@ -213,7 +213,7 @@ const prefs = usePreferencesStore()
 const { t } = useI18n()
 
 const collapsed = ref(false)
-const asideWidth = computed(() => (collapsed.value ? '64px' : '280px'))
+const asideWidth = computed(() => (collapsed.value ? '64px' : '240px'))
 const settingsOpen = ref(false)
 const draftAvatarPreset = ref(prefs.avatarPreset || DEFAULT_AVATAR_PRESET_ID)
 const draftLocale = ref(prefs.locale)
@@ -357,7 +357,7 @@ async function onLogoutFromDrawer() {
   --el-menu-active-color: var(--sp-aside-active-color);
 }
 .side-menu:not(.el-menu--collapse) {
-  width: 280px;
+  width: 240px;
 }
 .side-menu :deep(.el-menu),
 .side-menu :deep(.el-menu--vertical),
