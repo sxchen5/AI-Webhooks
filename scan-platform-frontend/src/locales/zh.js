@@ -28,10 +28,13 @@ export default {
     system: '系统配置管理',
     mail: '邮件配置',
   },
+  gitQaChat: {
+    welcomeEmpty: '有什么我能帮你的吗？',
+  },
   settings: {
     title: '设置',
     avatar: '管理员头像',
-    avatarHint: '点击下方图标即可切换，无需上传文件',
+    avatarHint: '点击下方图标即可切换。',
     avatarPresetUser: '默认',
     avatarPresetMonitor: '监控',
     avatarPresetAvatar: '人像',

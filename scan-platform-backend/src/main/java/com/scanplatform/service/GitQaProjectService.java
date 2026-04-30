@@ -161,6 +161,7 @@ public class GitQaProjectService {
                     qp.getId(),
                     exit,
                     replyText.length());
+            log.info("Git 问答 AI 回复全文 projectId={}:\n{}", qp.getId(), replyText);
         } else {
             if (!success && !regenerate) {
                 gitQaChatMessageService.delete(id, userMessageId);

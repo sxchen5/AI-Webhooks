@@ -26,13 +26,15 @@
       </el-button>
     </header>
 
-    <el-scrollbar ref="scrollbarRef" class="chat-scroll" @scroll="onScrollWrap">
+    <el-scrollbar
+      ref="scrollbarRef"
+      class="chat-scroll"
+      wrap-class="git-qa-scroll-wrap"
+      @scroll="onScrollWrap"
+    >
       <div class="messages">
         <div v-if="!messages.length && !historyLoading" class="welcome">
-          <p class="welcome-title">开始对话</p>
-          <p class="welcome-desc">
-            Agent 使用 stream-json 时回复会随流式增量显示；完成后切换为 Markdown 渲染。
-          </p>
+          <p class="welcome-title">{{ t('gitQaChat.welcomeEmpty') }}</p>
         </div>
         <div
           v-for="(m, idx) in messages"
@@ -188,6 +190,7 @@
 <script setup>
 import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   ArrowDown,
   ArrowLeft,
@@ -262,6 +265,7 @@ const msgActionIconSize = 15
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const prefs = usePreferencesStore()
 const project = ref(null)
 const messages = ref([])
@@ -779,11 +783,20 @@ onBeforeUnmount(() => {
 :deep(.chat-scroll .el-scrollbar__wrap) {
   overflow-x: hidden;
 }
+:deep(.git-qa-scroll-wrap) {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
 .messages {
   max-width: 880px;
   margin: 0 auto;
   padding-top: 16px;
   padding-bottom: 24px;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
 }
 .msg-block {
   margin-bottom: 6px;
@@ -837,20 +850,22 @@ onBeforeUnmount(() => {
   color: #66b1ff;
 }
 .welcome {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  padding: 32px 16px 8px;
+  padding: 24px 16px;
+  min-height: 0;
   color: var(--chat-muted);
 }
 .welcome-title {
-  margin: 0 0 8px;
+  margin: 0;
   font-size: 18px;
   color: var(--chat-welcome-title);
   font-weight: 600;
-}
-.welcome-desc {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 .msg-row {
   display: flex;

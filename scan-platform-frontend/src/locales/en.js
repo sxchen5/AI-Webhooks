@@ -28,10 +28,13 @@ export default {
     system: 'System',
     mail: 'Mail',
   },
+  gitQaChat: {
+    welcomeEmpty: 'How can I help you?',
+  },
   settings: {
     title: 'Settings',
     avatar: 'Admin avatar',
-    avatarHint: 'Tap an icon below to switch; no file upload',
+    avatarHint: 'Tap an icon below to switch.',
     avatarPresetUser: 'Default',
     avatarPresetMonitor: 'Monitor',
     avatarPresetAvatar: 'Portrait',
