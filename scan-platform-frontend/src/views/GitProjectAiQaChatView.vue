@@ -39,11 +39,10 @@
           </div>
         </div>
         <div v-if="replying" class="thinking-row">
-          <div class="thinking-icon" aria-hidden="true">
-            <el-icon :size="20"><Cpu /></el-icon>
-          </div>
-          <div class="typing-indicator">
-            <span /><span /><span />
+          <div class="thinking-bubble" aria-hidden="true">
+            <div class="typing-indicator">
+              <span /><span /><span />
+            </div>
           </div>
         </div>
       </div>
@@ -82,7 +81,7 @@
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, ChatDotRound, Cpu } from '@element-plus/icons-vue'
+import { ArrowLeft, ChatDotRound } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { getGitQaProject, streamGitQaChat } from '@/api/gitQaProject'
 import MarkdownOutputPanel from '@/components/MarkdownOutputPanel.vue'
@@ -139,7 +138,8 @@ async function consumeSseStream(reader, botMsg) {
   for (;;) {
     const { value, done } = await reader.read()
     if (done) break
-    sseBuffer += decoder.decode(value, { stream: true })
+    // 服务端 Windows 上 PrintWriter 可能输出 CRLF，SSE 规范以空行分隔事件块，须统一为 \n 再按 \n\n 切分
+    sseBuffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n').replace(/\r/g, '\n')
     let idx
     while ((idx = sseBuffer.indexOf('\n\n')) >= 0) {
       const raw = sseBuffer.slice(0, idx)
@@ -361,28 +361,20 @@ onBeforeUnmount(() => {
 }
 .thinking-row {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  justify-content: flex-start;
   margin-bottom: 12px;
-  padding-left: 2px;
 }
-.thinking-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: flex;
+.thinking-bubble {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  color: #909399;
+  padding: 10px 16px;
+  border-radius: 12px;
   background: #f5f5f5;
-  flex-shrink: 0;
 }
 .typing-indicator {
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 8px 0;
-  background: transparent;
 }
 .typing-indicator span {
   width: 6px;

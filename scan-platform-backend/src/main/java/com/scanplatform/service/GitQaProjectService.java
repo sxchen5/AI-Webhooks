@@ -71,6 +71,7 @@ public class GitQaProjectService {
         if (qp.getStatus() == null || qp.getStatus() != 1) {
             throw new IllegalArgumentException("该问答配置已禁用");
         }
+        // 仅用 \n 写 SSE，避免 Windows 上 PrintWriter.println 产生 CRLF 导致前端按 \n\n 分块失败
         PrintWriter pw = new PrintWriter(new OutputStreamWriter(rawOut, StandardCharsets.UTF_8), true);
         String branch = StringUtils.hasText(qp.getBranch()) ? qp.getBranch() : "main";
         String[] sync = gitWorkspaceService.ensureRepoClone(
@@ -100,21 +101,47 @@ public class GitQaProjectService {
         Map<String, String> env = gitQaEnv(qp, workPath, branch, commit);
         AgentStreamJsonSseExtractor extractor = new AgentStreamJsonSseExtractor();
         StringBuilder rawCapture = new StringBuilder();
+        StringBuilder assistantReply = new StringBuilder();
+        log.info(
+                "Git 问答开始执行 agent: projectId={} botName={} workPath={} branch={} cmd={}",
+                qp.getId(),
+                qp.getBotName(),
+                workPath,
+                branch,
+                tail(cmd, 2000));
         int exit;
         try {
             exit = shellCommandService.executeStreaming(cmd, Path.of(workPath), env, line -> {
                 rawCapture.append(line).append('\n');
                 String delta = extractor.consumeLine(line);
                 if (StringUtils.hasText(delta)) {
+                    assistantReply.append(delta);
                     sseJson(pw, "assistant", "{\"delta\":\"" + jsonEscape(delta) + "\"}");
                 }
             });
         } catch (Exception e) {
+            log.warn("Git 问答 agent 执行异常: projectId={} msg={}", qp.getId(), e.getMessage(), e);
             sseJson(pw, "error", "{\"message\":\"" + jsonEscape(e.getMessage()) + "\"}");
             sseDone(pw, -1, false);
             return;
         }
         boolean success = exit == 0;
+        String replyText = assistantReply.toString();
+        if (StringUtils.hasText(replyText)) {
+            log.info(
+                    "Git 问答 AI 回复全文 projectId={} exitCode={} chars={}\n{}",
+                    qp.getId(),
+                    exit,
+                    replyText.length(),
+                    tail(replyText, 32000));
+        } else {
+            log.info(
+                    "Git 问答结束 projectId={} exitCode={} success={} 未解析到助手增量文本（可能 agent 输出格式非 stream-json 或进程无输出） rawTail=\n{}",
+                    qp.getId(),
+                    exit,
+                    success,
+                    tail(rawCapture.toString(), 4000));
+        }
         if (!success) {
             sseJson(pw, "error", "{\"message\":\"" + jsonEscape("agent 退出码 " + exit)
                     + "\",\"rawTail\":\"" + jsonEscape(tail(rawCapture.toString(), 8000)) + "\"}");
@@ -124,10 +151,12 @@ public class GitQaProjectService {
 
     private static void sseJson(PrintWriter pw, String event, String jsonLine) {
         pw.print("event: ");
-        pw.println(event);
+        pw.print(event);
+        pw.print('\n');
         pw.print("data: ");
-        pw.println(jsonLine);
-        pw.println();
+        pw.print(jsonLine);
+        pw.print('\n');
+        pw.print('\n');
         pw.flush();
     }
 
