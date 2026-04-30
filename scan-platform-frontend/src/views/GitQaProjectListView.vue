@@ -3,12 +3,22 @@
     <template #header>
       <div class="card-header">
         <span>Git项目AI问答</span>
-        <el-button type="primary" @click="openCreate">新建配置</el-button>
+        <div class="header-actions">
+          <el-input
+            v-model="keywordDraft"
+            clearable
+            placeholder="机器人名称或 Git URL（留空查全部）"
+            style="width: 280px"
+            @keyup.enter="runSearch"
+          />
+          <el-button type="primary" plain @click="runSearch">查询</el-button>
+          <el-button type="primary" @click="openCreate">新建配置</el-button>
+        </div>
       </div>
     </template>
     <p class="tip">
       配置机器人名称与 Git 克隆；对话时默认在仓库目录执行
-      <code>agent --print -f &lt;问题&gt; --output-format stream-json</code>。可选填写平台技能或自定义 Agent（将自动追加 stream-json）。保存后点「AI问答」进入对话。
+      <code>agent --print -f &lt;问题&gt; --output-format stream-json</code>。可选填写平台技能或自定义 Agent（将自动追加 stream-json）。保存后点「AI问答」进入对话。进入页面后请点击<strong>查询</strong>加载列表；条件留空为全部。
     </p>
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column prop="id" label="ID" width="70" />
@@ -45,7 +55,7 @@
         :total="total"
         v-model:current-page="page"
         :page-size="size"
-        @current-change="load"
+        @current-change="onPageChange"
       />
     </div>
   </el-card>
@@ -190,6 +200,9 @@ const tableData = ref([])
 const total = ref(0)
 const page = ref(1)
 const size = ref(10)
+const keywordDraft = ref('')
+const keywordFilter = ref('')
+const hasSearched = ref(false)
 
 const platformSkillOptions = ref([])
 const gitProjectOptions = ref([])
@@ -266,10 +279,23 @@ async function loadPlatformSkillOptions() {
   }
 }
 
+function runSearch() {
+  keywordFilter.value = keywordDraft.value?.trim() || ''
+  page.value = 1
+  hasSearched.value = true
+  load()
+}
+
+function onPageChange() {
+  if (!hasSearched.value) return
+  load()
+}
+
 async function load() {
+  if (!hasSearched.value) return
   loading.value = true
   try {
-    const res = await fetchGitQaProjects(page.value - 1, size.value)
+    const res = await fetchGitQaProjects(page.value - 1, size.value, keywordFilter.value || undefined)
     tableData.value = res.content || []
     total.value = res.totalElements || 0
   } finally {
@@ -377,7 +403,11 @@ async function saveDialog() {
       ElMessage.success('已创建')
     }
     dialogVisible.value = false
-    await load()
+    if (!hasSearched.value) {
+      runSearch()
+    } else {
+      await load()
+    }
   } finally {
     saving.value = false
   }
@@ -387,13 +417,16 @@ async function onDelete(row) {
   await ElMessageBox.confirm(`确定删除「${row.botName}」？`, '提示', { type: 'warning' })
   await deleteGitQaProject(row.id)
   ElMessage.success('已删除')
-  await load()
+  if (!hasSearched.value) {
+    runSearch()
+  } else {
+    await load()
+  }
 }
 
 onMounted(async () => {
   await loadGitProjectOptions()
   await loadPlatformSkillOptions()
-  await load()
 })
 </script>
 
@@ -406,6 +439,12 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   font-weight: 600;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 .tip {
   margin: 0 0 12px;

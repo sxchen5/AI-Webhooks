@@ -4,6 +4,10 @@ export function fetchGitRepoOptions() {
   return http.get('/active-scan/repo-options')
 }
 
+export function fetchRepoOptions() {
+  return http.get('/active-scan/repo-options')
+}
+
 export function fetchActiveRepos(page, size, projectName) {
   const params = { page, size }
   if (projectName) params.projectName = projectName

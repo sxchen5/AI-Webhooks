@@ -23,8 +23,12 @@ public class PlatformSkillService {
     private final PlatformSkillRepository repository;
 
     @Transactional(readOnly = true)
-    public Page<PlatformSkill> page(Pageable pageable) {
-        return repository.findAll(pageable);
+    public Page<PlatformSkill> page(String keyword, Pageable pageable) {
+        String kw = StringUtils.hasText(keyword) ? keyword.trim() : "";
+        if (kw.isEmpty()) {
+            return repository.findAll(pageable);
+        }
+        return repository.pageByKeyword(kw, pageable);
     }
 
     /** 启用中的平台技能，供前端下拉 */

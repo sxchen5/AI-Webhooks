@@ -1,8 +1,10 @@
 import http from './http'
 import { useUserStore } from '@/stores/user'
 
-export function fetchGitQaProjects(page, size) {
-  return http.get('/ai-git-qa/projects', { params: { page, size } })
+export function fetchGitQaProjects(page, size, keyword) {
+  const params = { page, size }
+  if (keyword) params.keyword = keyword
+  return http.get('/ai-git-qa/projects', { params })
 }
 
 export function getGitQaProject(id) {

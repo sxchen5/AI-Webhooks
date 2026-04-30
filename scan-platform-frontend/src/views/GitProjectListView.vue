@@ -5,18 +5,18 @@
         <span>Git项目管理</span>
         <div class="header-actions">
           <el-input
-            v-model="filterKeyword"
+            v-model="filterDraft"
             clearable
-            placeholder="项目名称"
+            placeholder="项目名称（留空查全部）"
             style="width: 220px"
-            @keyup.enter="onFilterChange"
-            @clear="onFilterChange"
+            @keyup.enter="runSearch"
           />
+          <el-button type="primary" plain @click="runSearch">查询</el-button>
           <el-button type="primary" @click="openCreate">新建项目</el-button>
         </div>
       </div>
     </template>
-    <p class="tip">维护项目名称与 Git 地址主数据；「Git 项目配置」中可选择此处项目并自动带出地址。</p>
+    <p class="tip">维护项目名称与 Git 地址主数据；「Git 项目配置」中可选择此处项目并自动带出地址。进入页面后请点击<strong>查询</strong>加载列表；条件留空为全部。</p>
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column prop="id" label="ID" width="70" />
       <el-table-column prop="projectName" label="项目名称" min-width="160" show-overflow-tooltip />
@@ -42,7 +42,7 @@
         :total="total"
         v-model:current-page="page"
         :page-size="size"
-        @current-change="load"
+        @current-change="onPageChange"
       />
     </div>
   </el-card>
@@ -85,7 +85,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   createGitProject,
@@ -101,7 +101,9 @@ const tableData = ref([])
 const total = ref(0)
 const page = ref(1)
 const size = ref(10)
+const filterDraft = ref('')
 const filterKeyword = ref('')
+const hasSearched = ref(false)
 
 const detailVisible = ref(false)
 const detail = ref(null)
@@ -129,12 +131,20 @@ const rules = {
   gitUrl: [{ required: true, message: '必填', trigger: 'blur' }],
 }
 
-function onFilterChange() {
+function runSearch() {
+  filterKeyword.value = filterDraft.value?.trim() || ''
   page.value = 1
+  hasSearched.value = true
+  load()
+}
+
+function onPageChange() {
+  if (!hasSearched.value) return
   load()
 }
 
 async function load() {
+  if (!hasSearched.value) return
   loading.value = true
   try {
     const res = await fetchGitProjects(page.value - 1, size.value, filterKeyword.value?.trim() || undefined)
@@ -205,7 +215,11 @@ async function saveDialog() {
       ElMessage.success('已创建')
     }
     dialogVisible.value = false
-    await load()
+    if (!hasSearched.value) {
+      runSearch()
+    } else {
+      await load()
+    }
   } finally {
     saving.value = false
   }
@@ -215,10 +229,12 @@ async function onDelete(row) {
   await ElMessageBox.confirm(`确定删除 Git 项目「${row.projectName}」？`, '提示', { type: 'warning' })
   await deleteGitProject(row.id)
   ElMessage.success('已删除')
-  await load()
+  if (!hasSearched.value) {
+    runSearch()
+  } else {
+    await load()
+  }
 }
-
-onMounted(load)
 </script>
 
 <style scoped lang="scss">

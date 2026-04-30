@@ -36,8 +36,12 @@ public class GitQaProjectService {
     private final GitQaChatMessageService gitQaChatMessageService;
 
     @Transactional(readOnly = true)
-    public Page<GitQaProject> page(Pageable pageable) {
-        return repository.findAll(pageable);
+    public Page<GitQaProject> page(String keyword, Pageable pageable) {
+        String kw = StringUtils.hasText(keyword) ? keyword.trim() : "";
+        if (kw.isEmpty()) {
+            return repository.findAll(pageable);
+        }
+        return repository.pageByKeyword(kw, pageable);
     }
 
     @Transactional(readOnly = true)

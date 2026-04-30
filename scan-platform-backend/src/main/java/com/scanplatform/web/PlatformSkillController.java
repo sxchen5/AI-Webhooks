@@ -29,8 +29,10 @@ public class PlatformSkillController {
     @GetMapping
     public ApiResponse<Page<PlatformSkill>> page(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        return ApiResponse.ok(service.page(PageRequest.of(page, size, Sort.by("id").descending())));
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword) {
+        return ApiResponse.ok(
+                service.page(keyword, PageRequest.of(page, size, Sort.by("id").descending())));
     }
 
     @GetMapping("/{id}")

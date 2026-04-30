@@ -5,8 +5,10 @@ export function fetchPlatformSkillOptions() {
   return http.get('/platform-skills/options/enabled')
 }
 
-export function fetchPlatformSkills(page, size) {
-  return http.get('/platform-skills', { params: { page, size } })
+export function fetchPlatformSkills(page, size, keyword) {
+  const params = { page, size }
+  if (keyword) params.keyword = keyword
+  return http.get('/platform-skills', { params })
 }
 
 export function getPlatformSkill(id) {

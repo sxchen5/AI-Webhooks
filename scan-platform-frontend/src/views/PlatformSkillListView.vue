@@ -3,12 +3,22 @@
     <template #header>
       <div class="card-header">
         <span>平台技能</span>
-        <el-button type="primary" @click="openCreate">新建技能</el-button>
+        <div class="header-actions">
+          <el-input
+            v-model="keywordDraft"
+            clearable
+            placeholder="技能名或说明关键词（留空查全部）"
+            style="width: 260px"
+            @keyup.enter="runSearch"
+          />
+          <el-button type="primary" plain @click="runSearch">查询</el-button>
+          <el-button type="primary" @click="openCreate">新建技能</el-button>
+        </div>
       </div>
     </template>
     <p class="tip">
       与仓库内 <code>.cursor/skills/&lt;技能名&gt;/SKILL.md</code> 同名时，<strong>每次扫描前</strong>由平台写入工作区，<strong>覆盖仓库文件</strong>，优先级最高；未在平台配置时仍使用仓库自带技能。
-      「扫描技能名」须与下方「技能名」一致。
+      「扫描技能名」须与下方「技能名」一致。进入页面后请点击<strong>查询</strong>加载列表；条件留空为全部。
     </p>
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column prop="id" label="ID" width="70" />
@@ -34,7 +44,7 @@
         :total="total"
         v-model:current-page="page"
         :page-size="size"
-        @current-change="load"
+        @current-change="onPageChange"
       />
     </div>
   </el-card>
@@ -114,7 +124,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import MarkdownPreview from '@/components/MarkdownPreview.vue'
 import {
@@ -133,6 +143,9 @@ const tableData = ref([])
 const total = ref(0)
 const page = ref(1)
 const size = ref(10)
+const keywordDraft = ref('')
+const keywordFilter = ref('')
+const hasSearched = ref(false)
 
 const detailVisible = ref(false)
 const detail = ref(null)
@@ -154,10 +167,23 @@ const rules = {
   skillBody: [{ required: true, message: '必填', trigger: 'blur' }],
 }
 
+function runSearch() {
+  keywordFilter.value = keywordDraft.value?.trim() || ''
+  page.value = 1
+  hasSearched.value = true
+  load()
+}
+
+function onPageChange() {
+  if (!hasSearched.value) return
+  load()
+}
+
 async function load() {
+  if (!hasSearched.value) return
   loading.value = true
   try {
-    const res = await fetchPlatformSkills(page.value - 1, size.value)
+    const res = await fetchPlatformSkills(page.value - 1, size.value, keywordFilter.value || undefined)
     tableData.value = res.content || []
     total.value = res.totalElements || 0
   } finally {
@@ -224,7 +250,11 @@ async function saveDialog() {
       ElMessage.success('已创建')
     }
     dialogVisible.value = false
-    await load()
+    if (!hasSearched.value) {
+      runSearch()
+    } else {
+      await load()
+    }
   } finally {
     saving.value = false
   }
@@ -256,10 +286,13 @@ async function onDelete(row) {
   await ElMessageBox.confirm(`确定删除平台技能「${row.skillName}」？`, '提示', { type: 'warning' })
   await deletePlatformSkill(row.id)
   ElMessage.success('已删除')
-  await load()
+  if (!hasSearched.value) {
+    runSearch()
+  } else {
+    await load()
+  }
 }
 
-onMounted(load)
 </script>
 
 <style scoped lang="scss">
@@ -271,6 +304,12 @@ onMounted(load)
   align-items: center;
   justify-content: space-between;
   font-weight: 600;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 .tip {
   margin: 0 0 12px;

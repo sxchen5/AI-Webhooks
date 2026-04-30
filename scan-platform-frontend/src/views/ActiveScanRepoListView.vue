@@ -5,18 +5,18 @@
         <span>Git项目配置</span>
         <div class="header-actions">
           <el-input
-            v-model="filterRepoName"
+            v-model="filterDraft"
             clearable
-            placeholder="筛选项目名称"
+            placeholder="项目名称（留空查全部）"
             style="width: 220px"
-            @change="onFilterChange"
-            @clear="onFilterChange"
+            @keyup.enter="runSearch"
           />
+          <el-button type="primary" plain @click="runSearch">查询</el-button>
           <el-button type="primary" @click="openCreate">新建配置</el-button>
         </div>
       </div>
     </template>
-    <p class="tip">支持多个 HTTP(S) 仓库；用户名/密码用于非交互克隆。可从「Git项目管理」选择项目自动带出地址。通知邮箱用于主动扫描结果邮件，发信账号在<strong>系统配置管理 → 邮件配置</strong>中维护。</p>
+    <p class="tip">支持多个 HTTP(S) 仓库；用户名/密码用于非交互克隆。可从「Git项目管理」选择项目自动带出地址。通知邮箱用于主动扫描结果邮件，发信账号在<strong>系统配置管理 → 邮件配置</strong>中维护。进入页面后请点击<strong>查询</strong>加载列表；条件留空为全部。</p>
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column prop="id" label="ID" width="70" />
       <el-table-column prop="repoName" label="项目名称" min-width="120" />
@@ -51,7 +51,7 @@
         :total="total"
         v-model:current-page="page"
         :page-size="size"
-        @current-change="load"
+        @current-change="onPageChange"
       />
     </div>
   </el-card>
@@ -203,7 +203,9 @@ const tableData = ref([])
 const total = ref(0)
 const page = ref(1)
 const size = ref(10)
+const filterDraft = ref('')
 const filterRepoName = ref('')
+const hasSearched = ref(false)
 
 const platformSkillOptions = ref([])
 const gitProjectOptions = ref([])
@@ -320,12 +322,20 @@ async function loadPlatformSkillOptions() {
   }
 }
 
-function onFilterChange() {
+function runSearch() {
+  filterRepoName.value = filterDraft.value?.trim() || ''
   page.value = 1
+  hasSearched.value = true
+  load()
+}
+
+function onPageChange() {
+  if (!hasSearched.value) return
   load()
 }
 
 async function load() {
+  if (!hasSearched.value) return
   loading.value = true
   try {
     const res = await fetchActiveRepos(page.value - 1, size.value, filterRepoName.value?.trim() || undefined)
@@ -491,7 +501,11 @@ async function saveDialog() {
       ElMessage.success('已创建')
     }
     dialogVisible.value = false
-    await load()
+    if (!hasSearched.value) {
+      runSearch()
+    } else {
+      await load()
+    }
   } finally {
     saving.value = false
   }
@@ -501,13 +515,16 @@ async function onDelete(row) {
   await ElMessageBox.confirm(`确定删除配置「${row.repoName}」？`, '提示', { type: 'warning' })
   await deleteActiveRepo(row.id)
   ElMessage.success('已删除')
-  await load()
+  if (!hasSearched.value) {
+    runSearch()
+  } else {
+    await load()
+  }
 }
 
 onMounted(async () => {
   await loadGitProjectOptions()
   await loadPlatformSkillOptions()
-  await load()
 })
 </script>
 

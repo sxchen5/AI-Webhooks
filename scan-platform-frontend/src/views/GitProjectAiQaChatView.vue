@@ -931,9 +931,9 @@ onBeforeUnmount(() => {
 .thinking-bubble {
   display: inline-flex;
   align-items: center;
-  padding: 10px 16px;
-  border-radius: 12px;
-  background: var(--chat-thinking-bg);
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
 }
 .typing-indicator {
   display: flex;

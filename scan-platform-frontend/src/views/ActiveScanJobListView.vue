@@ -4,6 +4,23 @@
       <div class="card-header">
         <span>下发任务管理</span>
         <div class="card-header-actions">
+          <el-input
+            v-model="jobNameDraft"
+            clearable
+            placeholder="任务名（留空查全部）"
+            style="width: 200px"
+            @keyup.enter="runSearch"
+          />
+          <el-select
+            v-model="repoIdDraft"
+            clearable
+            filterable
+            placeholder="关联配置（留空查全部）"
+            style="width: 240px"
+          >
+            <el-option v-for="r in repoOptions" :key="r.id" :label="r.name" :value="r.id" />
+          </el-select>
+          <el-button type="primary" plain @click="runSearch">查询</el-button>
           <el-button
             type="warning"
             :disabled="!selectedRows.length || batchRunning"
@@ -16,7 +33,7 @@
         </div>
       </div>
     </template>
-    <p class="tip">定时使用 Spring 6 段 Cron（秒 分 时 日 月 周），例：每天 2 点 <code>0 0 2 * * ?</code>；启用定时后保存会自动计算下次执行时间。邮件通知使用<strong>系统配置管理 → 邮件配置</strong>中的 SMTP，收件人请在<strong>Git项目配置</strong>中配置通知邮箱。</p>
+    <p class="tip">定时使用 Spring 6 段 Cron（秒 分 时 日 月 周），例：每天 2 点 <code>0 0 2 * * ?</code>；启用定时后保存会自动计算下次执行时间。邮件通知使用<strong>系统配置管理 → 邮件配置</strong>中的 SMTP，收件人请在<strong>Git项目配置</strong>中配置通知邮箱。进入页面后请点击<strong>查询</strong>加载列表；条件留空为全部。</p>
     <el-table
       :data="tableData"
       v-loading="loading"
@@ -61,7 +78,7 @@
         :total="total"
         v-model:current-page="page"
         :page-size="size"
-        @current-change="load"
+        @current-change="onPageChange"
       />
     </div>
   </el-card>
@@ -103,7 +120,7 @@
       </el-form-item>
       <el-form-item label="关联配置" prop="repoId">
         <el-select v-model="form.repoId" placeholder="选择 Git 项目配置" filterable style="width: 100%">
-          <el-option v-for="r in repoOptions" :key="r.id" :label="`${r.repoName} (#${r.id})`" :value="r.id" />
+          <el-option v-for="r in repoOptions" :key="r.id" :label="`${r.name} (#${r.id})`" :value="r.id" />
         </el-select>
       </el-form-item>
       <el-form-item label="启用定时">
@@ -148,7 +165,7 @@ import {
   createActiveJob,
   deleteActiveJob,
   fetchActiveJobs,
-  fetchActiveRepos,
+  fetchRepoOptions,
   getActiveJob,
   runActiveJob,
   runActiveJobsBatch,
@@ -161,6 +178,11 @@ const tableData = ref([])
 const total = ref(0)
 const page = ref(1)
 const size = ref(10)
+const hasSearched = ref(false)
+const jobNameDraft = ref('')
+const jobNameFilter = ref('')
+const repoIdDraft = ref(null)
+const repoIdFilter = ref(null)
 const selectedRows = ref([])
 const batchRunning = ref(false)
 const repoOptions = ref([])
@@ -204,19 +226,41 @@ function repoName(id) {
 }
 
 async function loadRepos() {
-  const res = await fetchActiveRepos(0, 500)
-  repoOptions.value = res.content || []
+  try {
+    repoOptions.value = (await fetchRepoOptions()) || []
+  } catch {
+    repoOptions.value = []
+  }
   const m = {}
   repoOptions.value.forEach((r) => {
-    m[r.id] = r.repoName
+    m[r.id] = r.name
   })
   repoMap.value = m
 }
 
+function runSearch() {
+  jobNameFilter.value = jobNameDraft.value?.trim() || ''
+  repoIdFilter.value = repoIdDraft.value ?? null
+  page.value = 1
+  hasSearched.value = true
+  load()
+}
+
+function onPageChange() {
+  if (!hasSearched.value) return
+  load()
+}
+
 async function load() {
+  if (!hasSearched.value) return
   loading.value = true
   try {
-    const res = await fetchActiveJobs(page.value - 1, size.value)
+    const res = await fetchActiveJobs(
+      page.value - 1,
+      size.value,
+      jobNameFilter.value || undefined,
+      repoIdFilter.value,
+    )
     tableData.value = res.content || []
     total.value = res.totalElements || 0
     selectedRows.value = []
@@ -255,7 +299,9 @@ async function onBatchRun() {
         type: 'warning',
       })
     }
-    await load()
+    if (hasSearched.value) {
+      await load()
+    }
   } finally {
     batchRunning.value = false
   }
@@ -353,7 +399,11 @@ async function saveDialog() {
       ElMessage.success(isCopy.value ? '已从复制创建' : '已创建')
     }
     dialogVisible.value = false
-    await load()
+    if (!hasSearched.value) {
+      runSearch()
+    } else {
+      await load()
+    }
   } finally {
     saving.value = false
   }
@@ -368,12 +418,15 @@ async function onDelete(row) {
   await ElMessageBox.confirm(`确定删除任务「${row.jobName}」？`, '提示', { type: 'warning' })
   await deleteActiveJob(row.id)
   ElMessage.success('已删除')
-  await load()
+  if (!hasSearched.value) {
+    runSearch()
+  } else {
+    await load()
+  }
 }
 
 onMounted(async () => {
   await loadRepos()
-  await load()
 })
 </script>
 
