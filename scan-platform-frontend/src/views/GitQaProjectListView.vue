@@ -39,10 +39,11 @@
           <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="300" fixed="right">
+      <el-table-column label="操作" width="360" fixed="right">
         <template #default="{ row }">
           <el-button type="primary" link @click="openDetail(row)">详情</el-button>
           <el-button type="primary" link @click="openEdit(row)">编辑</el-button>
+          <el-button type="info" link @click="openCopy(row)">复制</el-button>
           <el-button type="success" link :disabled="row.status !== 1" @click="openChat(row)">AI问答</el-button>
           <el-button type="danger" link @click="onDelete(row)">删除</el-button>
         </template>
@@ -212,6 +213,7 @@ const detail = ref(null)
 
 const dialogVisible = ref(false)
 const isEdit = ref(false)
+const isCopy = ref(false)
 const saving = ref(false)
 const formRef = ref()
 const form = reactive({
@@ -230,7 +232,11 @@ const form = reactive({
   status: 1,
 })
 
-const dialogTitle = computed(() => (isEdit.value ? '编辑 Git项目AI问答' : '新建 Git项目AI问答'))
+const dialogTitle = computed(() => {
+  if (isEdit.value) return '编辑 Git项目AI问答'
+  if (isCopy.value) return '复制 Git项目AI问答'
+  return '新建 Git项目AI问答'
+})
 
 const rules = {
   botName: [{ required: true, message: '必填', trigger: 'blur' }],
@@ -331,6 +337,7 @@ function ensureLinkModeForDisabledProject() {
 
 function openCreate() {
   isEdit.value = false
+  isCopy.value = false
   resetForm()
   dialogVisible.value = true
 }
@@ -343,6 +350,7 @@ async function openDetail(row) {
 async function openEdit(row) {
   await loadGitProjectOptions()
   isEdit.value = true
+  isCopy.value = false
   const skillName = row.scanSkillName || ''
   const linked = row.gitProjectId != null
   Object.assign(form, {
@@ -350,6 +358,31 @@ async function openEdit(row) {
     repoLinkMode: linked ? 'project' : 'manual',
     gitProjectId: linked ? row.gitProjectId : null,
     botName: row.botName,
+    gitUrl: row.gitUrl,
+    gitUsername: row.gitUsername || '',
+    gitPassword: '',
+    branch: row.branch || 'main',
+    localClonePath: row.localClonePath || '',
+    agentCommand: row.agentCommand === '(cursor-skill)' ? '' : (row.agentCommand || ''),
+    scanSkillName: skillName,
+    scanSkillPrompt: row.scanSkillPrompt || '',
+    status: row.status,
+  })
+  ensureLinkModeForDisabledProject()
+  dialogVisible.value = true
+}
+
+async function openCopy(row) {
+  await loadGitProjectOptions()
+  isEdit.value = false
+  isCopy.value = true
+  const skillName = row.scanSkillName || ''
+  const linked = row.gitProjectId != null
+  Object.assign(form, {
+    id: null,
+    repoLinkMode: linked ? 'project' : 'manual',
+    gitProjectId: linked ? row.gitProjectId : null,
+    botName: `${row.botName}（复制）`,
     gitUrl: row.gitUrl,
     gitUsername: row.gitUsername || '',
     gitPassword: '',
@@ -400,7 +433,7 @@ async function saveDialog() {
       ElMessage.success('已更新')
     } else {
       await createGitQaProject(payload)
-      ElMessage.success('已创建')
+      ElMessage.success(isCopy.value ? '已从复制创建' : '已创建')
     }
     dialogVisible.value = false
     if (!hasSearched.value) {
