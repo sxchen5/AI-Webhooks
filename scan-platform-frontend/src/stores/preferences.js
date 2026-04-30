@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { DEFAULT_AVATAR_PRESET_ID, resolveAvatarPreset } from '@/constants/avatarPresets'
 
-const AVATAR_KEY = 'scan_platform_avatar_data_url'
+const LEGACY_AVATAR_DATA_URL_KEY = 'scan_platform_avatar_data_url'
+const AVATAR_PRESET_KEY = 'scan_platform_avatar_preset'
 const LOCALE_KEY = 'scan_platform_locale'
 const THEME_KEY = 'scan_platform_theme'
 
@@ -14,24 +16,33 @@ function applyThemeClass(theme) {
   }
 }
 
+function readInitialAvatarPreset() {
+  if (typeof localStorage === 'undefined') return DEFAULT_AVATAR_PRESET_ID
+  // 旧版上传头像不再使用，清除遗留大体积数据
+  if (localStorage.getItem(LEGACY_AVATAR_DATA_URL_KEY)) {
+    localStorage.removeItem(LEGACY_AVATAR_DATA_URL_KEY)
+  }
+  const raw = localStorage.getItem(AVATAR_PRESET_KEY)
+  if (raw && resolveAvatarPreset(raw).id === raw) {
+    return raw
+  }
+  return DEFAULT_AVATAR_PRESET_ID
+}
+
 /**
- * 用户偏好：头像（Data URL）、界面语言、浅色/深色主题（持久化 localStorage）。
+ * 用户偏好：内置头像样式、界面语言、浅色/深色主题（持久化 localStorage）。
  */
 export const usePreferencesStore = defineStore('preferences', () => {
-  const avatarDataUrl = ref(localStorage.getItem(AVATAR_KEY) || '')
+  const avatarPreset = ref(readInitialAvatarPreset())
   const locale = ref(localStorage.getItem(LOCALE_KEY) || 'zh')
   const theme = ref(localStorage.getItem(THEME_KEY) || 'light')
 
   applyThemeClass(theme.value)
 
-  function setAvatarDataUrl(url) {
-    const v = url || ''
-    avatarDataUrl.value = v
-    if (v) {
-      localStorage.setItem(AVATAR_KEY, v)
-    } else {
-      localStorage.removeItem(AVATAR_KEY)
-    }
+  function setAvatarPreset(id) {
+    const p = resolveAvatarPreset(id)
+    avatarPreset.value = p.id
+    localStorage.setItem(AVATAR_PRESET_KEY, p.id)
   }
 
   function setLocale(code) {
@@ -48,10 +59,10 @@ export const usePreferencesStore = defineStore('preferences', () => {
   }
 
   return {
-    avatarDataUrl,
+    avatarPreset,
     locale,
     theme,
-    setAvatarDataUrl,
+    setAvatarPreset,
     setLocale,
     setTheme,
   }

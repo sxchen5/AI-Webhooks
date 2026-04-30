@@ -1,5 +1,5 @@
 <template>
-  <div class="chat-page">
+  <div class="chat-page" :class="prefs.theme === 'dark' ? 'chat-page--dark' : 'chat-page--light'">
     <header class="chat-header">
       <el-button class="back-btn" text type="primary" @click="goBack">
         <el-icon><ArrowLeft /></el-icon>
@@ -188,6 +188,7 @@ import {
   streamGitQaChat,
 } from '@/api/gitQaProject'
 import MarkdownOutputPanel from '@/components/MarkdownOutputPanel.vue'
+import { usePreferencesStore } from '@/stores/preferences'
 
 /** 线框大拇指朝上 */
 const IconThumbUp = () =>
@@ -245,6 +246,7 @@ const msgActionIconSize = 15
 
 const route = useRoute()
 const router = useRouter()
+const prefs = usePreferencesStore()
 const project = ref(null)
 const messages = ref([])
 const draft = ref('')
@@ -613,6 +615,27 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .chat-page {
+  --chat-surface: #ffffff;
+  --chat-header-bg: #fafafa;
+  --chat-header-border: #ebeef5;
+  --chat-scroll-bg: #ffffff;
+  --chat-title: #303133;
+  --chat-subtitle: #909399;
+  --chat-border: #e4e7ed;
+  --chat-shadow: 0 8px 32px rgba(15, 23, 42, 0.08);
+  --chat-user-bubble: #f5f5f5;
+  --chat-body-text: #303133;
+  --chat-muted: #606266;
+  --chat-welcome-title: #303133;
+  --chat-thinking-bg: #f5f5f5;
+  --chat-dot: #c0c4cc;
+  --chat-composer-border: #dcdfe6;
+  --chat-composer-bg: #ffffff;
+  --chat-model-text: #606266;
+  --chat-model-hint: #909399;
+  --chat-toolbar-icon: #606266;
+  --chat-toolbar-copy: #7f7f7f;
+
   display: flex;
   flex-direction: column;
   height: calc(100vh - 96px);
@@ -620,18 +643,48 @@ onBeforeUnmount(() => {
   margin: -8px -8px 0;
   border-radius: 20px;
   overflow: hidden;
-  background: #fff;
-  border: 1px solid #e4e7ed;
-  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.08);
+  background: var(--chat-surface);
+  border: 1px solid var(--chat-border);
+  box-shadow: var(--chat-shadow);
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
 }
+
+.chat-page--dark {
+  --chat-surface: var(--el-bg-color, #141414);
+  --chat-header-bg: var(--el-fill-color-darker, #1a1a1a);
+  --chat-header-border: var(--el-border-color, #303030);
+  --chat-scroll-bg: var(--el-bg-color, #141414);
+  --chat-title: var(--el-text-color-primary, #e5e5e5);
+  --chat-subtitle: var(--el-text-color-secondary, #a3a3a3);
+  --chat-border: var(--el-border-color, #303030);
+  --chat-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  --chat-user-bubble: var(--el-fill-color-dark, #262626);
+  --chat-body-text: var(--el-text-color-primary, #e5eaf3);
+  --chat-muted: var(--el-text-color-secondary, #a3a3a3);
+  --chat-welcome-title: var(--el-text-color-primary, #e5eaf3);
+  --chat-thinking-bg: var(--el-fill-color-dark, #262626);
+  --chat-dot: var(--el-text-color-placeholder, #6b7280);
+  --chat-composer-border: var(--el-border-color, #404040);
+  --chat-composer-bg: var(--el-fill-color-darker, #1a1a1a);
+  --chat-model-text: var(--el-text-color-regular, #c0c4cc);
+  --chat-model-hint: var(--el-text-color-secondary, #909399);
+  --chat-toolbar-icon: var(--el-text-color-secondary, #a3a3a3);
+  --chat-toolbar-copy: #9ca3af;
+}
+
 .chat-header {
   display: flex;
   align-items: center;
   gap: 16px;
   padding: 14px 20px;
-  background: #fafafa;
-  border-bottom: 1px solid #ebeef5;
+  background: var(--chat-header-bg);
+  border-bottom: 1px solid var(--chat-header-border);
   flex-shrink: 0;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
 }
 .back-btn {
   flex-shrink: 0;
@@ -661,12 +714,12 @@ onBeforeUnmount(() => {
   margin: 0;
   font-size: 17px;
   font-weight: 600;
-  color: #303133;
+  color: var(--chat-title);
 }
 .subtitle {
   margin: 4px 0 0;
   font-size: 12px;
-  color: #909399;
+  color: var(--chat-subtitle);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -680,7 +733,8 @@ onBeforeUnmount(() => {
   flex: 1;
   min-height: 0;
   padding: 0px 16px;
-  background: #fff;
+  background: var(--chat-scroll-bg);
+  transition: background 0.2s ease;
 }
 :deep(.chat-scroll .el-scrollbar__wrap) {
   overflow-x: hidden;
@@ -725,13 +779,13 @@ onBeforeUnmount(() => {
   min-height: auto;
 }
 .icon-action--copy {
-  color: #7f7f7f;
+  color: var(--chat-toolbar-copy);
 }
 .icon-action--copy:hover {
   color: #409eff;
 }
 .assistant-toolbar .icon-action {
-  color: #606266;
+  color: var(--chat-toolbar-icon);
 }
 .assistant-toolbar .icon-action:hover {
   color: #409eff;
@@ -739,12 +793,12 @@ onBeforeUnmount(() => {
 .welcome {
   text-align: center;
   padding: 32px 16px 8px;
-  color: #606266;
+  color: var(--chat-muted);
 }
 .welcome-title {
   margin: 0 0 8px;
   font-size: 18px;
-  color: #303133;
+  color: var(--chat-welcome-title);
   font-weight: 600;
 }
 .welcome-desc {
@@ -770,8 +824,8 @@ onBeforeUnmount(() => {
   font-size: 14px;
 }
 .bubble--user {
-  background: #f5f5f5;
-  color: #303133;
+  background: var(--chat-user-bubble);
+  color: var(--chat-body-text);
   padding: 5px 14px;
 }
 .bubble--assistant {
@@ -786,7 +840,7 @@ onBeforeUnmount(() => {
   word-break: break-word;
   font-size: 14px;
   line-height: 1.55;
-  color: #303133;
+  color: var(--chat-body-text);
 }
 .bubble--user :deep(.md-output-panel) {
   margin: 0;
@@ -820,7 +874,7 @@ onBeforeUnmount(() => {
   align-items: center;
   padding: 10px 16px;
   border-radius: 12px;
-  background: #f5f5f5;
+  background: var(--chat-thinking-bg);
 }
 .typing-indicator {
   display: flex;
@@ -831,7 +885,7 @@ onBeforeUnmount(() => {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #c0c4cc;
+  background: var(--chat-dot);
   animation: bounce 1.2s infinite ease-in-out;
 }
 .typing-indicator span:nth-child(2) {
@@ -887,8 +941,8 @@ onBeforeUnmount(() => {
 .composer-input-wrap {
   position: relative;
   border-radius: 16px;
-  border: 1px solid #dcdfe6;
-  background: #fff;
+  border: 1px solid var(--chat-composer-border);
+  background: var(--chat-composer-bg);
   overflow: visible;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
@@ -904,7 +958,7 @@ onBeforeUnmount(() => {
 }
 .model-prefix {
   font-size: 12px;
-  color: #909399;
+  color: var(--chat-model-hint);
   white-space: nowrap;
   user-select: none;
   margin-right: 4px;
@@ -925,7 +979,7 @@ onBeforeUnmount(() => {
   background: transparent;
   font-size: 12px;
   font-weight: 500;
-  color: #606266;
+  color: var(--chat-model-text);
 }
 .model-select-inner :deep(.el-select__wrapper.is-hovering),
 .model-select-inner :deep(.el-select__wrapper.is-focused) {

@@ -28,9 +28,7 @@
           :collapse="collapsed"
           :collapse-transition="true"
           router
-          background-color="#001529"
-          text-color="rgba(255,255,255,0.75)"
-          active-text-color="#fff"
+          :ellipsis="false"
         >
           <el-sub-menu index="ai-qa-mgmt">
             <template #title>
@@ -91,9 +89,10 @@
 
         <div class="aside-user" :class="{ 'aside-user--collapsed': collapsed }">
           <div v-if="!collapsed" class="user-pill" @click="openSettings">
-            <div class="user-pill-avatar" :class="{ 'user-pill-avatar--img': !!prefs.avatarDataUrl }">
-              <img v-if="prefs.avatarDataUrl" :src="prefs.avatarDataUrl" alt="" />
-              <el-icon v-else :size="20"><UserFilled /></el-icon>
+            <div class="user-pill-avatar" :style="{ background: currentPreset.swatch }">
+              <el-icon :size="20" class="user-pill-avatar-icon">
+                <component :is="currentPreset.icon" />
+              </el-icon>
             </div>
             <span class="user-pill-name">{{ user.username || '—' }}</span>
             <el-tooltip :content="t('layout.settings')" placement="top">
@@ -104,9 +103,10 @@
           </div>
           <div v-else class="user-pill-collapsed">
             <el-tooltip :content="user.username" placement="right">
-              <div class="user-pill-avatar user-pill-avatar--sm" @click="openSettings">
-                <img v-if="prefs.avatarDataUrl" :src="prefs.avatarDataUrl" alt="" />
-                <el-icon v-else :size="18"><UserFilled /></el-icon>
+              <div class="user-pill-avatar user-pill-avatar--sm" :style="{ background: currentPreset.swatch }" @click="openSettings">
+                <el-icon :size="18" class="user-pill-avatar-icon">
+                  <component :is="currentPreset.icon" />
+                </el-icon>
               </div>
             </el-tooltip>
             <el-tooltip :content="t('layout.settings')" placement="right">
@@ -139,25 +139,23 @@
         <div class="settings-section">
           <div class="settings-label">{{ t('settings.avatar') }}</div>
           <p class="settings-hint">{{ t('settings.avatarHint') }}</p>
-          <div class="avatar-preview-row">
-            <div class="avatar-preview" :class="{ 'avatar-preview--empty': !draftAvatar }">
-              <img v-if="draftAvatar" :src="draftAvatar" alt="" />
-              <el-icon v-else :size="40"><UserFilled /></el-icon>
-            </div>
-            <div class="avatar-actions">
-              <el-button size="small" @click="avatarInputRef?.click()">{{ t('settings.pickAvatar') }}</el-button>
-              <el-button size="small" text type="danger" :disabled="!draftAvatar" @click="clearDraftAvatar">
-                {{ t('settings.clearAvatar') }}
-              </el-button>
-            </div>
+          <div class="avatar-preset-grid">
+            <button
+              v-for="p in AVATAR_PRESETS"
+              :key="p.id"
+              type="button"
+              class="avatar-preset-btn"
+              :class="{ 'avatar-preset-btn--active': draftAvatarPreset === p.id }"
+              :title="t(p.labelKey)"
+              @click="draftAvatarPreset = p.id"
+            >
+              <span class="avatar-preset-swatch" :style="{ background: p.swatch }">
+                <el-icon :size="22" class="avatar-preset-icon">
+                  <component :is="p.icon" />
+                </el-icon>
+              </span>
+            </button>
           </div>
-          <input
-            ref="avatarInputRef"
-            type="file"
-            accept="image/jpeg,image/png,image/gif,image/webp"
-            class="hidden-file"
-            @change="onAvatarFile"
-          />
         </div>
 
         <div class="settings-section">
@@ -200,13 +198,13 @@ import {
   Monitor,
   Setting,
   Timer,
-  UserFilled,
 } from '@element-plus/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { usePreferencesStore } from '@/stores/preferences'
+import { AVATAR_PRESETS, DEFAULT_AVATAR_PRESET_ID, resolveAvatarPreset } from '@/constants/avatarPresets'
 
 const route = useRoute()
 const router = useRouter()
@@ -217,14 +215,15 @@ const { t } = useI18n()
 const collapsed = ref(false)
 const asideWidth = computed(() => (collapsed.value ? '64px' : '240px'))
 const settingsOpen = ref(false)
-const avatarInputRef = ref(null)
-const draftAvatar = ref(prefs.avatarDataUrl || '')
+const draftAvatarPreset = ref(prefs.avatarPreset || DEFAULT_AVATAR_PRESET_ID)
 const draftLocale = ref(prefs.locale)
 const draftTheme = ref(prefs.theme)
 
+const currentPreset = computed(() => resolveAvatarPreset(prefs.avatarPreset))
+
 watch(settingsOpen, (open) => {
   if (open) {
-    draftAvatar.value = prefs.avatarDataUrl || ''
+    draftAvatarPreset.value = prefs.avatarPreset || DEFAULT_AVATAR_PRESET_ID
     draftLocale.value = prefs.locale
     draftTheme.value = prefs.theme
   }
@@ -256,29 +255,8 @@ function openSettings() {
   settingsOpen.value = true
 }
 
-function onAvatarFile(e) {
-  const file = e.target.files?.[0]
-  e.target.value = ''
-  if (!file) return
-  if (file.size > 500 * 1024) {
-    ElMessage.warning(t('settings.avatarTooLarge'))
-    return
-  }
-  const reader = new FileReader()
-  reader.onload = () => {
-    if (typeof reader.result === 'string') {
-      draftAvatar.value = reader.result
-    }
-  }
-  reader.readAsDataURL(file)
-}
-
-function clearDraftAvatar() {
-  draftAvatar.value = ''
-}
-
 function applySettings() {
-  prefs.setAvatarDataUrl(draftAvatar.value)
+  prefs.setAvatarPreset(draftAvatarPreset.value)
   prefs.setLocale(draftLocale.value)
   prefs.setTheme(draftTheme.value)
   ElMessage.success(t('settings.saved'))
@@ -302,10 +280,12 @@ async function onLogoutFromDrawer() {
   height: 100vh;
 }
 .aside {
-  background: #001529;
-  color: #fff;
+  background: var(--sp-aside-bg);
+  color: var(--sp-aside-text);
   overflow: hidden;
-  transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    background 0.2s ease;
 }
 .aside-inner {
   display: flex;
@@ -322,7 +302,7 @@ async function onLogoutFromDrawer() {
   justify-content: space-between;
   gap: 8px;
   padding: 0 10px 0 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--sp-aside-border);
 }
 .logo-brand {
   display: flex;
@@ -333,24 +313,24 @@ async function onLogoutFromDrawer() {
   overflow: hidden;
 }
 .logo-icon {
-  color: #69b1ff;
+  color: var(--sp-logo-icon);
   flex-shrink: 0;
 }
 .logo-text {
   font-weight: 600;
   font-size: 15px;
-  color: #fff;
+  color: var(--sp-logo-text);
   white-space: nowrap;
   overflow: hidden;
 }
 .collapse-toggle {
   flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.88) !important;
+  color: var(--sp-collapse-btn) !important;
   padding: 6px !important;
   margin: 0 !important;
 }
 .collapse-toggle:hover {
-  color: #fff !important;
+  color: var(--sp-aside-active-color) !important;
 }
 .aside-expand-only {
   flex-shrink: 0;
@@ -359,7 +339,7 @@ async function onLogoutFromDrawer() {
   align-items: center;
   justify-content: center;
   padding: 0 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--sp-aside-border);
 }
 .collapse-toggle--solo {
   width: 100%;
@@ -371,9 +351,35 @@ async function onLogoutFromDrawer() {
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
+  --el-menu-bg-color: var(--sp-aside-bg);
+  --el-menu-text-color: var(--sp-aside-text);
+  --el-menu-hover-text-color: var(--sp-aside-active-color);
+  --el-menu-active-color: var(--sp-aside-active-color);
 }
 .side-menu:not(.el-menu--collapse) {
   width: 240px;
+}
+.side-menu :deep(.el-menu),
+.side-menu :deep(.el-menu--vertical),
+.side-menu :deep(.el-sub-menu .el-menu) {
+  background-color: var(--sp-aside-bg) !important;
+}
+.side-menu :deep(.el-sub-menu__title),
+.side-menu :deep(.el-menu-item) {
+  color: var(--sp-aside-text) !important;
+  background-color: transparent !important;
+}
+.side-menu :deep(.el-sub-menu__title:hover),
+.side-menu :deep(.el-menu-item:hover) {
+  background-color: var(--sp-aside-hover-bg) !important;
+  color: var(--sp-aside-text) !important;
+}
+.side-menu :deep(.el-menu-item.is-active) {
+  background-color: var(--sp-aside-active-bg) !important;
+  color: var(--sp-aside-active-color) !important;
+}
+.side-menu :deep(.el-icon) {
+  color: inherit;
 }
 .menu-text-fade :deep(.el-sub-menu__title span:not(.el-icon)) {
   transition: opacity 0.22s ease, max-width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
@@ -395,9 +401,9 @@ async function onLogoutFromDrawer() {
 
 .aside-user {
   flex-shrink: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--sp-aside-border);
   padding: 10px 12px;
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--sp-aside-user-strip);
 }
 .aside-user--collapsed {
   padding: 10px 8px;
@@ -410,11 +416,11 @@ async function onLogoutFromDrawer() {
   padding: 4px 6px 4px 4px;
   border-radius: 10px;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.92);
+  color: var(--sp-aside-text);
   transition: background 0.15s ease;
 }
 .user-pill:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--sp-aside-hover-bg);
 }
 .user-pill-avatar {
   width: 34px;
@@ -424,17 +430,10 @@ async function onLogoutFromDrawer() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.12);
   overflow: hidden;
-  color: #69b1ff;
 }
-.user-pill-avatar--img {
-  padding: 0;
-}
-.user-pill-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.user-pill-avatar-icon {
+  color: #fff;
 }
 .user-pill-name {
   flex: 1;
@@ -447,12 +446,12 @@ async function onLogoutFromDrawer() {
 }
 .user-pill-gear {
   flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.85) !important;
+  color: var(--sp-collapse-btn) !important;
   padding: 4px !important;
   margin: 0 !important;
 }
 .user-pill-gear:hover {
-  color: #fff !important;
+  color: var(--sp-aside-active-color) !important;
 }
 .user-pill-collapsed {
   display: flex;
@@ -473,30 +472,33 @@ async function onLogoutFromDrawer() {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  background: #fff;
-  border-bottom: 1px solid #f0f0f0;
+  background: var(--sp-header-bg);
+  border-bottom: 1px solid var(--el-border-color-lighter, #f0f0f0);
   padding: 0 20px;
+  transition: background 0.2s ease;
 }
 .header-title {
   font-size: 16px;
   font-weight: 500;
-  color: #303133;
+  color: var(--el-text-color-primary, #303133);
 }
 .header-parent {
-  color: #909399;
+  color: var(--el-text-color-secondary, #909399);
   font-weight: 400;
 }
 .header-sep {
   margin: 0 8px;
-  color: #c0c4cc;
+  color: var(--el-text-color-placeholder, #c0c4cc);
   font-weight: 400;
 }
 .header-child {
   font-weight: 600;
+  color: var(--el-text-color-primary, #303133);
 }
 .main {
   padding: 16px;
-  background: #f0f2f5;
+  background: var(--sp-page-bg);
+  transition: background 0.2s ease;
 }
 
 .settings-body {
@@ -512,63 +514,49 @@ async function onLogoutFromDrawer() {
   margin-bottom: 8px;
 }
 .settings-hint {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
   font-size: 12px;
   color: var(--el-text-color-secondary);
   line-height: 1.5;
 }
-.avatar-preview-row {
+.avatar-preset-grid {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 10px;
 }
-.avatar-preview {
-  width: 72px;
-  height: 72px;
-  border-radius: 12px;
-  background: var(--el-fill-color-light);
+.avatar-preset-btn {
+  border: 2px solid transparent;
+  padding: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  background: none;
+  line-height: 0;
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+.avatar-preset-btn:hover {
+  transform: scale(1.05);
+}
+.avatar-preset-btn--active {
+  border-color: var(--el-color-primary);
+}
+.avatar-preset-swatch {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  color: var(--el-text-color-secondary);
-  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
-.avatar-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.avatar-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-}
-.hidden-file {
-  display: none;
+.avatar-preset-icon {
+  color: #fff;
 }
 .settings-actions {
   margin-top: 28px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-</style>
-
-<style lang="scss">
-html.dark .layout-root .header {
-  background: var(--el-bg-color);
-  border-bottom-color: var(--el-border-color);
-}
-html.dark .layout-root .header-title,
-html.dark .layout-root .header-child {
-  color: var(--el-text-color-primary);
-}
-html.dark .layout-root .header-parent {
-  color: var(--el-text-color-secondary);
-}
-html.dark .layout-root .main {
-  background: var(--el-bg-color-page);
 }
 </style>
