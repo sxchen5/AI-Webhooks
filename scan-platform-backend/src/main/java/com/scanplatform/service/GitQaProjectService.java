@@ -92,7 +92,7 @@ public class GitQaProjectService {
 
         String cmd;
         try {
-            cmd = resolveChatShellCommand(qp, workPath, branch, commit, req.getQuestion());
+            cmd = resolveChatShellCommand(qp, workPath, branch, commit, req.getQuestion(), req.getModel());
         } catch (Exception e) {
             gitQaChatMessageService.delete(id, userMessageId);
             sseJson(pw, "error", "{\"message\":\"" + jsonEscape(e.getMessage()) + "\"}");
@@ -193,16 +193,21 @@ public class GitQaProjectService {
         return s.substring(s.length() - max);
     }
 
-    private String resolveChatShellCommand(GitQaProject qp, String workPath, String branch, String commit, String question)
+    private String resolveChatShellCommand(GitQaProject qp, String workPath, String branch, String commit,
+                                            String question, String modelRaw)
             throws Exception {
+        String base;
         if (StringUtils.hasText(qp.getScanSkillName())) {
-            return agentCommandBuilder.resolveGitQaCommand(qp, workPath, branch, commit, question);
+            base = agentCommandBuilder.resolveGitQaCommand(qp, workPath, branch, commit, question);
+        } else {
+            String ac = qp.getAgentCommand();
+            if (StringUtils.hasText(ac) && !"(cursor-skill)".equals(ac.trim())) {
+                base = agentCommandBuilder.resolveGitQaCommand(qp, workPath, branch, commit, question);
+            } else {
+                base = agentCommandBuilder.buildGitQaStreamJsonCommand(question);
+            }
         }
-        String ac = qp.getAgentCommand();
-        if (StringUtils.hasText(ac) && !"(cursor-skill)".equals(ac.trim())) {
-            return agentCommandBuilder.resolveGitQaCommand(qp, workPath, branch, commit, question);
-        }
-        return agentCommandBuilder.buildGitQaStreamJsonCommand(question);
+        return GitQaModelSupport.appendModelFlag(base, modelRaw);
     }
 
     private void apply(GitQaProjectDto dto, GitQaProject e, boolean isNew) {

@@ -73,17 +73,38 @@
 
     <footer class="chat-footer">
       <div class="composer">
-        <el-input
-          v-model="draft"
-          type="textarea"
-          :rows="2"
-          :autosize="{ minRows: 2, maxRows: 5 }"
-          placeholder="输入问题后发送…"
-          :disabled="replying || !project"
-          maxlength="8000"
-          show-word-limit
-          @keydown.enter.exact.prevent="onEnterSend"
-        />
+        <div class="composer-input-wrap">
+          <div class="composer-toolbar">
+            <span class="toolbar-label">模型</span>
+            <el-select
+              v-model="selectedModel"
+              placeholder="默认（不指定）"
+              clearable
+              filterable
+              class="model-select"
+              :disabled="replying || !project"
+            >
+              <el-option
+                v-for="opt in modelOptions"
+                :key="opt"
+                :label="opt"
+                :value="opt"
+              />
+            </el-select>
+          </div>
+          <el-input
+            v-model="draft"
+            type="textarea"
+            :rows="4"
+            :autosize="{ minRows: 4, maxRows: 10 }"
+            placeholder="输入问题后发送…"
+            :disabled="replying || !project"
+            maxlength="8000"
+            show-word-limit
+            class="composer-textarea"
+            @keydown.enter.exact.prevent="onEnterSend"
+          />
+        </div>
         <el-button
           type="primary"
           class="send-btn"
@@ -119,6 +140,16 @@ const router = useRouter()
 const project = ref(null)
 const messages = ref([])
 const draft = ref('')
+const selectedModel = ref('')
+const modelOptions = [
+  'auto',
+  'composer-2-fast',
+  'composer-2',
+  'composer-1.5',
+  'grok-4-20',
+  'grok-4-20-thinking',
+  'kimi-k2.5',
+]
 const replying = ref(false)
 const historyLoading = ref(false)
 const scrollbarRef = ref(null)
@@ -276,7 +307,14 @@ async function send() {
   scrollToBottom()
   abortCtrl = new AbortController()
   try {
-    const res = await streamGitQaChat(project.value.id, q, abortCtrl.signal)
+    const res = await streamGitQaChat(
+      project.value.id,
+      {
+        question: q,
+        ...(selectedModel.value ? { model: selectedModel.value } : {}),
+      },
+      abortCtrl.signal,
+    )
     const reader = res.body?.getReader()
     if (!reader) {
       throw new Error('浏览器不支持流式响应')
@@ -318,14 +356,14 @@ onBeforeUnmount(() => {
 .chat-page {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 120px);
-  max-height: calc(100vh - 88px);
+  height: calc(100vh - 96px);
+  max-height: calc(100vh - 72px);
   margin: -8px -8px 0;
-  border-radius: 12px;
+  border-radius: 20px;
   overflow: hidden;
   background: #fff;
-  border: 1px solid #ebeef5;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e4e7ed;
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.08);
 }
 .chat-header {
   display: flex;
@@ -532,21 +570,59 @@ onBeforeUnmount(() => {
 }
 .chat-footer {
   flex-shrink: 0;
-  padding: 14px 18px 18px;
-  background: #fafafa;
-  border-top: 1px solid #ebeef5;
+  padding: 12px 20px 20px;
 }
 .composer {
   max-width: 880px;
   margin: 0 auto;
   display: flex;
-  gap: 12px;
+  gap: 14px;
   align-items: flex-end;
 }
+.composer-input-wrap {
+  flex: 1;
+  min-width: 0;
+  border-radius: 16px;
+  border: 1px solid #dcdfe6;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+.composer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #fafbfc;
+  border-bottom: 1px solid #ebeef5;
+}
+.toolbar-label {
+  font-size: 12px;
+  color: #909399;
+  flex-shrink: 0;
+}
+.model-select {
+  width: min(240px, 55vw);
+}
+.composer-textarea :deep(.el-textarea__inner) {
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  resize: none;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.composer-textarea :deep(.el-input__count) {
+  background: transparent;
+  bottom: 8px;
+  right: 12px;
+}
 .send-btn {
-  border-radius: 10px;
-  padding: 12px 22px;
+  border-radius: 14px;
+  padding: 14px 24px;
   font-weight: 600;
+  flex-shrink: 0;
 }
 .meta-warn {
   max-width: 880px;

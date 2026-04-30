@@ -33,7 +33,7 @@ export function deleteGitQaChatMessage(projectId, messageId) {
  * SSE：POST /chat，返回 fetch Response（body 为 ReadableStream）。
  * 需自行解析 event/data；超时由调用方 AbortSignal 控制。
  */
-export async function streamGitQaChat(id, question, signal) {
+export async function streamGitQaChat(id, body, signal) {
   const user = useUserStore()
   const res = await fetch(`/api/ai-git-qa/projects/${id}/chat`, {
     method: 'POST',
@@ -42,7 +42,7 @@ export async function streamGitQaChat(id, question, signal) {
       Accept: 'text/event-stream',
       ...(user.token ? { Authorization: `Bearer ${user.token}` } : {}),
     },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify(body),
     signal,
   })
   if (!res.ok) {

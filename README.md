@@ -17,7 +17,7 @@ Spring Boot 3 + Vue3 + Element Plus + MySQL。支持 **主动 Git 扫描**（多
 
 **移除 display_commit 列**：若库由旧版升级而来且仍存在该列，执行 `migration-drop-display-commit.sql`。
 
-**Git 项目 AI 问答**：已有库在备份后执行 `migration-git-qa-project.sql`（新建 `git_qa_project` 表）。删除「Git项目管理」中的主数据前，需先解除本功能或「Git 项目配置」中的关联。
+**Git 项目 AI 问答**：已有库在备份后执行 `migration-git-qa-project.sql`（新建 `git_qa_project` 表）。删除「Git项目管理」中的主数据前，需先解除本功能或「Git 项目配置」中的关联。对话接口 `POST .../chat` 请求体可带可选字段 `model`（白名单：`auto`、`composer-2-fast`、`composer-2`、`composer-1.5`、`grok-4-20`、`grok-4-20-thinking`、`kimi-k2.5`），服务端在 agent 命令末尾追加 `--model <值>`；不传或清空则不追加。
 
 **Git 问答 agent_command 默认值**：若表由旧脚本创建且 `agent_command` 无默认值，可执行 `migration-git-qa-agent-default.sql`（允许空串表示使用默认 stream-json 问答命令）。
 
