@@ -14,6 +14,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -60,13 +64,14 @@ public class GitQaProjectService {
     }
 
     /**
-     * 同步：克隆/拉取仓库后执行 agent，返回完整输出（前端打字机展示）。
+     * 流式：agent stream-json 按行解析后通过 SSE 推送增量文本，最后 {@code event: done}。
      */
-    public GitQaChatResult chat(Long id, GitQaChatRequest req) throws Exception {
+    public void streamChatSse(Long id, GitQaChatRequest req, OutputStream rawOut) throws Exception {
         GitQaProject qp = get(id);
         if (qp.getStatus() == null || qp.getStatus() != 1) {
             throw new IllegalArgumentException("该问答配置已禁用");
         }
+        PrintWriter pw = new PrintWriter(new OutputStreamWriter(rawOut, StandardCharsets.UTF_8), true);
         String branch = StringUtils.hasText(qp.getBranch()) ? qp.getBranch() : "main";
         String[] sync = gitWorkspaceService.ensureRepoClone(
                 qp.getGitUrl(),
@@ -80,20 +85,84 @@ public class GitQaProjectService {
         String commit = sync[1];
         String cloneLog = sync[2] != null ? sync[2] : "";
 
-        String cmd = agentCommandBuilder.resolveGitQaCommand(qp, workPath, branch, commit, req.getQuestion());
-        Map<String, String> env = gitQaEnv(qp, workPath, branch, commit);
-        ShellCommandService.ShellResult result = shellCommandService.execute(cmd, Path.of(workPath), env);
-        boolean success = result.exitCode() == 0;
-        String out = result.output();
-        if (!success) {
-            StringBuilder err = new StringBuilder();
-            if (StringUtils.hasText(cloneLog)) {
-                err.append("【Git 同步日志】\n").append(cloneLog).append("\n\n");
-            }
-            err.append("【命令】\n").append(cmd).append("\n\n【输出】\n").append(out);
-            out = err.toString();
+        String cmd;
+        try {
+            cmd = resolveChatShellCommand(qp, workPath, branch, commit, req.getQuestion());
+        } catch (Exception e) {
+            sseJson(pw, "error", "{\"message\":\"" + jsonEscape(e.getMessage()) + "\"}");
+            sseDone(pw, -1, false);
+            return;
         }
-        return new GitQaChatResult(cmd, out, result.exitCode(), workPath, commit, success);
+        sseJson(pw, "meta", "{\"execCommand\":\"" + jsonEscape(cmd) + "\",\"workPath\":\""
+                + jsonEscape(workPath) + "\",\"commitHash\":\"" + jsonEscape(commit != null ? commit : "")
+                + "\",\"cloneLog\":\"" + jsonEscape(StringUtils.hasText(cloneLog) ? cloneLog : "") + "\"}");
+
+        Map<String, String> env = gitQaEnv(qp, workPath, branch, commit);
+        AgentStreamJsonSseExtractor extractor = new AgentStreamJsonSseExtractor();
+        StringBuilder rawCapture = new StringBuilder();
+        int exit;
+        try {
+            exit = shellCommandService.executeStreaming(cmd, Path.of(workPath), env, line -> {
+                rawCapture.append(line).append('\n');
+                String delta = extractor.consumeLine(line);
+                if (StringUtils.hasText(delta)) {
+                    sseJson(pw, "assistant", "{\"delta\":\"" + jsonEscape(delta) + "\"}");
+                }
+            });
+        } catch (Exception e) {
+            sseJson(pw, "error", "{\"message\":\"" + jsonEscape(e.getMessage()) + "\"}");
+            sseDone(pw, -1, false);
+            return;
+        }
+        boolean success = exit == 0;
+        if (!success) {
+            sseJson(pw, "error", "{\"message\":\"" + jsonEscape("agent 退出码 " + exit)
+                    + "\",\"rawTail\":\"" + jsonEscape(tail(rawCapture.toString(), 8000)) + "\"}");
+        }
+        sseDone(pw, exit, success);
+    }
+
+    private static void sseJson(PrintWriter pw, String event, String jsonLine) {
+        pw.print("event: ");
+        pw.println(event);
+        pw.print("data: ");
+        pw.println(jsonLine);
+        pw.println();
+        pw.flush();
+    }
+
+    private static void sseDone(PrintWriter pw, int exitCode, boolean success) {
+        sseJson(pw, "done", "{\"exitCode\":" + exitCode + ",\"success\":" + success + "}");
+    }
+
+    private static String jsonEscape(String s) {
+        if (s == null) {
+            return "";
+        }
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\r", "")
+                .replace("\n", "\\n")
+                .replace("\t", "\\t");
+    }
+
+    private static String tail(String s, int max) {
+        if (s == null || s.length() <= max) {
+            return s != null ? s : "";
+        }
+        return s.substring(s.length() - max);
+    }
+
+    private String resolveChatShellCommand(GitQaProject qp, String workPath, String branch, String commit, String question)
+            throws Exception {
+        if (StringUtils.hasText(qp.getScanSkillName())) {
+            return agentCommandBuilder.resolveGitQaCommand(qp, workPath, branch, commit, question);
+        }
+        String ac = qp.getAgentCommand();
+        if (StringUtils.hasText(ac) && !"(cursor-skill)".equals(ac.trim())) {
+            return agentCommandBuilder.resolveGitQaCommand(qp, workPath, branch, commit, question);
+        }
+        return agentCommandBuilder.buildGitQaStreamJsonCommand(question);
     }
 
     private void apply(GitQaProjectDto dto, GitQaProject e, boolean isNew) {
@@ -113,7 +182,7 @@ public class GitQaProjectService {
         }
         e.setBranch(StringUtils.hasText(dto.getBranch()) ? dto.getBranch() : "main");
         e.setLocalClonePath(StringUtils.hasText(dto.getLocalClonePath()) ? dto.getLocalClonePath() : null);
-        e.setAgentCommand(StringUtils.hasText(dto.getAgentCommand()) ? dto.getAgentCommand() : "(cursor-skill)");
+        e.setAgentCommand(StringUtils.hasText(dto.getAgentCommand()) ? dto.getAgentCommand().trim() : "");
         e.setScanSkillName(StringUtils.hasText(dto.getScanSkillName()) ? dto.getScanSkillName().trim() : null);
         e.setScanSkillPrompt(StringUtils.hasText(dto.getScanSkillPrompt()) ? dto.getScanSkillPrompt().trim() : null);
         e.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
@@ -136,9 +205,5 @@ public class GitQaProjectService {
         m.put("WEBHOOK_PROJECT_NAME", qp.getBotName() != null ? qp.getBotName() : "");
         m.put("WEBHOOK_GIT_URL", qp.getGitUrl() != null ? qp.getGitUrl() : "");
         return m;
-    }
-
-    public record GitQaChatResult(String execCommand, String output, int exitCode, String workPath, String commitHash,
-                                   boolean success) {
     }
 }

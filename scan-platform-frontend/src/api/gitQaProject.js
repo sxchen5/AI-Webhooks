@@ -1,4 +1,5 @@
 import http from './http'
+import { useUserStore } from '@/stores/user'
 
 export function fetchGitQaProjects(page, size) {
   return http.get('/ai-git-qa/projects', { params: { page, size } })
@@ -20,11 +21,25 @@ export function deleteGitQaProject(id) {
   return http.delete(`/ai-git-qa/projects/${id}`)
 }
 
-/** 同步执行 agent，可能较久；超时 2 小时与后端 Shell 默认一致 */
-export function postGitQaChat(id, question) {
-  return http.post(
-    `/ai-git-qa/projects/${id}/chat`,
-    { question },
-    { timeout: 2 * 60 * 60 * 1000 },
-  )
+/**
+ * SSE：POST /chat，返回 fetch Response（body 为 ReadableStream）。
+ * 需自行解析 event/data；超时由调用方 AbortSignal 控制。
+ */
+export async function streamGitQaChat(id, question, signal) {
+  const user = useUserStore()
+  const res = await fetch(`/api/ai-git-qa/projects/${id}/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream',
+      ...(user.token ? { Authorization: `Bearer ${user.token}` } : {}),
+    },
+    body: JSON.stringify({ question }),
+    signal,
+  })
+  if (!res.ok) {
+    const t = await res.text().catch(() => '')
+    throw new Error(t || `请求失败 ${res.status}`)
+  }
+  return res
 }

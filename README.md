@@ -19,6 +19,8 @@ Spring Boot 3 + Vue3 + Element Plus + MySQL。支持 **主动 Git 扫描**（多
 
 **Git 项目 AI 问答**：已有库在备份后执行 `migration-git-qa-project.sql`（新建 `git_qa_project` 表）。删除「Git项目管理」中的主数据前，需先解除本功能或「Git 项目配置」中的关联。
 
+**Git 问答 agent_command 默认值**：若表由旧脚本创建且 `agent_command` 无默认值，可执行 `migration-git-qa-agent-default.sql`（允许空串表示使用默认 stream-json 问答命令）。
+
 默认登录：`admin` / `admin123`（BCrypt 存储在 `data.sql`）。
 
 ## 运行后端

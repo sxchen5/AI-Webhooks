@@ -7,7 +7,8 @@
       </div>
     </template>
     <p class="tip">
-      配置问答机器人名称、Git 克隆与本地目录、Agent/技能（与「Git 项目配置」一致）。保存后在右侧进入「AI问答」对话；执行可能较久，请耐心等待。
+      配置机器人名称与 Git 克隆；对话时默认在仓库目录执行
+      <code>agent --print -f &lt;问题&gt; --output-format stream-json</code>。可选填写平台技能或自定义 Agent（将自动追加 stream-json）。保存后点「AI问答」进入对话。
     </p>
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column prop="id" label="ID" width="70" />
@@ -19,7 +20,8 @@
       <el-table-column prop="agentCommand" label="Agent/技能" min-width="160" show-overflow-tooltip>
         <template #default="{ row }">
           <span v-if="row.scanSkillName" style="color: #409eff">技能: {{ row.scanSkillName }}</span>
-          <span v-else>{{ row.agentCommand }}</span>
+          <span v-else-if="row.agentCommand">{{ row.agentCommand }}</span>
+          <span v-else class="muted">默认 stream-json 问答</span>
         </template>
       </el-table-column>
       <el-table-column prop="status" label="状态" width="80">
@@ -115,20 +117,15 @@
       <el-form-item label="本地克隆目录" prop="localClonePath">
         <el-input v-model="form.localClonePath" maxlength="500" placeholder="留空则使用工作目录下 git-qa-{id}" clearable />
       </el-form-item>
-      <el-divider content-position="left">Cursor 技能（可选）</el-divider>
+      <el-divider content-position="left">可选：技能或自定义 Agent</el-divider>
       <el-form-item label="扫描技能">
-        <el-radio-group v-model="form.skillPickMode">
-          <el-radio label="none">不使用技能</el-radio>
-          <el-radio label="platform">选择平台技能</el-radio>
-          <el-radio label="custom">手动输入技能名</el-radio>
-        </el-radio-group>
-      </el-form-item>
-      <el-form-item v-if="form.skillPickMode === 'platform'" label="平台技能">
         <el-select
           v-model="form.scanSkillName"
           clearable
           filterable
-          placeholder="从已启用的平台技能中选择"
+          allow-create
+          default-first-option
+          placeholder="选平台技能或手动输入技能目录名，可不填"
           style="width: 100%"
         >
           <el-option
@@ -139,20 +136,12 @@
           />
         </el-select>
       </el-form-item>
-      <el-form-item v-if="form.skillPickMode === 'custom'" label="技能名">
-        <el-input
-          v-model="form.scanSkillName"
-          maxlength="128"
-          placeholder="与仓库 .cursor/skills 下目录名一致"
-          clearable
-        />
-      </el-form-item>
       <el-form-item label="技能补充说明">
         <el-input
           v-model="form.scanSkillPrompt"
           type="textarea"
           :rows="2"
-          placeholder="可用占位符 {{path}} {{branch}} {{commit}} {{question}}"
+          placeholder="可选；可用 {{path}} {{branch}} {{commit}} {{question}}"
           clearable
         />
       </el-form-item>
@@ -160,10 +149,10 @@
         <el-input
           v-model="form.agentCommand"
           type="textarea"
-          :rows="3"
+          :rows="2"
           maxlength="1000"
           show-word-limit
-          placeholder="与技能二选一；支持 {{path}} {{branch}} {{commit}} {{question}}"
+          placeholder="可选；不填则对话使用默认 stream-json。可含 {{path}} {{branch}} {{commit}} {{question}}"
         />
       </el-form-item>
       <el-form-item label="状态" prop="status">
@@ -181,7 +170,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -226,7 +215,6 @@ const form = reactive({
   scanSkillName: '',
   scanSkillPrompt: '',
   status: 1,
-  skillPickMode: 'none',
 })
 
 const dialogTitle = computed(() => (isEdit.value ? '编辑 Git项目AI问答' : '新建 Git项目AI问答'))
@@ -246,36 +234,7 @@ const rules = {
       trigger: 'change',
     },
   ],
-  agentCommand: [
-    {
-      validator: (_, v, cb) => {
-        if (form.skillPickMode === 'none') {
-          if (!(v && String(v).trim())) {
-            cb(new Error('未使用技能时请填写 Agent 命令'))
-          } else {
-            cb()
-          }
-          return
-        }
-        if ((form.skillPickMode === 'platform' || form.skillPickMode === 'custom') && !form.scanSkillName?.trim()) {
-          cb(new Error('请选择或填写扫描技能名'))
-          return
-        }
-        cb()
-      },
-      trigger: 'blur',
-    },
-  ],
 }
-
-watch(
-  () => form.skillPickMode,
-  (mode) => {
-    if (mode === 'none') {
-      form.scanSkillName = ''
-    }
-  }
-)
 
 function onRepoLinkModeChange(mode) {
   if (mode === 'manual') {
@@ -332,14 +291,6 @@ function resetForm() {
   form.scanSkillName = ''
   form.scanSkillPrompt = ''
   form.status = 1
-  form.skillPickMode = 'none'
-}
-
-function inferSkillPickMode(savedName) {
-  const n = (savedName || '').trim()
-  if (!n) return 'none'
-  if (platformSkillOptions.value.some((o) => o.skillName === n)) return 'platform'
-  return 'custom'
 }
 
 function ensureLinkModeForDisabledProject() {
@@ -378,11 +329,10 @@ async function openEdit(row) {
     gitPassword: '',
     branch: row.branch || 'main',
     localClonePath: row.localClonePath || '',
-    agentCommand: row.agentCommand === '(cursor-skill)' ? '' : row.agentCommand,
+    agentCommand: row.agentCommand === '(cursor-skill)' ? '' : (row.agentCommand || ''),
     scanSkillName: skillName,
     scanSkillPrompt: row.scanSkillPrompt || '',
     status: row.status,
-    skillPickMode: inferSkillPickMode(skillName),
   })
   ensureLinkModeForDisabledProject()
   dialogVisible.value = true
@@ -396,23 +346,6 @@ async function saveDialog() {
   await formRef.value.validate()
   if (form.repoLinkMode === 'project' && form.gitProjectId == null) {
     ElMessage.warning('请选择 Git 项目，或改为「手动填写」')
-    return
-  }
-  if (form.skillPickMode === 'none') {
-    form.scanSkillName = ''
-  }
-  if (form.skillPickMode === 'platform' && !form.scanSkillName?.trim()) {
-    ElMessage.warning('请选择平台技能')
-    return
-  }
-  if (form.skillPickMode === 'custom' && !form.scanSkillName?.trim()) {
-    ElMessage.warning('请填写技能名')
-    return
-  }
-  const skillOut = form.skillPickMode === 'none' ? null : form.scanSkillName?.trim() || null
-  const cmdTrim = form.agentCommand?.trim() || ''
-  if (!skillOut && !cmdTrim) {
-    ElMessage.warning('请填写 Agent 命令，或选择/填写扫描技能')
     return
   }
   const u = (form.gitUrl || '').toLowerCase()
@@ -430,8 +363,8 @@ async function saveDialog() {
       gitPassword: form.gitPassword || null,
       branch: form.branch || 'main',
       localClonePath: form.localClonePath || null,
-      agentCommand: skillOut ? (cmdTrim || '(cursor-skill)') : cmdTrim,
-      scanSkillName: skillOut,
+      agentCommand: form.agentCommand?.trim() || null,
+      scanSkillName: form.scanSkillName?.trim() || null,
       scanSkillPrompt: form.scanSkillPrompt?.trim() || null,
       status: form.status,
     }
@@ -478,6 +411,13 @@ onMounted(async () => {
   margin: 0 0 12px;
   font-size: 13px;
   color: #909399;
+}
+.tip code {
+  font-size: 12px;
+}
+.muted {
+  color: #909399;
+  font-size: 13px;
 }
 .pager {
   margin-top: 16px;

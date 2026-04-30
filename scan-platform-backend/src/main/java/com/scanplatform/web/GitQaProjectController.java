@@ -10,7 +10,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 @RestController
 @RequestMapping("/api/ai-git-qa/projects")
@@ -47,10 +51,30 @@ public class GitQaProjectController {
         return ApiResponse.ok();
     }
 
-    @PostMapping("/{id}/chat")
-    public ApiResponse<GitQaProjectService.GitQaChatResult> chat(
+    @PostMapping(value = "/{id}/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public ResponseEntity<StreamingResponseBody> chatStream(
             @PathVariable Long id,
-            @Valid @RequestBody GitQaChatRequest body) throws Exception {
-        return ApiResponse.ok(service.chat(id, body));
+            @Valid @RequestBody GitQaChatRequest body) {
+        StreamingResponseBody bodyOut = out -> {
+            try {
+                service.streamChatSse(id, body, out);
+            } catch (Exception e) {
+                try {
+                    java.io.PrintWriter pw = new java.io.PrintWriter(
+                            new java.io.OutputStreamWriter(out, java.nio.charset.StandardCharsets.UTF_8), true);
+                    String msg = e.getMessage() != null ? e.getMessage().replace("\\", "\\\\").replace("\"", "\\\"") : "error";
+                    pw.print("event: error\n");
+                    pw.print("data: {\"message\":\"" + msg + "\"}\n\n");
+                    pw.print("event: done\n");
+                    pw.print("data: {\"exitCode\":-1,\"success\":false}\n\n");
+                    pw.flush();
+                } catch (Exception ignored) {
+                }
+            }
+        };
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.CACHE_CONTROL, "no-cache");
+        headers.set(HttpHeaders.CONNECTION, "keep-alive");
+        return ResponseEntity.ok().headers(headers).body(bodyOut);
     }
 }

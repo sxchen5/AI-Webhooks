@@ -21,7 +21,9 @@
       <div class="messages">
         <div v-if="!messages.length" class="welcome">
           <p class="welcome-title">开始对话</p>
-          <p class="welcome-desc">将基于当前仓库克隆目录执行 Agent，回复以打字机效果展示。</p>
+          <p class="welcome-desc">
+            在仓库克隆目录中执行 Agent（stream-json），助手回复会随流式增量显示。
+          </p>
         </div>
         <div
           v-for="(m, idx) in messages"
@@ -33,7 +35,7 @@
             <el-icon><Cpu /></el-icon>
           </div>
           <div class="bubble" :class="m.role === 'user' ? 'bubble--user' : 'bubble--bot'">
-            <MarkdownOutputPanel v-if="m.role === 'assistant'" :text="m.content" :rows="8" compact dark />
+            <MarkdownOutputPanel v-if="m.role === 'assistant'" :text="m.content" :rows="8" compact />
             <div v-else class="bubble-plain">{{ m.content }}</div>
           </div>
           <div v-if="m.role === 'user'" class="bubble-avatar user">
@@ -73,18 +75,18 @@
         </el-button>
       </div>
       <p v-if="lastMeta && !lastMeta.success" class="meta-warn">
-        Agent 退出码 {{ lastMeta.exitCode }}，请查看回复中的错误信息。
+        Agent 退出码 {{ lastMeta.exitCode }}，请查看上方回复或错误提示。
       </p>
     </footer>
   </div>
 </template>
 
 <script setup>
-import { nextTick, onMounted, ref } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, ChatDotRound, Cpu, User } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { getGitQaProject, postGitQaChat } from '@/api/gitQaProject'
+import { getGitQaProject, streamGitQaChat } from '@/api/gitQaProject'
 import MarkdownOutputPanel from '@/components/MarkdownOutputPanel.vue'
 
 const route = useRoute()
@@ -96,7 +98,11 @@ const replying = ref(false)
 const scrollbarRef = ref(null)
 const lastMeta = ref(null)
 
+let abortCtrl = null
+let sseBuffer = ''
+
 function goBack() {
+  abortCtrl?.abort()
   router.push({ name: 'GitQaProjects' })
 }
 
@@ -109,29 +115,64 @@ function scrollToBottom() {
   })
 }
 
-async function typewriter(targetMsg, fullText) {
-  const text = fullText || ''
-  const len = text.length
-  if (len === 0) {
-    targetMsg.content = ''
-    return
-  }
-  const chunk = Math.max(1, Math.ceil(len / 800))
-  const delay = len > 12000 ? 0 : 12
-  for (let i = 0; i < len; i += chunk) {
-    targetMsg.content = text.slice(0, Math.min(len, i + chunk))
-    scrollToBottom()
-    if (delay > 0) {
-      // eslint-disable-next-line no-await-in-loop
-      await new Promise((r) => setTimeout(r, delay))
-    }
-  }
-  targetMsg.content = text
-}
-
 function onEnterSend() {
   if (!draft.value.includes('\n')) {
     send()
+  }
+}
+
+function parseSseBlock(block) {
+  let event = 'message'
+  const dataLines = []
+  for (const line of block.split('\n')) {
+    if (line.startsWith('event:')) {
+      event = line.slice(6).trim()
+    } else if (line.startsWith('data:')) {
+      dataLines.push(line.slice(5).trimStart())
+    }
+  }
+  const dataStr = dataLines.join('\n')
+  return { event, dataStr }
+}
+
+async function consumeSseStream(reader, botMsg) {
+  const decoder = new TextDecoder()
+  sseBuffer = ''
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) break
+    sseBuffer += decoder.decode(value, { stream: true })
+    let idx
+    while ((idx = sseBuffer.indexOf('\n\n')) >= 0) {
+      const raw = sseBuffer.slice(0, idx)
+      sseBuffer = sseBuffer.slice(idx + 2)
+      const { event, dataStr } = parseSseBlock(raw)
+      if (!dataStr) continue
+      try {
+        const obj = JSON.parse(dataStr)
+        if (event === 'assistant' && obj.delta) {
+          botMsg.content += obj.delta
+          scrollToBottom()
+        } else if (event === 'error') {
+          const msg = obj.message || '执行出错'
+          botMsg.content += (botMsg.content ? '\n\n' : '') + `【错误】${msg}`
+          if (obj.rawTail) {
+            botMsg.content += `\n\n【原始输出尾部】\n${obj.rawTail}`
+          }
+          ElMessage.error(msg)
+        } else if (event === 'done') {
+          lastMeta.value = {
+            success: !!obj.success,
+            exitCode: obj.exitCode ?? -1,
+          }
+          if (!obj.success) {
+            ElMessage.warning('Agent 执行未成功（退出码非 0）')
+          }
+        }
+      } catch {
+        // 忽略无法解析的块
+      }
+    }
   }
 }
 
@@ -145,21 +186,24 @@ async function send() {
   lastMeta.value = null
   replying.value = true
   scrollToBottom()
+  abortCtrl = new AbortController()
   try {
-    const res = await postGitQaChat(project.value.id, q)
-    lastMeta.value = {
-      success: res.success,
-      exitCode: res.exitCode,
+    const res = await streamGitQaChat(project.value.id, q, abortCtrl.signal)
+    const reader = res.body?.getReader()
+    if (!reader) {
+      throw new Error('浏览器不支持流式响应')
     }
-    await typewriter(botMsg, res.output || '')
-    if (!res.success) {
-      ElMessage.warning('Agent 执行未成功（退出码非 0）')
-    }
+    await consumeSseStream(reader, botMsg)
   } catch (e) {
-    botMsg.content = `请求失败：${e?.message || String(e)}`
-    ElMessage.error('执行失败')
+    if (e?.name === 'AbortError') {
+      botMsg.content += '\n\n【已取消】'
+    } else {
+      botMsg.content = `请求失败：${e?.message || String(e)}`
+      ElMessage.error('执行失败')
+    }
   } finally {
     replying.value = false
+    abortCtrl = null
     scrollToBottom()
   }
 }
@@ -173,6 +217,10 @@ onMounted(async () => {
     goBack()
   }
 })
+
+onBeforeUnmount(() => {
+  abortCtrl?.abort()
+})
 </script>
 
 <style scoped lang="scss">
@@ -182,22 +230,22 @@ onMounted(async () => {
   height: calc(100vh - 120px);
   max-height: calc(100vh - 88px);
   margin: -8px -8px 0;
-  border-radius: 16px;
+  border-radius: 12px;
   overflow: hidden;
-  background: linear-gradient(165deg, #0f172a 0%, #1e293b 45%, #0f172a 100%);
-  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.35);
+  background: #fff;
+  border: 1px solid #ebeef5;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
 }
 .chat-header {
   display: flex;
   align-items: center;
   gap: 16px;
   padding: 14px 20px;
-  background: rgba(15, 23, 42, 0.85);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  background: #fafafa;
+  border-bottom: 1px solid #ebeef5;
   flex-shrink: 0;
 }
 .back-btn {
-  color: #94a3b8 !important;
   flex-shrink: 0;
 }
 .header-center {
@@ -211,13 +259,12 @@ onMounted(async () => {
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #38bdf8, #6366f1);
+  background: linear-gradient(135deg, #409eff, #6366f1);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
   flex-shrink: 0;
-  box-shadow: 0 8px 20px rgba(56, 189, 248, 0.35);
 }
 .header-text {
   min-width: 0;
@@ -226,13 +273,12 @@ onMounted(async () => {
   margin: 0;
   font-size: 17px;
   font-weight: 600;
-  color: #f1f5f9;
-  letter-spacing: 0.02em;
+  color: #303133;
 }
 .subtitle {
   margin: 4px 0 0;
   font-size: 12px;
-  color: #94a3b8;
+  color: #909399;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -246,6 +292,7 @@ onMounted(async () => {
   flex: 1;
   min-height: 0;
   padding: 20px 16px;
+  background: #fff;
 }
 :deep(.chat-scroll .el-scrollbar__wrap) {
   overflow-x: hidden;
@@ -258,12 +305,12 @@ onMounted(async () => {
 .welcome {
   text-align: center;
   padding: 32px 16px 8px;
-  color: #94a3b8;
+  color: #606266;
 }
 .welcome-title {
   margin: 0 0 8px;
   font-size: 18px;
-  color: #e2e8f0;
+  color: #303133;
   font-weight: 600;
 }
 .welcome-desc {
@@ -293,38 +340,35 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 .bubble-avatar.bot {
-  background: rgba(99, 102, 241, 0.35);
-  color: #c7d2fe;
+  background: #ecf5ff;
+  color: #409eff;
 }
 .bubble-avatar.user {
-  background: rgba(56, 189, 248, 0.25);
-  color: #7dd3fc;
+  background: #f0f9ff;
+  color: #409eff;
 }
 .bubble {
   max-width: min(720px, calc(100% - 80px));
-  border-radius: 16px;
+  border-radius: 14px;
   padding: 12px 14px;
   line-height: 1.55;
   font-size: 14px;
 }
 .bubble--user {
-  background: linear-gradient(135deg, #0ea5e9, #2563eb);
-  color: #f8fafc;
+  background: linear-gradient(135deg, #409eff, #337ecc);
+  color: #fff;
   border-bottom-right-radius: 4px;
-  box-shadow: 0 10px 28px rgba(14, 165, 233, 0.25);
+  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.25);
 }
 .bubble--bot {
-  background: rgba(30, 41, 59, 0.92);
-  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: #f9fafc;
+  border: 1px solid #ebeef5;
   border-bottom-left-radius: 4px;
-  color: #e2e8f0;
+  color: #303133;
 }
 .bubble-plain {
   white-space: pre-wrap;
   word-break: break-word;
-}
-:deep(.bubble--bot .markdown-output-panel) {
-  color: #e2e8f0;
 }
 .typing-row {
   margin-bottom: 8px;
@@ -334,15 +378,15 @@ onMounted(async () => {
   align-items: center;
   gap: 5px;
   padding: 12px 18px;
-  background: rgba(30, 41, 59, 0.85);
+  background: #f5f7fa;
   border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.1);
+  border: 1px solid #ebeef5;
 }
 .typing-indicator span {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #64748b;
+  background: #c0c4cc;
   animation: bounce 1.2s infinite ease-in-out;
 }
 .typing-indicator span:nth-child(2) {
@@ -366,8 +410,8 @@ onMounted(async () => {
 .chat-footer {
   flex-shrink: 0;
   padding: 14px 18px 18px;
-  background: rgba(15, 23, 42, 0.92);
-  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  background: #fafafa;
+  border-top: 1px solid #ebeef5;
 }
 .composer {
   max-width: 880px;
@@ -376,19 +420,8 @@ onMounted(async () => {
   gap: 12px;
   align-items: flex-end;
 }
-.composer :deep(.el-textarea__inner) {
-  background: rgba(30, 41, 59, 0.9);
-  border-color: rgba(148, 163, 184, 0.2);
-  color: #f1f5f9;
-  border-radius: 12px;
-  resize: none;
-}
-.composer :deep(.el-input__count) {
-  background: transparent;
-  color: #64748b;
-}
 .send-btn {
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 12px 22px;
   font-weight: 600;
 }
@@ -396,6 +429,6 @@ onMounted(async () => {
   max-width: 880px;
   margin: 10px auto 0;
   font-size: 12px;
-  color: #fbbf24;
+  color: #e6a23c;
 }
 </style>

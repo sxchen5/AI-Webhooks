@@ -2,7 +2,7 @@
   <el-container class="layout-root">
     <el-aside :width="asideWidth" class="aside" :class="{ 'aside--collapsed': collapsed }">
       <div class="aside-inner">
-        <!-- 展开时：品牌与收起在侧栏；收起时移到顶栏，避免折叠子菜单弹出层盖住侧栏图标 -->
+        <!-- 展开时：品牌与收起在侧栏顶部；收起时仅保留展开按钮于侧栏最上，避免与折叠子菜单弹出层重叠 -->
         <div v-if="!collapsed" class="logo-row">
           <div class="logo-brand">
             <el-icon class="logo-icon" :size="26"><Monitor /></el-icon>
@@ -11,6 +11,13 @@
           <el-tooltip content="收起菜单" placement="right">
             <el-button class="collapse-toggle" type="primary" link @click.stop="collapsed = true">
               <el-icon :size="20"><Fold /></el-icon>
+            </el-button>
+          </el-tooltip>
+        </div>
+        <div v-else class="aside-expand-only">
+          <el-tooltip content="展开菜单" placement="right">
+            <el-button class="collapse-toggle collapse-toggle--solo" type="primary" link @click.stop="collapsed = false">
+              <el-icon :size="20"><Expand /></el-icon>
             </el-button>
           </el-tooltip>
         </div>
@@ -86,14 +93,6 @@
     </el-aside>
     <el-container>
       <el-header class="header">
-        <div v-if="collapsed" class="header-brand-bar">
-          <el-icon class="header-brand-icon" :size="24"><Monitor /></el-icon>
-          <el-tooltip content="展开菜单" placement="bottom">
-            <el-button class="header-collapse-btn" type="primary" link @click.stop="collapsed = false">
-              <el-icon :size="20"><Expand /></el-icon>
-            </el-button>
-          </el-tooltip>
-        </div>
         <div class="header-title">
           <template v-if="breadcrumb.parent">
             <span class="header-parent">{{ breadcrumb.parent }}</span>
@@ -215,6 +214,19 @@ function onLogout() {
 .collapse-toggle:hover {
   color: #fff !important;
 }
+.aside-expand-only {
+  flex-shrink: 0;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.collapse-toggle--solo {
+  width: 100%;
+  justify-content: center;
+}
 .side-menu {
   flex: 1;
   border-right: none;
@@ -245,27 +257,12 @@ function onLogout() {
 .header {
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: space-between;
   background: #fff;
   border-bottom: 1px solid #f0f0f0;
   padding: 0 20px;
 }
-.header-brand-bar {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-.header-brand-icon {
-  color: #409eff;
-}
-.header-collapse-btn {
-  padding: 6px !important;
-  margin: 0 !important;
-}
 .header-title {
-  flex: 1;
-  min-width: 0;
   font-size: 16px;
   font-weight: 500;
   color: #303133;
@@ -286,7 +283,6 @@ function onLogout() {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-left: auto;
   flex-shrink: 0;
 }
 .user-name {

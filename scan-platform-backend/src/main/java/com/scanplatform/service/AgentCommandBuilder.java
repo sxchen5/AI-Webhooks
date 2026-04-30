@@ -151,9 +151,35 @@ public class AgentCommandBuilder {
         String prompt = qp.getScanSkillPrompt();
         String label = StringUtils.hasText(qp.getBotName()) ? qp.getBotName().trim() : "Git问答";
         if (StringUtils.hasText(skill)) {
-            return buildSkillAgentCommand(dir, branch, commit, label, skill, prompt, userQuestion);
+            return appendStreamJsonIfAbsent(buildSkillAgentCommand(dir, branch, commit, label, skill, prompt, userQuestion));
         }
         String template = qp.getAgentCommand();
-        return AgentCommandUtil.buildCommand(template, dir.toString(), branch, commit, userQuestion != null ? userQuestion : "");
+        return appendStreamJsonIfAbsent(
+                AgentCommandUtil.buildCommand(template, dir.toString(), branch, commit, userQuestion != null ? userQuestion : ""));
+    }
+
+    private static String appendStreamJsonIfAbsent(String cmd) {
+        if (cmd == null) {
+            return null;
+        }
+        if (cmd.contains("--output-format")) {
+            return cmd;
+        }
+        return cmd + " --output-format stream-json";
+    }
+
+    /**
+     * Git 问答默认：问题写入临时文件后执行 {@code agent --print -f <file> --output-format stream-json}。
+     */
+    public String buildGitQaStreamJsonCommand(String userQuestion) throws IOException {
+        Path dir = Path.of(System.getProperty("java.io.tmpdir", ".")).resolve("scan-platform-git-qa");
+        Files.createDirectories(dir);
+        Path promptFile = dir.resolve("git-qa-q-" + System.nanoTime() + ".txt").normalize();
+        Files.writeString(promptFile, userQuestion != null ? userQuestion : "", StandardCharsets.UTF_8);
+        String promptPath = promptFile.toAbsolutePath().toString();
+        if (isWindows()) {
+            return "agent --print -f \"" + escapeForCmdDoubleQuoted(promptPath) + "\" --output-format stream-json";
+        }
+        return "agent --print -f '" + escapeForBashSingleQuoted(promptPath) + "' --output-format stream-json";
     }
 }

@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /**
  * 在指定工作目录下执行 Shell 命令并收集输出。
@@ -65,6 +66,36 @@ public class ShellCommandService {
             log.warn("Shell 退出码非零: exitCode={} dir={}", code, dir);
         }
         return new ShellResult(out.toString(), code);
+    }
+
+    /**
+     * 流式读取标准输出（stderr 已合并），每行调用一次 consumer；进程结束后再返回退出码。
+     */
+    public int executeStreaming(String command, Path workingDir, Map<String, String> extraEnv,
+                                Consumer<String> lineConsumer) throws Exception {
+        Path dir = workingDir != null && Files.isDirectory(workingDir) ? workingDir : Path.of("").toAbsolutePath();
+        List<String> cmdLine = buildShellCommandLine(command);
+        ProcessBuilder pb = new ProcessBuilder(cmdLine);
+        pb.directory(dir.toFile());
+        if (extraEnv != null && !extraEnv.isEmpty()) {
+            pb.environment().putAll(extraEnv);
+        }
+        log.debug("流式执行 Shell: {} dir={}", cmdLine.get(0), dir);
+        pb.redirectErrorStream(true);
+        Process process = pb.start();
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                lineConsumer.accept(line);
+            }
+        }
+        boolean finished = process.waitFor(DEFAULT_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        if (!finished) {
+            process.destroyForcibly();
+            throw new IllegalStateException("命令执行超时，已终止进程");
+        }
+        return process.exitValue();
     }
 
     private List<String> buildShellCommandLine(String command) {
