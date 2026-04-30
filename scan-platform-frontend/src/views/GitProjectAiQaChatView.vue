@@ -149,19 +149,16 @@
             @keydown.enter.exact.prevent="onEnterSend"
           />
           <div class="composer-model-inner">
+            <span class="model-hint-text">{{ selectedModel ? `模型：${selectedModel}` : '选择模型' }}</span>
             <el-select
               v-model="selectedModel"
               placeholder="默认"
               clearable
               size="small"
-              fit-input-width
               class="model-select-inner"
               popper-class="git-qa-model-popper"
               :disabled="replying || !project"
             >
-              <template #prefix>
-                <span class="model-prefix">选择模型</span>
-              </template>
               <el-option v-for="opt in modelOptions" :key="opt" :label="opt" :value="opt" />
             </el-select>
           </div>
@@ -270,7 +267,7 @@ const prefs = usePreferencesStore()
 const project = ref(null)
 const messages = ref([])
 const draft = ref('')
-const selectedModel = ref('')
+const selectedModel = ref(undefined)
 const modelOptions = [
   'auto',
   'composer-2-fast',
@@ -1095,19 +1092,20 @@ onBeforeUnmount(() => {
   gap: 8px;
   pointer-events: auto;
 }
-.model-prefix {
+.model-hint-text {
   font-size: 12px;
   color: var(--chat-model-hint);
   white-space: nowrap;
   user-select: none;
-  margin-right: 4px;
+  max-width: min(200px, 38vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
 }
 .model-select-inner {
-  max-width: calc(100% - 140px);
-}
-.model-select-inner :deep(.el-select__prefix) {
-  border: none;
-  box-shadow: none;
+  flex: 1;
+  min-width: 0;
+  max-width: calc(100% - 120px);
 }
 .model-select-inner :deep(.el-select__wrapper) {
   min-height: 28px;
@@ -1115,14 +1113,22 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   box-shadow: none !important;
   border: none !important;
-  background: transparent;
+  background: transparent !important;
   font-size: 12px;
   font-weight: 500;
   color: var(--chat-model-text);
 }
 .model-select-inner :deep(.el-select__wrapper.is-hovering),
-.model-select-inner :deep(.el-select__wrapper.is-focused) {
-  background: rgba(64, 158, 255, 0.06);
+.model-select-inner :deep(.el-select__wrapper.is-focused),
+.model-select-inner :deep(.el-select__wrapper:hover) {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.model-select-inner :deep(.el-select__wrapper .el-select__selected-item) {
+  color: var(--chat-model-text);
+}
+.model-select-inner :deep(.el-select__caret) {
+  color: var(--chat-model-hint);
 }
 .composer-textarea :deep(.el-textarea__inner) {
   border: none;
