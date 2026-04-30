@@ -15,18 +15,13 @@ public final class AgentStreamJsonSseExtractor {
     private final StringBuilder thinkingAccum = new StringBuilder();
 
     /**
-     * @return 本行对应的新增展示文本（可能为空）
+     * 解析已由 Jackson 解析好的 stream-json 根对象（与 {@link #consumeLine} 逻辑一致）。
      */
-    public String consumeLine(String rawLine) {
-        if (!StringUtils.hasText(rawLine)) {
-            return "";
-        }
-        String line = rawLine.trim();
-        if (!line.startsWith("{")) {
+    public String consumeRoot(JsonNode root) {
+        if (root == null || !root.isObject()) {
             return "";
         }
         try {
-            JsonNode root = MAPPER.readTree(line);
             String type = root.path("type").asText("");
             if ("thinking".equals(type) && "delta".equals(root.path("subtype").asText(""))) {
                 String delta = root.path("text").asText("");
@@ -63,9 +58,27 @@ public final class AgentStreamJsonSseExtractor {
                 return full;
             }
         } catch (Exception ignored) {
-            // 非 JSON 或结构变化时忽略该行
         }
         return "";
+    }
+
+    /**
+     * @return 本行对应的新增展示文本（可能为空）
+     */
+    public String consumeLine(String rawLine) {
+        if (!StringUtils.hasText(rawLine)) {
+            return "";
+        }
+        String line = rawLine.trim();
+        if (!line.startsWith("{")) {
+            return "";
+        }
+        try {
+            JsonNode root = MAPPER.readTree(line);
+            return consumeRoot(root);
+        } catch (Exception ignored) {
+            return "";
+        }
     }
 
     public void reset() {

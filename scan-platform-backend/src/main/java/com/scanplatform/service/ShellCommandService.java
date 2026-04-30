@@ -5,12 +5,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -94,6 +97,45 @@ public class ShellCommandService {
         if (!finished) {
             process.destroyForcibly();
             throw new IllegalStateException("命令执行超时，已终止进程");
+        }
+        return process.exitValue();
+    }
+
+    /**
+     * 流式读取 stdout（stderr 已合并），用 Jackson 增量解析 JSON 根对象（适用于 stream-json 无换行分隔）；
+     * 在独立线程读流，主线程等待进程结束，避免阻塞 waitFor 导致无法消费输出。
+     */
+    public int executeStreamingJsonRoots(String command, Path workingDir, Map<String, String> extraEnv,
+                                         Consumer<JsonNode> onRoot)
+            throws Exception {
+        Path dir = workingDir != null && Files.isDirectory(workingDir) ? workingDir : Path.of("").toAbsolutePath();
+        List<String> cmdLine = buildShellCommandLine(command);
+        ProcessBuilder pb = new ProcessBuilder(cmdLine);
+        pb.directory(dir.toFile());
+        if (extraEnv != null && !extraEnv.isEmpty()) {
+            pb.environment().putAll(extraEnv);
+        }
+        log.debug("流式 JSON 根对象执行 Shell: {} dir={}", cmdLine.get(0), dir);
+        pb.redirectErrorStream(true);
+        Process process = pb.start();
+        java.util.concurrent.atomic.AtomicReference<Exception> readErr = new java.util.concurrent.atomic.AtomicReference<>();
+        Thread reader = new Thread(() -> {
+            try (InputStream in = process.getInputStream()) {
+                AgentJsonStreamLineReader.parseStream(in, onRoot);
+            } catch (Exception e) {
+                readErr.set(e);
+            }
+        }, "agent-stream-json");
+        reader.start();
+        boolean finished = process.waitFor(DEFAULT_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        if (!finished) {
+            process.destroyForcibly();
+            reader.interrupt();
+            throw new IllegalStateException("命令执行超时，已终止进程");
+        }
+        reader.join(Math.min(DEFAULT_TIMEOUT.toMillis(), 60_000L));
+        if (readErr.get() != null) {
+            throw readErr.get();
         }
         return process.exitValue();
     }

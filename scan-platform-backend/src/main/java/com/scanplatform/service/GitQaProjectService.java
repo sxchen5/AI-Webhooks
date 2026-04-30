@@ -32,6 +32,7 @@ public class GitQaProjectService {
     private final GitWorkspaceService gitWorkspaceService;
     private final ShellCommandService shellCommandService;
     private final AgentCommandBuilder agentCommandBuilder;
+    private final GitQaChatMessageService gitQaChatMessageService;
 
     @Transactional(readOnly = true)
     public Page<GitQaProject> page(Pageable pageable) {
@@ -59,6 +60,7 @@ public class GitQaProjectService {
 
     @Transactional
     public void delete(Long id) {
+        gitQaChatMessageService.deleteAllByProject(id);
         repository.deleteById(id);
         log.info("删除 Git 项目 AI 问答配置: id={}", id);
     }
@@ -71,6 +73,8 @@ public class GitQaProjectService {
         if (qp.getStatus() == null || qp.getStatus() != 1) {
             throw new IllegalArgumentException("该问答配置已禁用");
         }
+        Long userMessageId = gitQaChatMessageService.saveUser(id, req.getQuestion());
+
         // 仅用 \n 写 SSE，避免 Windows 上 PrintWriter.println 产生 CRLF 导致前端按 \n\n 分块失败
         PrintWriter pw = new PrintWriter(new OutputStreamWriter(rawOut, StandardCharsets.UTF_8), true);
         String branch = StringUtils.hasText(qp.getBranch()) ? qp.getBranch() : "main";
@@ -90,11 +94,12 @@ public class GitQaProjectService {
         try {
             cmd = resolveChatShellCommand(qp, workPath, branch, commit, req.getQuestion());
         } catch (Exception e) {
+            gitQaChatMessageService.delete(id, userMessageId);
             sseJson(pw, "error", "{\"message\":\"" + jsonEscape(e.getMessage()) + "\"}");
             sseDone(pw, -1, false);
             return;
         }
-        sseJson(pw, "meta", "{\"execCommand\":\"" + jsonEscape(cmd) + "\",\"workPath\":\""
+        sseJson(pw, "meta", "{\"userMessageId\":" + userMessageId + ",\"execCommand\":\"" + jsonEscape(cmd) + "\",\"workPath\":\""
                 + jsonEscape(workPath) + "\",\"commitHash\":\"" + jsonEscape(commit != null ? commit : "")
                 + "\",\"cloneLog\":\"" + jsonEscape(StringUtils.hasText(cloneLog) ? cloneLog : "") + "\"}");
 
@@ -111,16 +116,18 @@ public class GitQaProjectService {
                 tail(cmd, 2000));
         int exit;
         try {
-            exit = shellCommandService.executeStreaming(cmd, Path.of(workPath), env, line -> {
-                rawCapture.append(line).append('\n');
-                String delta = extractor.consumeLine(line);
+            exit = shellCommandService.executeStreamingJsonRoots(cmd, Path.of(workPath), env, root -> {
+                rawCapture.append(root.toString()).append('\n');
+                String delta = extractor.consumeRoot(root);
                 if (StringUtils.hasText(delta)) {
                     assistantReply.append(delta);
+                    log.info("Git 问答 stream-json 增量 projectId={} +{} 字符", qp.getId(), delta.length());
                     sseJson(pw, "assistant", "{\"delta\":\"" + jsonEscape(delta) + "\"}");
                 }
             });
         } catch (Exception e) {
             log.warn("Git 问答 agent 执行异常: projectId={} msg={}", qp.getId(), e.getMessage(), e);
+            gitQaChatMessageService.delete(id, userMessageId);
             sseJson(pw, "error", "{\"message\":\"" + jsonEscape(e.getMessage()) + "\"}");
             sseDone(pw, -1, false);
             return;
@@ -128,13 +135,17 @@ public class GitQaProjectService {
         boolean success = exit == 0;
         String replyText = assistantReply.toString();
         if (StringUtils.hasText(replyText)) {
+            Long assistantId = gitQaChatMessageService.saveAssistant(id, replyText);
+            sseJson(pw, "saved", "{\"assistantMessageId\":" + (assistantId == null ? "null" : String.valueOf(assistantId)) + "}");
             log.info(
-                    "Git 问答 AI 回复全文 projectId={} exitCode={} chars={}\n{}",
+                    "Git 问答 AI 回复完成 projectId={} exitCode={} 总字符={}",
                     qp.getId(),
                     exit,
-                    replyText.length(),
-                    tail(replyText, 32000));
+                    replyText.length());
         } else {
+            if (!success) {
+                gitQaChatMessageService.delete(id, userMessageId);
+            }
             log.info(
                     "Git 问答结束 projectId={} exitCode={} success={} 未解析到助手增量文本（可能 agent 输出格式非 stream-json 或进程无输出） rawTail=\n{}",
                     qp.getId(),

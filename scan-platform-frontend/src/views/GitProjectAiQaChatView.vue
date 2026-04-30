@@ -19,23 +19,46 @@
 
     <el-scrollbar ref="scrollbarRef" class="chat-scroll">
       <div class="messages">
-        <div v-if="!messages.length" class="welcome">
+        <div v-if="!messages.length && !historyLoading" class="welcome">
           <p class="welcome-title">开始对话</p>
           <p class="welcome-desc">
-            在仓库克隆目录中执行 Agent（stream-json），回复会随流式增量显示。
+            Agent 使用 stream-json 时回复会随流式增量显示；完成后切换为 Markdown 渲染。
           </p>
         </div>
         <div
           v-for="(m, idx) in messages"
-          :key="idx"
-          class="msg-row"
-          :class="m.role === 'user' ? 'msg-row--user' : 'msg-row--bot'"
+          :key="m.clientKey || m.id || idx"
+          class="msg-block"
+          :class="m.role === 'user' ? 'msg-block--user' : 'msg-block--bot'"
         >
-          <div v-if="m.role === 'user'" class="bubble bubble--user">
-            <MarkdownOutputPanel :text="m.content" :rows="6" hide-toolbar />
+          <div class="msg-row" :class="m.role === 'user' ? 'msg-row--user' : 'msg-row--bot'">
+            <div v-if="m.role === 'user'" class="bubble bubble--user">
+              <MarkdownOutputPanel :text="m.content" :rows="6" hide-toolbar />
+            </div>
+            <div v-else class="bubble bubble--assistant">
+              <div v-if="m.displayStream" class="stream-plain">{{ m.content }}</div>
+              <MarkdownOutputPanel v-else :text="m.content" :rows="8" hide-toolbar />
+            </div>
           </div>
-          <div v-else class="bubble bubble--assistant">
-            <MarkdownOutputPanel :text="m.content" :rows="8" hide-toolbar />
+          <div class="msg-actions" :class="m.role === 'user' ? 'msg-actions--user' : 'msg-actions--bot'">
+            <el-button
+              text
+              type="primary"
+              class="copy-btn"
+              :aria-label="'复制' + (m.role === 'user' ? '用户' : '助手') + '消息'"
+              @click="copyMessage(m.content)"
+            >
+              <el-icon :size="16"><DocumentCopy /></el-icon>
+            </el-button>
+            <el-button
+              v-if="m.id != null"
+              text
+              type="danger"
+              class="del-btn"
+              @click="onDeleteMessage(m)"
+            >
+              <el-icon :size="16"><Delete /></el-icon>
+            </el-button>
           </div>
         </div>
         <div v-if="replying" class="thinking-row">
@@ -81,9 +104,14 @@
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, ChatDotRound } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
-import { getGitQaProject, streamGitQaChat } from '@/api/gitQaProject'
+import { ArrowLeft, ChatDotRound, Delete, DocumentCopy } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  deleteGitQaChatMessage,
+  fetchGitQaChatMessages,
+  getGitQaProject,
+  streamGitQaChat,
+} from '@/api/gitQaProject'
 import MarkdownOutputPanel from '@/components/MarkdownOutputPanel.vue'
 
 const route = useRoute()
@@ -92,11 +120,18 @@ const project = ref(null)
 const messages = ref([])
 const draft = ref('')
 const replying = ref(false)
+const historyLoading = ref(false)
 const scrollbarRef = ref(null)
 const lastMeta = ref(null)
 
 let abortCtrl = null
 let sseBuffer = ''
+let clientKeySeq = 0
+
+function nextClientKey() {
+  clientKeySeq += 1
+  return `c-${clientKeySeq}`
+}
 
 function goBack() {
   abortCtrl?.abort()
@@ -118,6 +153,29 @@ function onEnterSend() {
   }
 }
 
+async function copyMessage(text) {
+  const t = text ?? ''
+  try {
+    await navigator.clipboard.writeText(t)
+    ElMessage.success('已复制')
+  } catch {
+    ElMessage.error('复制失败，请手动选择文本')
+  }
+}
+
+async function onDeleteMessage(m) {
+  if (m.id == null) return
+  try {
+    await ElMessageBox.confirm('确定删除这条消息？', '删除', { type: 'warning' })
+    await deleteGitQaChatMessage(project.value.id, m.id)
+    const i = messages.value.findIndex((x) => x === m)
+    if (i >= 0) messages.value.splice(i, 1)
+    ElMessage.success('已删除')
+  } catch {
+    /* cancel */
+  }
+}
+
 function parseSseBlock(block) {
   let event = 'message'
   const dataLines = []
@@ -132,13 +190,12 @@ function parseSseBlock(block) {
   return { event, dataStr }
 }
 
-async function consumeSseStream(reader, botMsg) {
+async function consumeSseStream(reader, userMsg, botMsg) {
   const decoder = new TextDecoder()
   sseBuffer = ''
   for (;;) {
     const { value, done } = await reader.read()
     if (done) break
-    // 服务端 Windows 上 PrintWriter 可能输出 CRLF，SSE 规范以空行分隔事件块，须统一为 \n 再按 \n\n 切分
     sseBuffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n').replace(/\r/g, '\n')
     let idx
     while ((idx = sseBuffer.indexOf('\n\n')) >= 0) {
@@ -148,9 +205,13 @@ async function consumeSseStream(reader, botMsg) {
       if (!dataStr) continue
       try {
         const obj = JSON.parse(dataStr)
-        if (event === 'assistant' && obj.delta) {
+        if (event === 'meta' && obj.userMessageId != null) {
+          userMsg.id = obj.userMessageId
+        } else if (event === 'assistant' && obj.delta) {
           botMsg.content += obj.delta
           scrollToBottom()
+        } else if (event === 'saved' && obj.assistantMessageId != null) {
+          botMsg.id = obj.assistantMessageId
         } else if (event === 'error') {
           const msg = obj.message || '执行出错'
           botMsg.content += (botMsg.content ? '\n\n' : '') + `【错误】${msg}`
@@ -158,11 +219,13 @@ async function consumeSseStream(reader, botMsg) {
             botMsg.content += `\n\n【原始输出尾部】\n${obj.rawTail}`
           }
           ElMessage.error(msg)
+          await loadHistory()
         } else if (event === 'done') {
           lastMeta.value = {
             success: !!obj.success,
             exitCode: obj.exitCode ?? -1,
           }
+          botMsg.displayStream = false
           if (!obj.success) {
             ElMessage.warning('Agent 执行未成功（退出码非 0）')
           }
@@ -174,13 +237,40 @@ async function consumeSseStream(reader, botMsg) {
   }
 }
 
+async function loadHistory() {
+  const id = route.params.id
+  historyLoading.value = true
+  try {
+    const page = await fetchGitQaChatMessages(id, 0, 500)
+    const list = page.content || []
+    messages.value = list.map((row) => ({
+      id: row.id,
+      role: row.role === 'USER' ? 'user' : 'assistant',
+      content: row.content || '',
+      displayStream: false,
+      clientKey: nextClientKey(),
+    }))
+  } catch {
+    ElMessage.warning('加载历史记录失败')
+  } finally {
+    historyLoading.value = false
+    scrollToBottom()
+  }
+}
+
 async function send() {
   const q = draft.value.trim()
   if (!q || replying.value || !project.value) return
   draft.value = ''
-  messages.value.push({ role: 'user', content: q })
-  const botMsg = { role: 'assistant', content: '' }
-  messages.value.push(botMsg)
+  const userMsg = { id: null, role: 'user', content: q, displayStream: false, clientKey: nextClientKey() }
+  const botMsg = {
+    id: null,
+    role: 'assistant',
+    content: '',
+    displayStream: true,
+    clientKey: nextClientKey(),
+  }
+  messages.value.push(userMsg, botMsg)
   lastMeta.value = null
   replying.value = true
   scrollToBottom()
@@ -191,7 +281,7 @@ async function send() {
     if (!reader) {
       throw new Error('浏览器不支持流式响应')
     }
-    await consumeSseStream(reader, botMsg)
+    await consumeSseStream(reader, userMsg, botMsg)
   } catch (e) {
     if (e?.name === 'AbortError') {
       botMsg.content += '\n\n【已取消】'
@@ -199,9 +289,11 @@ async function send() {
       botMsg.content = `请求失败：${e?.message || String(e)}`
       ElMessage.error('执行失败')
     }
+    botMsg.displayStream = false
   } finally {
     replying.value = false
     abortCtrl = null
+    botMsg.displayStream = false
     scrollToBottom()
   }
 }
@@ -210,6 +302,7 @@ onMounted(async () => {
   const id = route.params.id
   try {
     project.value = await getGitQaProject(id)
+    await loadHistory()
   } catch {
     ElMessage.error('加载配置失败')
     goBack()
@@ -300,6 +393,28 @@ onBeforeUnmount(() => {
   margin: 0 auto;
   padding-bottom: 24px;
 }
+.msg-block {
+  margin-bottom: 6px;
+}
+.msg-block--user .msg-actions {
+  justify-content: flex-end;
+}
+.msg-block--bot .msg-actions {
+  justify-content: flex-start;
+}
+.msg-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 2px;
+  margin-bottom: 10px;
+  padding: 0 4px;
+}
+.copy-btn,
+.del-btn {
+  padding: 4px 6px;
+  min-height: auto;
+}
 .welcome {
   text-align: center;
   padding: 32px 16px 8px;
@@ -318,7 +433,7 @@ onBeforeUnmount(() => {
 }
 .msg-row {
   display: flex;
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 .msg-row--user {
   justify-content: flex-end;
@@ -343,6 +458,13 @@ onBeforeUnmount(() => {
   padding: 4px 0;
   width: 100%;
   max-width: 100%;
+}
+.stream-plain {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #303133;
 }
 .bubble--user :deep(.md-output-panel) {
   margin: 0;
