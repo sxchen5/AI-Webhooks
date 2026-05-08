@@ -75,8 +75,7 @@
               <div v-if="m.displayStream" class="stream-plain">{{ m.streamPlain != null ? m.streamPlain : m.content }}</div>
               <div
                 v-else
-                class="bubble-md"
-                :class="{ 'bubble-md--dark': prefs.theme === 'dark' }"
+                class="bubble-md markdown-body"
                 v-html="assistantRendered[messageAnchorKey(m)]?.html || ''"
               />
             </div>
@@ -1546,51 +1545,20 @@ onBeforeUnmount(() => {
   min-height: 0;
   max-height: none;
 }
-.bubble-md {
+.bubble-md.markdown-body {
   width: 100%;
   font-size: 14px;
   line-height: 1.6;
-  color: var(--chat-body-text);
+  background-color: transparent !important;
+  box-shadow: none;
 }
-.bubble-md :deep(h1),
-.bubble-md :deep(h2),
-.bubble-md :deep(h3),
-.bubble-md :deep(h4),
-.bubble-md :deep(h5),
-.bubble-md :deep(h6) {
+.bubble-md.markdown-body :deep(h1),
+.bubble-md.markdown-body :deep(h2),
+.bubble-md.markdown-body :deep(h3),
+.bubble-md.markdown-body :deep(h4),
+.bubble-md.markdown-body :deep(h5),
+.bubble-md.markdown-body :deep(h6) {
   scroll-margin-top: 8px;
-  margin: 0.75em 0 0.35em;
-  font-weight: 600;
-}
-.bubble-md :deep(h1) {
-  font-size: 1.35em;
-}
-.bubble-md :deep(h2) {
-  font-size: 1.2em;
-}
-.bubble-md :deep(p) {
-  margin: 0.45em 0;
-}
-.bubble-md :deep(ul),
-.bubble-md :deep(ol) {
-  margin: 0.45em 0;
-  padding-left: 1.3em;
-}
-.bubble-md :deep(pre) {
-  margin: 0.5em 0;
-  padding: 10px 12px;
-  border-radius: 6px;
-  background: var(--el-fill-color-light);
-  overflow-x: auto;
-}
-.bubble-md--dark {
-  color: var(--el-text-color-primary, #e5eaf3);
-}
-.bubble-md--dark :deep(pre) {
-  background: rgba(15, 23, 42, 0.45);
-}
-.bubble-md--dark :deep(a) {
-  color: #7dd3fc;
 }
 
 .toc-float {
@@ -1917,12 +1885,12 @@ onBeforeUnmount(() => {
   box-shadow: 0 4px 18px rgba(15, 23, 42, 0.12);
 }
 
-.chat-page .bubble-md :deep(h1.md-heading--toc-flash),
-.chat-page .bubble-md :deep(h2.md-heading--toc-flash),
-.chat-page .bubble-md :deep(h3.md-heading--toc-flash),
-.chat-page .bubble-md :deep(h4.md-heading--toc-flash),
-.chat-page .bubble-md :deep(h5.md-heading--toc-flash),
-.chat-page .bubble-md :deep(h6.md-heading--toc-flash) {
+.chat-page .bubble-md.markdown-body :deep(h1.md-heading--toc-flash),
+.chat-page .bubble-md.markdown-body :deep(h2.md-heading--toc-flash),
+.chat-page .bubble-md.markdown-body :deep(h3.md-heading--toc-flash),
+.chat-page .bubble-md.markdown-body :deep(h4.md-heading--toc-flash),
+.chat-page .bubble-md.markdown-body :deep(h5.md-heading--toc-flash),
+.chat-page .bubble-md.markdown-body :deep(h6.md-heading--toc-flash) {
   animation: gitQaTocHeadingFlash 1.1s ease-in-out 2;
 }
 
