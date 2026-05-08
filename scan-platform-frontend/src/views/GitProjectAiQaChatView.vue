@@ -603,6 +603,8 @@ function updateActiveAssistantFromScroll() {
   }
   if (bestKey) {
     activeAssistantKey.value = bestKey
+  } else {
+    activeAssistantKey.value = ''
   }
 }
 
@@ -627,12 +629,26 @@ const tocItems = computed(() => {
   return assistantRendered[k]?.headings ?? []
 })
 
-const tocColumnVisible = computed(() =>
-  messages.value.some((m) => {
-    if (m.role !== 'assistant' || m.displayStream) return false
-    return extractMarkdownHeadings(m.content || '').length > 0
-  }),
-)
+const tocColumnVisible = computed(() => {
+  const list = messages.value
+  let lastAssistant = null
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (list[i].role === 'assistant') {
+      lastAssistant = list[i]
+      break
+    }
+  }
+  // 最后一条助手仍是流式纯文本气泡时，不展示标题导航
+  if (!lastAssistant || lastAssistant.displayStream) return false
+
+  const k = activeAssistantKey.value
+  let m = lastAssistant
+  if (k) {
+    const found = list.find((x) => x.role === 'assistant' && messageAnchorKey(x) === k)
+    if (found && !found.displayStream) m = found
+  }
+  return extractMarkdownHeadings(m.content || '').length > 0
+})
 
 watch(activeAssistantKey, () => {
   activeTocId.value = ''
