@@ -409,7 +409,7 @@ function assistantCopyBody(m) {
 }
 
 const showSendFab = computed(
-  () => messages.value.length > 0 || draft.value.trim().length > 0 || pendingFiles.value.length > 0,
+  () => replying.value || draft.value.trim().length > 0 || pendingFiles.value.length > 0,
 )
 
 function parseUserAttachmentsRow(raw) {
