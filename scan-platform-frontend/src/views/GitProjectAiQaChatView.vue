@@ -875,7 +875,7 @@ async function onRegenerateAssistant(assistantMsg) {
     thinking: '',
     thinkingOpen: false,
     displayStream: true,
-    streamPlain: '',
+    streamPlain: null,
     feedback: null,
     clientKey: nextClientKey(),
   }
@@ -1095,7 +1095,7 @@ async function send() {
     thinking: '',
     thinkingOpen: false,
     displayStream: true,
-    streamPlain: '',
+    streamPlain: null,
     feedback: null,
     clientKey: nextClientKey(),
   }
