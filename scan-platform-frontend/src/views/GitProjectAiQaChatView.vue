@@ -30,6 +30,7 @@
       <el-scrollbar
         ref="scrollbarRef"
         class="chat-scroll chat-scroll--grow"
+        :class="{ 'chat-scroll--toc-pad': tocColumnVisible && tocOpen, 'chat-scroll--toc-pad-collapsed': tocColumnVisible && !tocOpen }"
         wrap-class="git-qa-scroll-wrap"
         @scroll="onScrollWrap"
       >
@@ -48,7 +49,12 @@
         >
           <div class="msg-row" :class="m.role === 'user' ? 'msg-row--user' : 'msg-row--bot'">
             <div v-if="m.role === 'user'" class="bubble bubble--user">
-              <MarkdownOutputPanel :text="m.content" :rows="6" hide-toolbar />
+              <div v-if="m.attachments?.length" class="user-attach-row">
+                <el-tag v-for="a in m.attachments" :key="a.name" size="small" type="info" effect="plain" class="user-attach-tag">
+                  {{ a.name }}
+                </el-tag>
+              </div>
+              <MarkdownOutputPanel :text="userBubbleBody(m)" :rows="6" hide-toolbar />
             </div>
             <div v-else class="bubble bubble--assistant">
               <div v-if="m.displayStream" class="stream-plain">{{ m.streamPlain != null ? m.streamPlain : m.content }}</div>
@@ -132,7 +138,7 @@
       </div>
     </el-scrollbar>
 
-      <aside v-show="tocColumnVisible" class="toc-aside" :class="{ 'toc-aside--collapsed': !tocOpen }">
+      <div v-show="tocColumnVisible" class="toc-float" :class="{ 'toc-float--collapsed': !tocOpen }">
         <div v-if="tocOpen" class="toc-panel">
           <div class="toc-panel-header">
             <span class="toc-title">{{ t('gitQaChat.outline') }}</span>
@@ -156,7 +162,7 @@
         <button v-else type="button" class="toc-reopen" @click="tocOpen = true" :title="t('gitQaChat.outlineOpen')">
           {{ t('gitQaChat.outline') }}
         </button>
-      </aside>
+      </div>
     </div>
 
     <footer class="chat-footer">
@@ -172,42 +178,72 @@
         </transition>
         <div class="composer">
         <div class="composer-input-wrap">
+          <input
+            ref="fileInputRef"
+            type="file"
+            class="composer-file-input"
+            multiple
+            accept=".txt,.md,.markdown,.json,.csv,.log,.xml,.yaml,.yml,.properties,.env,.java,.ts,.tsx,.js,.mjs,.jsx,.vue,.css,.scss,.html,.sql,.py,.go,.rs,.c,.h,.cpp,.hpp,.cs,.kt,.swift,.rb,.php,.sh,.bat,.ps1,.gradle,.kts,.toml,.ini"
+            @change="onFilesSelected"
+          />
+          <div v-if="pendingFiles.length" class="pending-files">
+            <el-tag
+              v-for="(f, fi) in pendingFiles"
+              :key="f.id"
+              closable
+              type="info"
+              effect="plain"
+              class="pending-file-tag"
+              @close="removePendingFile(fi)"
+            >
+              {{ f.name }}
+            </el-tag>
+          </div>
           <el-input
             v-model="draft"
             type="textarea"
             :rows="2"
             :autosize="{ minRows: 2, maxRows: 6 }"
-            placeholder="输入问题后发送…"
+            :placeholder="t('gitQaChat.inputPlaceholder')"
             :disabled="replying || !project"
             class="composer-textarea"
             @keydown.enter.exact.prevent="onEnterSend"
           />
-          <div class="composer-model-inner">
-            <span class="model-hint-text">{{ selectedModel ? `模型：${selectedModel}` : '选择模型' }}</span>
-            <el-select
-              v-model="selectedModel"
-              placeholder="默认"
-              clearable
-              size="small"
-              class="model-select-inner"
-              popper-class="git-qa-model-popper"
-              :disabled="replying || !project"
-            >
-              <el-option v-for="opt in modelOptions" :key="opt" :label="opt" :value="opt" />
-            </el-select>
+          <div class="composer-bottom-bar">
+            <div class="composer-model-inner">
+              <span class="model-hint-text">{{ selectedModel ? `模型：${selectedModel}` : '选择模型' }}</span>
+              <el-select
+                v-model="selectedModel"
+                placeholder="默认"
+                clearable
+                size="small"
+                class="model-select-inner"
+                popper-class="git-qa-model-popper"
+                :disabled="replying || !project"
+              >
+                <el-option v-for="opt in modelOptions" :key="opt" :label="opt" :value="opt" />
+              </el-select>
+            </div>
+            <div class="composer-actions-right">
+              <el-tooltip :content="t('gitQaChat.uploadFile')" placement="top">
+                <el-button text class="composer-icon-btn" :disabled="replying || !project" @click="triggerFilePick">
+                  <el-icon :size="20"><Upload /></el-icon>
+                </el-button>
+              </el-tooltip>
+              <el-tooltip :content="isRecording ? t('gitQaChat.stopVoice') : t('gitQaChat.startVoice')" placement="top">
+                <el-button text class="composer-icon-btn" :disabled="replying || !project" @click="toggleVoiceInput">
+                  <el-icon v-if="!isRecording" :size="20"><Microphone /></el-icon>
+                  <el-icon v-else :size="20"><VideoPause /></el-icon>
+                </el-button>
+              </el-tooltip>
+              <el-tooltip v-if="showSendFab" :content="replying ? t('gitQaChat.stopGenerate') : t('gitQaChat.send')" placement="top">
+                <el-button circle class="composer-send-fab" :disabled="!project" @click="replying ? stopReply() : send()">
+                  <el-icon v-if="!replying" :size="18"><Top /></el-icon>
+                  <el-icon v-else :size="18"><Loading /></el-icon>
+                </el-button>
+              </el-tooltip>
+            </div>
           </div>
-          <el-tooltip content="发送" placement="left">
-            <el-button
-              type="primary"
-              circle
-              class="send-btn-inner"
-              :loading="replying"
-              :disabled="!draft.trim() || !project"
-              @click="send"
-            >
-              <el-icon v-if="!replying" :size="msgActionIconSize"><Right /></el-icon>
-            </el-button>
-          </el-tooltip>
         </div>
         </div>
       </div>
@@ -228,8 +264,12 @@ import {
   ChatDotRound,
   DocumentCopy,
   Headset,
+  Loading,
+  Microphone,
   RefreshRight,
-  Right,
+  Top,
+  Upload,
+  VideoPause,
   VideoPlay,
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -303,6 +343,129 @@ const prefs = usePreferencesStore()
 const project = ref(null)
 const messages = ref([])
 const draft = ref('')
+const fileInputRef = ref(null)
+const pendingFiles = ref([])
+let pendingFileSeq = 0
+const MAX_FILE_BYTES = 400 * 1024
+const isRecording = ref(false)
+let speechRec = null
+
+const GITQA_ATTACH = /^<!--gitqa-attach:(\[.*?\])-->\s*\n?/
+
+const showSendFab = computed(
+  () => messages.value.length > 0 || draft.value.trim().length > 0 || pendingFiles.value.length > 0,
+)
+
+function parseUserAttachmentsRow(raw) {
+  const s = raw || ''
+  const m = s.match(GITQA_ATTACH)
+  if (!m) return { attachments: [], body: s }
+  try {
+    const arr = JSON.parse(m[1])
+    const attachments = Array.isArray(arr) ? arr.filter((x) => x && x.name) : []
+    return { attachments, body: s.slice(m[0].length) }
+  } catch {
+    return { attachments: [], body: s }
+  }
+}
+
+function userBubbleBody(m) {
+  if (m?.role !== 'user') return m?.content || ''
+  return parseUserAttachmentsRow(m.content).body
+}
+
+function buildQuestionForApi(text, files) {
+  const tx = (text || '').trim()
+  const parts = []
+  if (tx) parts.push(tx)
+  const attLabel = t('gitQaChat.attachmentSection')
+  for (const f of files) {
+    parts.push(`### ${attLabel}: ${f.name}\n\n\`\`\`\n${f.text}\n\`\`\``)
+  }
+  return parts.join('\n\n')
+}
+
+function triggerFilePick() {
+  fileInputRef.value?.click()
+}
+
+function removePendingFile(idx) {
+  pendingFiles.value.splice(idx, 1)
+}
+
+function readFileAsUtf8(file) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader()
+    fr.onload = () => resolve(String(fr.result || ''))
+    fr.onerror = () => reject(fr.error)
+    fr.readAsText(file, 'UTF-8')
+  })
+}
+
+async function onFilesSelected(ev) {
+  const input = ev.target
+  const list = input?.files ? Array.from(input.files) : []
+  if (input) input.value = ''
+  for (const file of list) {
+    if (file.size > MAX_FILE_BYTES) {
+      ElMessage.warning(t('gitQaChat.fileTooLarge', { name: file.name }))
+      continue
+    }
+    try {
+      const text = await readFileAsUtf8(file)
+      pendingFileSeq += 1
+      pendingFiles.value.push({ id: `pf-${pendingFileSeq}`, name: file.name, text })
+    } catch {
+      ElMessage.error(t('gitQaChat.fileReadFail', { name: file.name }))
+    }
+  }
+}
+
+function stopReply() {
+  abortCtrl?.abort()
+}
+
+function toggleVoiceInput() {
+  const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)
+  if (!SR) {
+    ElMessage.warning(t('gitQaChat.voiceUnsupported'))
+    return
+  }
+  if (isRecording.value) {
+    try {
+      speechRec?.stop()
+    } catch {
+      /* */
+    }
+    isRecording.value = false
+    return
+  }
+  speechRec = new SR()
+  speechRec.lang = prefs.locale === 'en' ? 'en-US' : 'zh-CN'
+  speechRec.continuous = true
+  speechRec.interimResults = true
+  speechRec.onresult = (event) => {
+    let chunk = ''
+    for (let i = event.resultIndex; i < event.results.length; i += 1) {
+      chunk += event.results[i][0].transcript
+    }
+    if (chunk) draft.value += chunk
+  }
+  speechRec.onerror = () => {
+    isRecording.value = false
+  }
+  speechRec.onend = () => {
+    isRecording.value = false
+  }
+  try {
+    speechRec.start()
+    isRecording.value = true
+  } catch {
+    ElMessage.error(t('gitQaChat.voiceStartFail'))
+    isRecording.value = false
+  }
+}
+
 const selectedModel = ref(undefined)
 const modelOptions = AGENT_MODEL_OPTIONS
 const replying = ref(false)
@@ -584,7 +747,7 @@ watch(
 
 function onEnterSend() {
   if (!draft.value.includes('\n')) {
-    send()
+    if (!replying.value && showSendFab.value) send()
   }
 }
 
@@ -637,7 +800,8 @@ async function onRegenerateAssistant(assistantMsg) {
   const newUserMsg = {
     id: null,
     role: 'user',
-    content: q,
+    content: userRow.content,
+    attachments: parseUserAttachmentsRow(userRow.content ?? '').attachments,
     displayStream: false,
     streamPlain: null,
     clientKey: nextClientKey(),
@@ -814,15 +978,20 @@ async function loadHistory() {
   try {
     const page = await fetchGitQaChatMessages(id, 0, 500)
     const list = page.content || []
-    messages.value = list.map((row) => ({
-      id: row.id,
-      role: row.role === 'USER' ? 'user' : 'assistant',
-      content: row.content || '',
-      streamPlain: null,
-      displayStream: false,
-      clientKey: nextClientKey(),
-      feedback: row.role === 'ASSISTANT' ? row.feedback ?? null : null,
-    }))
+    messages.value = list.map((row) => {
+      const role = row.role === 'USER' ? 'user' : 'assistant'
+      const parsed = role === 'user' ? parseUserAttachmentsRow(row.content || '') : { attachments: [] }
+      return {
+        id: row.id,
+        role,
+        content: row.content || '',
+        attachments: role === 'user' ? parsed.attachments : undefined,
+        streamPlain: null,
+        displayStream: false,
+        clientKey: nextClientKey(),
+        feedback: row.role === 'ASSISTANT' ? row.feedback ?? null : null,
+      }
+    })
   } catch {
     ElMessage.warning('加载历史记录失败')
   } finally {
@@ -832,10 +1001,23 @@ async function loadHistory() {
 }
 
 async function send() {
-  const q = draft.value.trim()
-  if (!q || replying.value || !project.value) return
+  const text = draft.value.trim()
+  if (replying.value || !project.value) return
+  if (!text && !pendingFiles.value.length) return
+  const q = buildQuestionForApi(text, pendingFiles.value)
+  const attachMeta = pendingFiles.value.map((f) => ({ name: f.name }))
+  const persisted = attachMeta.length ? `<!--gitqa-attach:${JSON.stringify(attachMeta)}-->\n${q}` : q
   draft.value = ''
-  const userMsg = { id: null, role: 'user', content: q, displayStream: false, streamPlain: null, clientKey: nextClientKey() }
+  pendingFiles.value = []
+  const userMsg = {
+    id: null,
+    role: 'user',
+    content: persisted,
+    attachments: attachMeta,
+    displayStream: false,
+    streamPlain: null,
+    clientKey: nextClientKey(),
+  }
   const botMsg = {
     id: null,
     role: 'assistant',
@@ -902,6 +1084,12 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   abortCtrl?.abort()
   cancelSpeech()
+  try {
+    speechRec?.stop()
+  } catch {
+    /* */
+  }
+  speechRec = null
   streamAnimTimers.forEach((h) => cancelAnimationFrame(h))
   streamAnimTimers.clear()
 })
@@ -1026,14 +1214,19 @@ onBeforeUnmount(() => {
 .chat-body-row {
   flex: 1;
   min-height: 0;
-  display: flex;
-  gap: 10px;
-  align-items: stretch;
+  position: relative;
 }
 .chat-scroll--grow {
-  flex: 1;
-  min-width: 0;
+  width: 100%;
   min-height: 0;
+}
+.chat-scroll--toc-pad :deep(.git-qa-scroll-wrap) {
+  padding-right: 208px;
+  box-sizing: border-box;
+}
+.chat-scroll--toc-pad-collapsed :deep(.git-qa-scroll-wrap) {
+  padding-right: 44px;
+  box-sizing: border-box;
 }
 .chat-scroll {
   flex: 1;
@@ -1149,6 +1342,15 @@ onBeforeUnmount(() => {
   color: var(--chat-body-text);
   padding: 5px 14px;
 }
+.user-attach-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.user-attach-tag {
+  max-width: 100%;
+}
 .bubble--assistant {
   background: transparent;
   border: none;
@@ -1232,56 +1434,45 @@ onBeforeUnmount(() => {
   color: #7dd3fc;
 }
 
-.toc-aside {
+.toc-float {
+  position: absolute;
+  right: 10px;
+  top: 6px;
+  bottom: 6px;
+  z-index: 40;
   width: 200px;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 5;
+  pointer-events: none;
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
 }
-.toc-aside--collapsed {
-  width: 44px;
+.toc-float > * {
+  pointer-events: auto;
+}
+.toc-float--collapsed {
+  width: auto;
 }
 .toc-panel {
-  position: sticky;
-  top: 0;
-  align-self: flex-start;
   max-height: min(70vh, calc(100vh - 200px));
   width: 100%;
-  background: var(--el-bg-color, #fff);
   border-radius: 12px;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
   overflow: hidden;
-  padding-left: 11px;
+  padding: 0 8px 8px;
   border: 1px solid var(--chat-border);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(6px);
 }
 .chat-page--dark .toc-panel {
-  background: var(--el-bg-color, #1a1a1a);
+  background: rgba(30, 30, 30, 0.85);
   border-color: var(--el-border-color, #303030);
-}
-.toc-panel::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 10px;
-  bottom: 10px;
-  width: 3px;
-  border-radius: 2px;
-  background: linear-gradient(
-    180deg,
-    var(--el-color-primary, #409eff) 0%,
-    rgba(64, 158, 255, 0.35) 50%,
-    rgba(64, 158, 255, 0.06) 100%
-  );
-  pointer-events: none;
 }
 .toc-panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  padding: 8px 8px 6px 2px;
+  padding: 8px 2px 6px;
   border-bottom: 1px solid var(--chat-header-border);
 }
 .toc-title {
@@ -1290,14 +1481,14 @@ onBeforeUnmount(() => {
   color: var(--chat-title);
 }
 .toc-empty {
-  padding: 10px 8px;
+  padding: 10px 4px;
   font-size: 12px;
   color: var(--chat-muted);
 }
 .toc-nav {
   max-height: 55vh;
   overflow-y: auto;
-  padding: 6px 6px 10px 0;
+  padding: 6px 0 4px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1314,11 +1505,7 @@ onBeforeUnmount(() => {
   color: var(--chat-muted);
   padding: 4px 6px;
   border-radius: 6px;
-  border-left: 3px solid transparent;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease,
-    border-color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 .toc-item:hover {
   background: rgba(64, 158, 255, 0.08);
@@ -1327,22 +1514,25 @@ onBeforeUnmount(() => {
 .toc-item--active {
   color: var(--el-color-primary, #409eff);
   font-weight: 600;
-  border-left-color: var(--el-color-primary, #409eff);
   background: rgba(64, 158, 255, 0.1);
 }
 .toc-reopen {
   writing-mode: vertical-rl;
   text-orientation: mixed;
-  align-self: flex-start;
   padding: 12px 6px;
   border-radius: 10px;
   border: 1px solid var(--chat-border);
-  background: var(--chat-surface);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(6px);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
   cursor: pointer;
   font-size: 11px;
   letter-spacing: 0.1em;
   color: var(--el-color-primary, #409eff);
+}
+.chat-page--dark .toc-reopen {
+  background: rgba(30, 30, 30, 0.85);
+  border-color: var(--el-border-color, #303030);
 }
 .thinking-row {
   display: flex;
@@ -1426,15 +1616,68 @@ onBeforeUnmount(() => {
   overflow: visible;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
-.composer-model-inner {
+.composer-file-input {
   position: absolute;
-  left: 12px;
-  bottom: 12px;
-  z-index: 2;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.pending-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px 0;
+}
+.pending-file-tag {
+  max-width: 100%;
+}
+.composer-bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
+}
+.chat-page--dark .composer-bottom-bar {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+.composer-model-inner {
+  position: static;
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1;
+  min-width: 0;
   pointer-events: auto;
+}
+.composer-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.composer-icon-btn {
+  padding: 6px;
+  color: var(--chat-toolbar-icon);
+}
+.composer-icon-btn:hover {
+  color: #409eff;
+}
+.composer-send-fab {
+  width: 40px;
+  height: 40px;
+  margin-left: 4px;
+  background: #111 !important;
+  border: none !important;
+  color: #fff !important;
+}
+.composer-send-fab:hover {
+  background: #333 !important;
+}
+.composer-send-fab :deep(.el-icon) {
+  color: #fff;
 }
 .model-hint-text {
   font-size: 12px;
@@ -1479,21 +1722,12 @@ onBeforeUnmount(() => {
   box-shadow: none;
   border-radius: 16px;
   resize: none;
-  padding: 12px 52px 40px 12px;
+  padding: 12px 12px 8px 12px;
   font-size: 14px;
   line-height: 1.55;
 }
 .composer-textarea :deep(.el-input__count) {
   display: none;
-}
-.send-btn-inner {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 3;
-  width: 40px;
-  height: 40px;
 }
 .meta-warn {
   max-width: 880px;

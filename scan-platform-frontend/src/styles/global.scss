@@ -15,6 +15,8 @@ body,
   --sp-aside-active-color: #1677ff;
   --sp-aside-hover-bg: rgba(0, 0, 0, 0.05);
   --sp-aside-border: rgba(0, 0, 0, 0.08);
+  /** 侧栏与主内容分隔线（浅色） */
+  --sp-aside-edge: #e9e9e9;
   --sp-page-bg: #f7f7f7;
   --sp-header-bg: #f7f7f7;
   --sp-logo-text: #1f1f1f;
@@ -36,6 +38,8 @@ html.dark {
   --sp-aside-active-color: #69b1ff;
   --sp-aside-hover-bg: rgba(255, 255, 255, 0.06);
   --sp-aside-border: rgba(255, 255, 255, 0.1);
+  /** 深色侧栏右边框：略暗，避免过亮 */
+  --sp-aside-edge: rgba(255, 255, 255, 0.06);
   --sp-page-bg: var(--el-bg-color-page, #0a0a0a);
   --sp-header-bg: var(--el-bg-color, #141414);
   --sp-logo-text: #f0f0f0;

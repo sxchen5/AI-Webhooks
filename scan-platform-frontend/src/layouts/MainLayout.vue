@@ -282,7 +282,7 @@ async function onLogoutFromDrawer() {
 .aside {
   background: var(--sp-aside-bg);
   color: var(--sp-aside-text);
-  border-right: 1px solid #e9e9e9;
+  border-right: 1px solid var(--sp-aside-edge, #e9e9e9);
   overflow: hidden;
   transition:
     width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
