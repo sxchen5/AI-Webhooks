@@ -38,6 +38,11 @@ export default {
   },
   gitQaChat: {
     welcomeEmpty: 'How can I help you?',
+    outline: 'Outline',
+    outlineClose: 'Hide',
+    outlineOpen: 'Show outline',
+    noOutline: 'No headings in the current message',
+    scrollBottom: 'Scroll to bottom',
   },
   settings: {
     title: 'Settings',

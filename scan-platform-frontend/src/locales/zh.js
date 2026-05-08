@@ -38,6 +38,11 @@ export default {
   },
   gitQaChat: {
     welcomeEmpty: '有什么我能帮你的吗？',
+    outline: '标题导航',
+    outlineClose: '收起',
+    outlineOpen: '打开目录',
+    noOutline: '当前消息无标题结构',
+    scrollBottom: '回到底部',
   },
   settings: {
     title: '设置',

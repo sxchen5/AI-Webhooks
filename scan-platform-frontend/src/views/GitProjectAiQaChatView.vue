@@ -26,12 +26,13 @@
       </el-button>
     </header>
 
-    <el-scrollbar
-      ref="scrollbarRef"
-      class="chat-scroll"
-      wrap-class="git-qa-scroll-wrap"
-      @scroll="onScrollWrap"
-    >
+    <div class="chat-body-row">
+      <el-scrollbar
+        ref="scrollbarRef"
+        class="chat-scroll chat-scroll--grow"
+        wrap-class="git-qa-scroll-wrap"
+        @scroll="onScrollWrap"
+      >
       <div v-if="!messages.length && !historyLoading" class="welcome-full">
         <p class="welcome-title">{{ t('gitQaChat.welcomeEmpty') }}</p>
       </div>
@@ -40,6 +41,7 @@
           v-for="(m, idx) in messages"
           :key="m.clientKey || m.id || idx"
           class="msg-block"
+          :ref="(el) => setMsgBlockRef(messageAnchorKey(m), el)"
           :class="m.role === 'user' ? 'msg-block--user' : 'msg-block--bot'"
           @mouseenter="hoveredMsgIndex = idx"
           @mouseleave="hoveredMsgIndex = null"
@@ -50,7 +52,12 @@
             </div>
             <div v-else class="bubble bubble--assistant">
               <div v-if="m.displayStream" class="stream-plain">{{ m.streamPlain != null ? m.streamPlain : m.content }}</div>
-              <MarkdownOutputPanel v-else :text="m.content" :rows="8" hide-toolbar />
+              <div
+                v-else
+                class="bubble-md"
+                :class="{ 'bubble-md--dark': prefs.theme === 'dark' }"
+                v-html="assistantRendered[messageAnchorKey(m)]?.html || ''"
+              />
             </div>
           </div>
           <div
@@ -125,11 +132,38 @@
       </div>
     </el-scrollbar>
 
+      <aside v-show="tocColumnVisible" class="toc-aside" :class="{ 'toc-aside--collapsed': !tocOpen }">
+        <div v-if="tocOpen" class="toc-panel">
+          <div class="toc-panel-header">
+            <span class="toc-title">{{ t('gitQaChat.outline') }}</span>
+            <el-button text type="primary" size="small" @click="tocOpen = false">{{ t('gitQaChat.outlineClose') }}</el-button>
+          </div>
+          <div v-if="!tocItems.length" class="toc-empty">{{ t('gitQaChat.noOutline') }}</div>
+          <nav v-else class="toc-nav" :aria-label="t('gitQaChat.outline')">
+            <button
+              v-for="h in tocItems"
+              :key="h.id"
+              type="button"
+              class="toc-item"
+              :class="{ 'toc-item--active': h.id === activeTocId }"
+              :style="{ paddingLeft: `${8 + (h.level - 1) * 12}px` }"
+              @click="onTocNavigate(h.id)"
+            >
+              {{ h.text }}
+            </button>
+          </nav>
+        </div>
+        <button v-else type="button" class="toc-reopen" @click="tocOpen = true" :title="t('gitQaChat.outlineOpen')">
+          {{ t('gitQaChat.outline') }}
+        </button>
+      </aside>
+    </div>
+
     <footer class="chat-footer">
       <div class="footer-stack">
         <transition name="fade-slide">
           <div v-show="!isAtBottom" class="scroll-to-bottom-wrap">
-            <el-tooltip content="回到底部" placement="top">
+            <el-tooltip :content="t('gitQaChat.scrollBottom')" placement="top">
               <el-button circle class="scroll-to-bottom-btn" @click="scrollToBottomImmediate">
                 <el-icon :size="18"><ArrowDown /></el-icon>
               </el-button>
@@ -185,7 +219,7 @@
 </template>
 
 <script setup>
-import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, shallowReactive, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
@@ -208,6 +242,7 @@ import {
 } from '@/api/gitQaProject'
 import MarkdownOutputPanel from '@/components/MarkdownOutputPanel.vue'
 import { AGENT_MODEL_OPTIONS } from '@/constants/agentModels'
+import { extractMarkdownHeadings, renderMarkdownWithAnchors } from '@/utils/markdownAnchors'
 import { usePreferencesStore } from '@/stores/preferences'
 
 /** 线框大拇指朝上 */
@@ -273,6 +308,129 @@ const modelOptions = AGENT_MODEL_OPTIONS
 const replying = ref(false)
 const historyLoading = ref(false)
 const scrollbarRef = ref(null)
+const msgBlockRefs = new Map()
+const assistantRendered = shallowReactive({})
+const activeAssistantKey = ref('')
+const activeTocId = ref('')
+const tocOpen = ref(true)
+
+function messageAnchorKey(m) {
+  if (m?.clientKey) return String(m.clientKey)
+  if (m?.id != null) return `id-${m.id}`
+  return ''
+}
+
+function setMsgBlockRef(key, el) {
+  const k = key ? String(key) : ''
+  if (!k) return
+  if (el) msgBlockRefs.set(k, el)
+  else msgBlockRefs.delete(k)
+}
+
+function pickDefaultAssistantTocKey() {
+  for (const m of messages.value) {
+    if (m.role !== 'assistant' || m.displayStream) continue
+    if (extractMarkdownHeadings(m.content || '').length) return messageAnchorKey(m)
+  }
+  return ''
+}
+
+function rebuildAssistantRendered() {
+  for (const k of Object.keys(assistantRendered)) {
+    delete assistantRendered[k]
+  }
+  for (const m of messages.value) {
+    if (m.role !== 'assistant' || m.displayStream) continue
+    const k = messageAnchorKey(m)
+    if (!k || !(m.content && String(m.content).trim())) continue
+    const prefix = `cq-${k}`
+    const { html, headings } = renderMarkdownWithAnchors(m.content || '', prefix)
+    assistantRendered[k] = { html, headings }
+  }
+  const cur = activeAssistantKey.value
+  const curOk =
+    cur &&
+    messages.value.some((m) => m.role === 'assistant' && !m.displayStream && messageAnchorKey(m) === cur)
+  if (!curOk) {
+    activeAssistantKey.value = pickDefaultAssistantTocKey()
+  }
+}
+
+function updateActiveAssistantFromScroll() {
+  const wrap = scrollbarRef.value?.wrapRef
+  if (!wrap) return
+  const rootRect = wrap.getBoundingClientRect()
+  const focusY = rootRect.top + rootRect.height * 0.34
+  let bestKey = ''
+  let bestScore = -1
+  for (const m of messages.value) {
+    if (m.role !== 'assistant' || m.displayStream) continue
+    if (!extractMarkdownHeadings(m.content || '').length) continue
+    const k = messageAnchorKey(m)
+    const el = msgBlockRefs.get(k)
+    if (!el) continue
+    const r = el.getBoundingClientRect()
+    const visibleTop = Math.max(r.top, rootRect.top)
+    const visibleBottom = Math.min(r.bottom, rootRect.bottom)
+    const visibleH = Math.max(0, visibleBottom - visibleTop)
+    if (visibleH < 20) continue
+    const mid = (r.top + r.bottom) / 2
+    const dist = Math.abs(mid - focusY)
+    const score = visibleH * 1.2 - dist * 0.12
+    if (score > bestScore) {
+      bestScore = score
+      bestKey = k
+    }
+  }
+  if (bestKey) {
+    activeAssistantKey.value = bestKey
+  }
+}
+
+function onTocNavigate(headingId) {
+  activeTocId.value = headingId
+  const wrap = scrollbarRef.value?.wrapRef
+  if (!wrap) return
+  const esc =
+    typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(headingId) : String(headingId).replace(/[^a-zA-Z0-9_-]/g, '')
+  const el = wrap.querySelector(`#${esc}`)
+  if (!el || !(el instanceof HTMLElement)) return
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  el.classList.remove('md-heading--toc-flash')
+  void el.offsetWidth
+  el.classList.add('md-heading--toc-flash')
+  window.setTimeout(() => el.classList.remove('md-heading--toc-flash'), 2200)
+}
+
+const tocItems = computed(() => {
+  const k = activeAssistantKey.value
+  if (!k) return []
+  return assistantRendered[k]?.headings ?? []
+})
+
+const tocColumnVisible = computed(() =>
+  messages.value.some((m) => {
+    if (m.role !== 'assistant' || m.displayStream) return false
+    return extractMarkdownHeadings(m.content || '').length > 0
+  }),
+)
+
+watch(activeAssistantKey, () => {
+  activeTocId.value = ''
+})
+
+watch(
+  () =>
+    messages.value
+      .map((m) => `${messageAnchorKey(m)}|${m.role}|${!!m.displayStream}|${m.content ?? ''}`)
+      .join('\n'),
+  () => {
+    rebuildAssistantRendered()
+    nextTick(() => updateActiveAssistantFromScroll())
+  },
+  { flush: 'post' },
+)
+
 const lastMeta = ref(null)
 const hoveredMsgIndex = ref(null)
 /** 距底部小于该像素视为在底部，避免浮点抖动 */
@@ -365,14 +523,36 @@ function goBack() {
   router.push({ name: 'GitQaProjects' })
 }
 
-function scrollToBottom() {
-  nextTick(() => {
-    const wrap = scrollbarRef.value?.wrapRef
-    if (wrap) {
-      wrap.scrollTop = wrap.scrollHeight
+function scrollToBottomAnimated() {
+  const wrap = scrollbarRef.value?.wrapRef
+  if (!wrap) return
+  const target = Math.max(0, wrap.scrollHeight - wrap.clientHeight)
+  const start = wrap.scrollTop
+  const dist = target - start
+  if (dist <= 2) {
+    wrap.scrollTop = target
+    updateAtBottomFromWrap()
+    updateActiveAssistantFromScroll()
+    return
+  }
+  const duration = 400
+  const t0 = performance.now()
+  const ease = (x) => 1 - (1 - x) ** 3
+  function step(now) {
+    const p = Math.min(1, (now - t0) / duration)
+    wrap.scrollTop = start + dist * ease(p)
+    if (p < 1) {
+      requestAnimationFrame(step)
+    } else {
       updateAtBottomFromWrap()
+      updateActiveAssistantFromScroll()
     }
-  })
+  }
+  requestAnimationFrame(step)
+}
+
+function scrollToBottom() {
+  nextTick(() => scrollToBottomAnimated())
 }
 
 function updateAtBottomFromWrap() {
@@ -387,14 +567,11 @@ function updateAtBottomFromWrap() {
 
 function onScrollWrap() {
   updateAtBottomFromWrap()
+  updateActiveAssistantFromScroll()
 }
 
 function scrollToBottomImmediate() {
-  const wrap = scrollbarRef.value?.wrapRef
-  if (wrap) {
-    wrap.scrollTop = wrap.scrollHeight
-  }
-  nextTick(() => updateAtBottomFromWrap())
+  scrollToBottomAnimated()
 }
 
 watch(
@@ -712,7 +889,10 @@ onMounted(async () => {
   try {
     project.value = await getGitQaProject(id)
     await loadHistory()
-    nextTick(() => updateAtBottomFromWrap())
+    nextTick(() => {
+      updateAtBottomFromWrap()
+      updateActiveAssistantFromScroll()
+    })
   } catch {
     ElMessage.error('加载配置失败')
     goBack()
@@ -842,6 +1022,18 @@ onBeforeUnmount(() => {
 .header-spacer {
   flex: 1;
   min-width: 8px;
+}
+.chat-body-row {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+.chat-scroll--grow {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
 }
 .chat-scroll {
   flex: 1;
@@ -992,6 +1184,165 @@ onBeforeUnmount(() => {
   padding: 0;
   min-height: 0;
   max-height: none;
+}
+.bubble-md {
+  width: 100%;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--chat-body-text);
+}
+.bubble-md :deep(h1),
+.bubble-md :deep(h2),
+.bubble-md :deep(h3),
+.bubble-md :deep(h4),
+.bubble-md :deep(h5),
+.bubble-md :deep(h6) {
+  scroll-margin-top: 8px;
+  margin: 0.75em 0 0.35em;
+  font-weight: 600;
+}
+.bubble-md :deep(h1) {
+  font-size: 1.35em;
+}
+.bubble-md :deep(h2) {
+  font-size: 1.2em;
+}
+.bubble-md :deep(p) {
+  margin: 0.45em 0;
+}
+.bubble-md :deep(ul),
+.bubble-md :deep(ol) {
+  margin: 0.45em 0;
+  padding-left: 1.3em;
+}
+.bubble-md :deep(pre) {
+  margin: 0.5em 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--el-fill-color-light);
+  overflow-x: auto;
+}
+.bubble-md--dark {
+  color: var(--el-text-color-primary, #e5eaf3);
+}
+.bubble-md--dark :deep(pre) {
+  background: rgba(15, 23, 42, 0.45);
+}
+.bubble-md--dark :deep(a) {
+  color: #7dd3fc;
+}
+
+.toc-aside {
+  width: 200px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+}
+.toc-aside--collapsed {
+  width: 44px;
+}
+.toc-panel {
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  max-height: min(70vh, calc(100vh - 200px));
+  width: 100%;
+  background: var(--el-bg-color, #fff);
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.1);
+  overflow: hidden;
+  padding-left: 11px;
+  border: 1px solid var(--chat-border);
+}
+.chat-page--dark .toc-panel {
+  background: var(--el-bg-color, #1a1a1a);
+  border-color: var(--el-border-color, #303030);
+}
+.toc-panel::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 2px;
+  background: linear-gradient(
+    180deg,
+    var(--el-color-primary, #409eff) 0%,
+    rgba(64, 158, 255, 0.35) 50%,
+    rgba(64, 158, 255, 0.06) 100%
+  );
+  pointer-events: none;
+}
+.toc-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 8px 8px 6px 2px;
+  border-bottom: 1px solid var(--chat-header-border);
+}
+.toc-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--chat-title);
+}
+.toc-empty {
+  padding: 10px 8px;
+  font-size: 12px;
+  color: var(--chat-muted);
+}
+.toc-nav {
+  max-height: 55vh;
+  overflow-y: auto;
+  padding: 6px 6px 10px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.toc-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--chat-muted);
+  padding: 4px 6px;
+  border-radius: 6px;
+  border-left: 3px solid transparent;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+.toc-item:hover {
+  background: rgba(64, 158, 255, 0.08);
+  color: var(--chat-body-text);
+}
+.toc-item--active {
+  color: var(--el-color-primary, #409eff);
+  font-weight: 600;
+  border-left-color: var(--el-color-primary, #409eff);
+  background: rgba(64, 158, 255, 0.1);
+}
+.toc-reopen {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  align-self: flex-start;
+  padding: 12px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--chat-border);
+  background: var(--chat-surface);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--el-color-primary, #409eff);
 }
 .thinking-row {
   display: flex;
@@ -1156,5 +1507,25 @@ onBeforeUnmount(() => {
 .git-qa-model-popper.el-popper {
   border-radius: 10px;
   box-shadow: 0 4px 18px rgba(15, 23, 42, 0.12);
+}
+
+.chat-page .bubble-md :deep(h1.md-heading--toc-flash),
+.chat-page .bubble-md :deep(h2.md-heading--toc-flash),
+.chat-page .bubble-md :deep(h3.md-heading--toc-flash),
+.chat-page .bubble-md :deep(h4.md-heading--toc-flash),
+.chat-page .bubble-md :deep(h5.md-heading--toc-flash),
+.chat-page .bubble-md :deep(h6.md-heading--toc-flash) {
+  animation: gitQaTocHeadingFlash 1.1s ease-in-out 2;
+}
+
+@keyframes gitQaTocHeadingFlash {
+  0% {
+    background-color: rgba(64, 158, 255, 0.45);
+    box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.25);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+  }
 }
 </style>
