@@ -52,6 +52,8 @@ export default {
     selectModel: '选择模型',
     modelPrefix: '模型：{name}',
     modelDefault: '默认',
+    thinkingExpand: '展开思考过程',
+    thinkingCollapse: '收起思考过程',
     attachmentSection: '附件',
     fileTooLarge: '{name} 超过 400KB 限制',
     fileReadFail: '无法读取 {name}',

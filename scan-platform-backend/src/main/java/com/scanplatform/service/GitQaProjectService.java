@@ -71,7 +71,8 @@ public class GitQaProjectService {
     }
 
     /**
-     * 流式：agent stream-json 按行解析后通过 SSE 推送增量文本，最后 {@code event: done}。
+     * 流式：agent stream-json 按行解析后通过 SSE 推送增量；{@code event: thinking} 为思考过程，{@code event: assistant} 为助手正文；
+     * 每条含增量即 flush，最后 {@code event: done}。落库时思考包在 {@code <!--GITQA_THINKING_BEGIN-->} 标记内。
      */
     public void streamChatSse(Long id, GitQaChatRequest req, OutputStream rawOut) throws Exception {
         GitQaProject qp = get(id);
@@ -128,6 +129,7 @@ public class GitQaProjectService {
         AgentStreamJsonSseExtractor extractor = new AgentStreamJsonSseExtractor();
         StringBuilder rawCapture = new StringBuilder();
         StringBuilder assistantReply = new StringBuilder();
+        StringBuilder thinkingCapture = new StringBuilder();
         log.info(
                 "Git 问答开始执行 agent: projectId={} botName={} workPath={} branch={} cmd={}",
                 qp.getId(),
@@ -142,11 +144,18 @@ public class GitQaProjectService {
                     String lineJson = root.toString();
                     rawCapture.append(lineJson).append('\n');
                     log.info("Git 问答 stream-json 根对象 projectId={} json={}", qp.getId(), previewJson(lineJson, 2000));
-                    String delta = extractor.consumeRoot(root);
-                    if (StringUtils.hasText(delta)) {
-                        assistantReply.append(delta);
-                        log.info("Git 问答 stream-json 增量 projectId={} +{} 字符", qp.getId(), delta.length());
-                        sseJson(pw, "assistant", "{\"delta\":\"" + jsonEscape(delta) + "\"}");
+                    AgentStreamJsonSseExtractor.StreamJsonDelta delta = extractor.consumeRoot(root);
+                    if (!delta.hasText()) {
+                        return;
+                    }
+                    if (delta.kind() == AgentStreamJsonSseExtractor.StreamJsonDelta.Kind.THINKING) {
+                        thinkingCapture.append(delta.text());
+                        log.info("Git 问答 stream-json 思考增量 projectId={} +{} 字符", qp.getId(), delta.text().length());
+                        sseJson(pw, "thinking", "{\"delta\":\"" + jsonEscape(delta.text()) + "\"}");
+                    } else if (delta.kind() == AgentStreamJsonSseExtractor.StreamJsonDelta.Kind.ASSISTANT) {
+                        assistantReply.append(delta.text());
+                        log.info("Git 问答 stream-json 助手增量 projectId={} +{} 字符", qp.getId(), delta.text().length());
+                        sseJson(pw, "assistant", "{\"delta\":\"" + jsonEscape(delta.text()) + "\"}");
                     }
                 } catch (Exception ex) {
                     log.warn("Git 问答 stream-json 单条处理异常 projectId={} msg={}", qp.getId(), ex.getMessage());
@@ -163,21 +172,24 @@ public class GitQaProjectService {
         }
         boolean success = exit == 0;
         String replyText = assistantReply.toString();
-        if (StringUtils.hasText(replyText)) {
-            Long assistantId = gitQaChatMessageService.saveAssistant(id, replyText);
+        String thinkingText = thinkingCapture.toString().trim();
+        String storedReply = embedThinkingForStorage(thinkingText, replyText);
+        if (StringUtils.hasText(storedReply)) {
+            Long assistantId = gitQaChatMessageService.saveAssistant(id, storedReply);
             sseJson(pw, "saved", "{\"assistantMessageId\":" + (assistantId == null ? "null" : String.valueOf(assistantId)) + "}");
             log.info(
-                    "Git 问答 AI 回复完成 projectId={} exitCode={} 总字符={}",
+                    "Git 问答 AI 回复完成 projectId={} exitCode={} 助手字符={} 思考字符={}",
                     qp.getId(),
                     exit,
-                    replyText.length());
-            log.info("Git 问答 AI 回复全文 projectId={}:\n{}", qp.getId(), replyText);
+                    replyText.length(),
+                    thinkingText.length());
+            log.info("Git 问答 AI 回复落库全文 projectId={}:\n{}", qp.getId(), storedReply);
         } else {
             if (!success && !regenerate) {
                 gitQaChatMessageService.delete(id, userMessageId);
             }
             log.info(
-                    "Git 问答结束 projectId={} exitCode={} success={} 未解析到助手增量文本（可能 agent 输出格式非 stream-json 或进程无输出） rawTail=\n{}",
+                    "Git 问答结束 projectId={} exitCode={} success={} 未解析到助手或思考增量文本（可能 agent 输出格式非 stream-json 或进程无输出） rawTail=\n{}",
                     qp.getId(),
                     exit,
                     success,
@@ -188,6 +200,16 @@ public class GitQaProjectService {
                     + "\",\"rawTail\":\"" + jsonEscape(tail(rawCapture.toString(), 8000)) + "\"}");
         }
         sseDone(pw, exit, success);
+    }
+
+    /** 将思考过程包在标记内持久化，正文不含思考；无思考时仅保存正文。 */
+    private static String embedThinkingForStorage(String thinking, String assistantBody) {
+        String body = assistantBody != null ? assistantBody : "";
+        String th = thinking != null ? thinking.strip() : "";
+        if (!StringUtils.hasText(th)) {
+            return body;
+        }
+        return "<!--GITQA_THINKING_BEGIN-->\n" + th + "\n<!--GITQA_THINKING_END-->\n\n" + body;
     }
 
     /** 日志中单行 JSON 预览（过长截断） */

@@ -52,6 +52,8 @@ export default {
     selectModel: 'Model',
     modelPrefix: 'Model: {name}',
     modelDefault: 'Default',
+    thinkingExpand: 'Show reasoning',
+    thinkingCollapse: 'Hide reasoning',
     attachmentSection: 'Attachment',
     fileTooLarge: '{name} exceeds the 400KB limit',
     fileReadFail: 'Could not read {name}',

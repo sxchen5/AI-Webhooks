@@ -57,6 +57,21 @@
               <MarkdownOutputPanel :text="userBubbleBody(m)" :rows="6" hide-toolbar />
             </div>
             <div v-else class="bubble bubble--assistant">
+              <div v-if="assistantThinkingPreview(m)" class="assistant-thinking-fold">
+                <button
+                  type="button"
+                  class="thinking-fold-toggle"
+                  @click="m.thinkingOpen = !m.thinkingOpen"
+                >
+                  <el-icon class="thinking-fold-caret" :class="{ 'thinking-fold-caret--open': m.thinkingOpen }">
+                    <ArrowDown />
+                  </el-icon>
+                  <span>{{ m.thinkingOpen ? t('gitQaChat.thinkingCollapse') : t('gitQaChat.thinkingExpand') }}</span>
+                </button>
+                <div v-show="m.thinkingOpen" class="thinking-fold-body">
+                  <pre>{{ assistantThinkingPreview(m) }}</pre>
+                </div>
+              </div>
               <div v-if="m.displayStream" class="stream-plain">{{ m.streamPlain != null ? m.streamPlain : m.content }}</div>
               <div
                 v-else
@@ -86,7 +101,7 @@
           >
             <div class="msg-actions-inner">
               <el-tooltip content="复制" placement="top">
-                <el-button text class="icon-action icon-action--copy" @click="copyMessage(m.content)">
+                <el-button text class="icon-action icon-action--copy" @click="copyMessage(assistantCopyBody(m))">
                   <el-icon :size="msgActionIconSize"><DocumentCopy /></el-icon>
                 </el-button>
               </el-tooltip>
@@ -368,6 +383,30 @@ const isRecording = ref(false)
 let speechRec = null
 
 const GITQA_ATTACH = /^<!--gitqa-attach:(\[.*?\])-->\s*\n?/
+
+const GITQA_THINK_BEGIN = '<!--GITQA_THINKING_BEGIN-->'
+const GITQA_THINK_END = '<!--GITQA_THINKING_END-->'
+
+function splitAssistantStored(raw) {
+  const s = raw || ''
+  const i = s.indexOf(GITQA_THINK_BEGIN)
+  const j = s.indexOf(GITQA_THINK_END)
+  if (i >= 0 && j > i) {
+    const thinking = s.slice(i + GITQA_THINK_BEGIN.length, j).replace(/^\n+|\n+$/g, '').trim()
+    const body = s.slice(j + GITQA_THINK_END.length).replace(/^\n+/, '')
+    return { thinking, body }
+  }
+  return { thinking: '', body: s }
+}
+
+function assistantThinkingPreview(m) {
+  if (m?.role !== 'assistant') return ''
+  return String(m.thinking || '').trim()
+}
+
+function assistantCopyBody(m) {
+  return (m?.content ?? '').trim()
+}
 
 const showSendFab = computed(
   () => messages.value.length > 0 || draft.value.trim().length > 0 || pendingFiles.value.length > 0,
@@ -655,6 +694,12 @@ function scheduleStreamAnim(botMsg) {
   streamAnimTimers.set(botMsg, requestAnimationFrame(step))
 }
 
+function appendThinkingDelta(botMsg, delta) {
+  const d = delta ?? ''
+  if (!d) return
+  botMsg.thinking = (botMsg.thinking || '') + d
+}
+
 function appendStreamDelta(botMsg, delta) {
   const d = delta ?? ''
   if (!d) return
@@ -827,6 +872,8 @@ async function onRegenerateAssistant(assistantMsg) {
     id: null,
     role: 'assistant',
     content: '',
+    thinking: '',
+    thinkingOpen: false,
     displayStream: true,
     streamPlain: '',
     feedback: null,
@@ -952,6 +999,9 @@ async function consumeSseStream(reader, userMsg, botMsg) {
         const obj = JSON.parse(dataStr)
         if (event === 'meta' && obj.userMessageId != null) {
           userMsg.id = obj.userMessageId
+        } else if (event === 'thinking' && obj.delta) {
+          appendThinkingDelta(botMsg, obj.delta)
+          scrollToBottom()
         } else if (event === 'assistant' && obj.delta) {
           appendStreamDelta(botMsg, obj.delta)
           scrollToBottom()
@@ -998,10 +1048,13 @@ async function loadHistory() {
     messages.value = list.map((row) => {
       const role = row.role === 'USER' ? 'user' : 'assistant'
       const parsed = role === 'user' ? parseUserAttachmentsRow(row.content || '') : { attachments: [] }
+      const assistantSplit = role === 'assistant' ? splitAssistantStored(row.content || '') : { thinking: '', body: '' }
       return {
         id: row.id,
         role,
-        content: row.content || '',
+        content: role === 'assistant' ? assistantSplit.body : row.content || '',
+        thinking: role === 'assistant' ? assistantSplit.thinking : undefined,
+        thinkingOpen: false,
         attachments: role === 'user' ? parsed.attachments : undefined,
         streamPlain: null,
         displayStream: false,
@@ -1039,6 +1092,8 @@ async function send() {
     id: null,
     role: 'assistant',
     content: '',
+    thinking: '',
+    thinkingOpen: false,
     displayStream: true,
     streamPlain: '',
     feedback: null,
@@ -1374,6 +1429,47 @@ onBeforeUnmount(() => {
   padding: 4px 0;
   width: 100%;
   max-width: 100%;
+}
+.assistant-thinking-fold {
+  margin-bottom: 8px;
+}
+.thinking-fold-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--el-color-primary, #409eff);
+}
+.thinking-fold-toggle:hover {
+  text-decoration: underline;
+}
+.thinking-fold-caret {
+  transition: transform 0.2s ease;
+  font-size: 12px;
+}
+.thinking-fold-caret--open {
+  transform: rotate(180deg);
+}
+.thinking-fold-body {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--chat-thinking-bg);
+  border: 1px solid var(--chat-border);
+  max-height: 40vh;
+  overflow-y: auto;
+}
+.thinking-fold-body pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--chat-muted);
 }
 .stream-plain {
   white-space: pre-wrap;
