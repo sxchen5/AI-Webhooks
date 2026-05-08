@@ -1225,11 +1225,11 @@ onBeforeUnmount(() => {
   min-height: 0;
 }
 .chat-scroll--toc-pad :deep(.git-qa-scroll-wrap) {
-  padding-right: 208px;
+  padding-right: 25px;
   box-sizing: border-box;
 }
 .chat-scroll--toc-pad-collapsed :deep(.git-qa-scroll-wrap) {
-  padding-right: 44px;
+  padding-right: 25px;
   box-sizing: border-box;
 }
 .chat-scroll {
@@ -1582,7 +1582,7 @@ onBeforeUnmount(() => {
 }
 .chat-footer {
   flex-shrink: 0;
-  padding: 12px 20px 20px;
+  padding: 0 20px 12px 20px;
 }
 .footer-stack {
   position: relative;
