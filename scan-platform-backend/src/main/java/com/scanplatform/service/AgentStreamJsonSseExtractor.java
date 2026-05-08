@@ -2,12 +2,14 @@ package com.scanplatform.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
 
 /**
  * 解析 agent {@code --output-format stream-json} 每行 JSON，区分助手正文与 {@code type=thinking} 思考增量；
  * 支持多段 {@code assistant}（非前缀扩展时按追加处理）及 {@code type=result} 最终汇总文本。
  */
+@Slf4j
 public final class AgentStreamJsonSseExtractor {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
