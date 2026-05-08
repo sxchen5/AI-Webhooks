@@ -1660,7 +1660,6 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 1;
   min-width: 0;
   pointer-events: auto;
 }
@@ -1669,6 +1668,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
+  margin-right: 5px;
 }
 .composer-icon-btn {
   padding: 6px;
@@ -1678,9 +1678,9 @@ onBeforeUnmount(() => {
   color: #409eff;
 }
 .composer-send-fab {
-  width: 32px;
-  height: 32px;
-  min-height: 32px;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
   padding: 0;
   margin-left: 2px;
   flex-shrink: 0;
