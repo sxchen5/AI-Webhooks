@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { isJwtExpired } from '@/utils/jwt'
+import { runSessionExpiredFlow } from '@/utils/sessionExpired'
 
 const routes = [
   {
@@ -70,14 +72,31 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const user = useUserStore()
-  if (!to.meta.public && !user.token) {
+
+  if (to.meta.public) {
+    if (to.name === 'Login' && user.token) {
+      if (isJwtExpired(user.token)) {
+        user.logout()
+        return true
+      }
+      return { path: '/' }
+    }
+    return true
+  }
+
+  if (!user.token) {
     return { name: 'Login', query: { redirect: to.fullPath } }
   }
-  if (to.name === 'Login' && user.token) {
-    return { path: '/' }
+
+  if (isJwtExpired(user.token)) {
+    user.logout()
+    await runSessionExpiredFlow()
+    return false
   }
+
+  return true
 })
 
 export default router

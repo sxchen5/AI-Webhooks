@@ -199,49 +199,53 @@
               {{ f.name }}
             </el-tag>
           </div>
-          <el-input
-            v-model="draft"
-            type="textarea"
-            :rows="2"
-            :autosize="{ minRows: 2, maxRows: 6 }"
-            :placeholder="t('gitQaChat.inputPlaceholder')"
-            :disabled="replying || !project"
-            class="composer-textarea"
-            @keydown.enter.exact.prevent="onEnterSend"
-          />
-          <div class="composer-bottom-bar">
-            <div class="composer-model-inner">
-              <span class="model-hint-text">{{ selectedModel ? `模型：${selectedModel}` : '选择模型' }}</span>
-              <el-select
-                v-model="selectedModel"
-                placeholder="默认"
-                clearable
-                size="small"
-                class="model-select-inner"
-                popper-class="git-qa-model-popper"
-                :disabled="replying || !project"
-              >
-                <el-option v-for="opt in modelOptions" :key="opt" :label="opt" :value="opt" />
-              </el-select>
-            </div>
-            <div class="composer-actions-right">
-              <el-tooltip :content="t('gitQaChat.uploadFile')" placement="top">
-                <el-button text class="composer-icon-btn" :disabled="replying || !project" @click="triggerFilePick">
-                  <el-icon :size="20"><Upload /></el-icon>
-                </el-button>
-              </el-tooltip>
-              <el-tooltip :content="isRecording ? t('gitQaChat.stopVoice') : t('gitQaChat.startVoice')" placement="top">
-                <el-button text class="composer-icon-btn" :disabled="replying || !project" @click="toggleVoiceInput">
-                  <el-icon v-if="!isRecording" :size="20"><Microphone /></el-icon>
-                  <el-icon v-else :size="20"><VideoPause /></el-icon>
-                </el-button>
-              </el-tooltip>
-              <el-tooltip v-if="showSendFab" :content="replying ? t('gitQaChat.stopGenerate') : t('gitQaChat.send')" placement="top">
-                <el-button circle class="composer-send-fab" :disabled="!project" @click="replying ? stopReply() : send()">
-                  <el-icon v-if="!replying" :size="18"><Top /></el-icon>
-                  <el-icon v-else :size="18"><Loading /></el-icon>
-                </el-button>
-              </el-tooltip>
+          <div class="composer-textarea-stack">
+            <el-input
+              v-model="draft"
+              type="textarea"
+              :rows="2"
+              :autosize="{ minRows: 2, maxRows: 6 }"
+              :placeholder="t('gitQaChat.inputPlaceholder')"
+              :disabled="replying || !project"
+              class="composer-textarea"
+              @keydown.enter.exact.prevent="onEnterSend"
+            />
+            <div class="composer-inner-bar">
+              <div class="composer-model-inner">
+                <span class="model-hint-text">{{
+                  selectedModel ? t('gitQaChat.modelPrefix', { name: selectedModel }) : t('gitQaChat.selectModel')
+                }}</span>
+                <el-select
+                  v-model="selectedModel"
+                  :placeholder="t('gitQaChat.modelDefault')"
+                  clearable
+                  size="small"
+                  class="model-select-inner"
+                  popper-class="git-qa-model-popper"
+                  :disabled="replying || !project"
+                >
+                  <el-option v-for="opt in modelOptions" :key="opt" :label="opt" :value="opt" />
+                </el-select>
+              </div>
+              <div class="composer-actions-right">
+                <el-tooltip :content="t('gitQaChat.uploadFile')" placement="top">
+                  <el-button text class="composer-icon-btn" :disabled="replying || !project" @click="triggerFilePick">
+                    <el-icon :size="20"><Upload /></el-icon>
+                  </el-button>
+                </el-tooltip>
+                <el-tooltip :content="isRecording ? t('gitQaChat.stopVoice') : t('gitQaChat.startVoice')" placement="top">
+                  <el-button text class="composer-icon-btn" :disabled="replying || !project" @click="toggleVoiceInput">
+                    <el-icon v-if="!isRecording" :size="20"><Microphone /></el-icon>
+                    <el-icon v-else :size="20"><VideoPause /></el-icon>
+                  </el-button>
+                </el-tooltip>
+                <el-tooltip v-if="showSendFab" :content="replying ? t('gitQaChat.stopGenerate') : t('gitQaChat.send')" placement="top">
+                  <el-button circle class="composer-send-fab" :disabled="!project" @click="replying ? stopReply() : send()">
+                    <el-icon v-if="!replying" :size="16"><Top /></el-icon>
+                    <el-icon v-else :size="16"><Loading /></el-icon>
+                  </el-button>
+                </el-tooltip>
+              </div>
             </div>
           </div>
         </div>
@@ -1460,11 +1464,11 @@ onBeforeUnmount(() => {
   overflow: hidden;
   padding: 0 8px 8px;
   border: 1px solid var(--chat-border);
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(6px);
+  background: transparent;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 .chat-page--dark .toc-panel {
-  background: rgba(30, 30, 30, 0.85);
   border-color: var(--el-border-color, #303030);
 }
 .toc-panel-header {
@@ -1522,8 +1526,9 @@ onBeforeUnmount(() => {
   padding: 12px 6px;
   border-radius: 10px;
   border: 1px solid var(--chat-border);
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(6px);
+  background: transparent;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
   cursor: pointer;
   font-size: 11px;
@@ -1531,7 +1536,6 @@ onBeforeUnmount(() => {
   color: var(--el-color-primary, #409eff);
 }
 .chat-page--dark .toc-reopen {
-  background: rgba(30, 30, 30, 0.85);
   border-color: var(--el-border-color, #303030);
 }
 .thinking-row {
@@ -1632,16 +1636,24 @@ onBeforeUnmount(() => {
 .pending-file-tag {
   max-width: 100%;
 }
-.composer-bottom-bar {
+.composer-textarea-stack {
+  position: relative;
+}
+.composer-inner-bar {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 2px;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 6px 10px 8px;
-  border-top: 1px solid rgba(0, 0, 0, 0.04);
+  gap: 8px;
+  padding: 0 4px;
+  pointer-events: none;
 }
-.chat-page--dark .composer-bottom-bar {
-  border-top-color: rgba(255, 255, 255, 0.06);
+.composer-inner-bar > * {
+  pointer-events: auto;
 }
 .composer-model-inner {
   position: static;
@@ -1666,9 +1678,12 @@ onBeforeUnmount(() => {
   color: #409eff;
 }
 .composer-send-fab {
-  width: 40px;
-  height: 40px;
-  margin-left: 4px;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  margin-left: 2px;
+  flex-shrink: 0;
   background: #111 !important;
   border: none !important;
   color: #fff !important;
@@ -1722,7 +1737,7 @@ onBeforeUnmount(() => {
   box-shadow: none;
   border-radius: 16px;
   resize: none;
-  padding: 12px 12px 8px 12px;
+  padding: 12px 12px 42px 12px;
   font-size: 14px;
   line-height: 1.55;
 }

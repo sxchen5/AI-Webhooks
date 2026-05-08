@@ -1,42 +1,7 @@
 import axios from 'axios'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
-import router from '@/router'
-import { i18n } from '@/i18n'
-
-/** 后端 JWT 过期或未登录统一 code，用于与登录失败等其它 401 区分（若有） */
-const SESSION_EXPIRED_CODE = 401000
-
-let sessionExpiredPromise = null
-
-function runSessionExpiredFlow() {
-  if (!sessionExpiredPromise) {
-    sessionExpiredPromise = (async () => {
-      try {
-        await ElMessageBox.alert(
-          i18n.global.t('session.expiredBody'),
-          i18n.global.t('session.expiredTitle'),
-          {
-            confirmButtonText: i18n.global.t('session.confirm'),
-            type: 'warning',
-            closeOnClickModal: false,
-            closeOnPressEscape: false,
-          },
-        )
-      } catch {
-        /* 关闭弹窗仍跳转登录 */
-      }
-      const fullPath = router.currentRoute.value?.fullPath || '/'
-      await router.replace({
-        name: 'Login',
-        query: { redirect: fullPath === '/login' ? undefined : fullPath },
-      })
-    })().finally(() => {
-      sessionExpiredPromise = null
-    })
-  }
-  return sessionExpiredPromise
-}
+import { SESSION_EXPIRED_CODE, runSessionExpiredFlow } from '@/utils/sessionExpired'
 
 const http = axios.create({
   baseURL: '/api',
@@ -69,12 +34,11 @@ http.interceptors.response.use(
     const status = err.response?.status
     const body = err.response?.data
     const msg = body?.message || err.message || '网络错误'
+    const hadAuth = !!(err.config?.headers?.Authorization)
 
     if (status === 401) {
-      const user = useUserStore()
-      const sessionExpired = body?.code === SESSION_EXPIRED_CODE
-      user.logout()
-      if (sessionExpired) {
+      useUserStore().logout()
+      if (hadAuth) {
         await runSessionExpiredFlow()
       } else {
         ElMessage.error(msg)

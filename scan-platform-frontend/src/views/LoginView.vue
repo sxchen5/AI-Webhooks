@@ -31,11 +31,13 @@
             <span v-else class="captcha-placeholder">{{ t('login.captcha') }}</span>
           </div>
         </el-form-item>
+        <p class="captcha-hint" role="button" tabindex="0" @click="refreshCaptcha" @keyup.enter="refreshCaptcha">
+          {{ t('login.captchaRefresh') }}
+        </p>
         <el-button type="primary" size="large" class="btn" :loading="loading" @click="onSubmit">{{
           t('login.submit')
         }}</el-button>
       </el-form>
-      <p class="captcha-hint">{{ t('login.captchaRefresh') }}</p>
     </el-card>
   </div>
 </template>
@@ -202,11 +204,16 @@ async function onSubmit() {
   color: var(--el-text-color-secondary, #909399);
 }
 .captcha-hint {
-  margin: 10px 0 0;
+  margin: -4px 0 12px;
   font-size: 12px;
-  color: #909399;
-  text-align: center;
+  color: var(--el-color-primary, #409eff);
+  text-align: left;
   line-height: 1.5;
+  cursor: pointer;
+  user-select: none;
+}
+.captcha-hint:hover {
+  text-decoration: underline;
 }
 
 html.dark .login-page .title {
