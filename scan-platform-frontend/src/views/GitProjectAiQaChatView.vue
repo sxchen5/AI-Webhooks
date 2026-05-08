@@ -73,11 +73,12 @@
                 </div>
               </div>
               <div v-if="m.displayStream" class="stream-plain">{{ m.streamPlain != null ? m.streamPlain : m.content }}</div>
-              <div
-                v-else
-                class="bubble-md markdown-body"
-                v-html="assistantRendered[messageAnchorKey(m)]?.html || ''"
-              />
+              <div v-else class="bubble-md">
+                <div
+                  class="markdown-body"
+                  v-html="assistantRendered[messageAnchorKey(m)]?.html || ''"
+                />
+              </div>
             </div>
           </div>
           <div
@@ -273,7 +274,7 @@
 </template>
 
 <script setup>
-import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, shallowReactive, watch } from 'vue'
+import { computed, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
@@ -527,7 +528,7 @@ const replying = ref(false)
 const historyLoading = ref(false)
 const scrollbarRef = ref(null)
 const msgBlockRefs = new Map()
-const assistantRendered = shallowReactive({})
+const assistantRendered = reactive({})
 const activeAssistantKey = ref('')
 const activeTocId = ref('')
 const tocOpen = ref(true)
@@ -934,6 +935,8 @@ async function onRegenerateAssistant(assistantMsg) {
     stopStreamAnim(newBotMsg)
     newBotMsg.displayStream = false
     newBotMsg.streamPlain = null
+    await nextTick()
+    rebuildAssistantRendered()
     scrollToBottom()
   }
 }
@@ -1056,6 +1059,8 @@ async function applyGitQaSseBlock(raw, userMsg, botMsg) {
     if (!obj.success) {
       ElMessage.warning('Agent 执行未成功（退出码非 0）')
     }
+    await nextTick()
+    rebuildAssistantRendered()
   }
 }
 
@@ -1111,6 +1116,8 @@ async function loadHistory() {
     ElMessage.warning('加载历史记录失败')
   } finally {
     historyLoading.value = false
+    await nextTick()
+    rebuildAssistantRendered()
     scrollToBottom()
   }
 }
@@ -1179,6 +1186,8 @@ async function send() {
     stopStreamAnim(botMsg)
     botMsg.displayStream = false
     botMsg.streamPlain = null
+    await nextTick()
+    rebuildAssistantRendered()
     scrollToBottom()
   }
 }
@@ -1545,19 +1554,19 @@ onBeforeUnmount(() => {
   min-height: 0;
   max-height: none;
 }
-.bubble-md.markdown-body {
+.bubble-md .markdown-body {
   width: 100%;
   font-size: 14px;
   line-height: 1.6;
   background-color: transparent !important;
   box-shadow: none;
 }
-.bubble-md.markdown-body :deep(h1),
-.bubble-md.markdown-body :deep(h2),
-.bubble-md.markdown-body :deep(h3),
-.bubble-md.markdown-body :deep(h4),
-.bubble-md.markdown-body :deep(h5),
-.bubble-md.markdown-body :deep(h6) {
+.bubble-md .markdown-body :deep(h1),
+.bubble-md .markdown-body :deep(h2),
+.bubble-md .markdown-body :deep(h3),
+.bubble-md .markdown-body :deep(h4),
+.bubble-md .markdown-body :deep(h5),
+.bubble-md .markdown-body :deep(h6) {
   scroll-margin-top: 8px;
 }
 
@@ -1885,12 +1894,12 @@ onBeforeUnmount(() => {
   box-shadow: 0 4px 18px rgba(15, 23, 42, 0.12);
 }
 
-.chat-page .bubble-md.markdown-body :deep(h1.md-heading--toc-flash),
-.chat-page .bubble-md.markdown-body :deep(h2.md-heading--toc-flash),
-.chat-page .bubble-md.markdown-body :deep(h3.md-heading--toc-flash),
-.chat-page .bubble-md.markdown-body :deep(h4.md-heading--toc-flash),
-.chat-page .bubble-md.markdown-body :deep(h5.md-heading--toc-flash),
-.chat-page .bubble-md.markdown-body :deep(h6.md-heading--toc-flash) {
+.chat-page .bubble-md .markdown-body :deep(h1.md-heading--toc-flash),
+.chat-page .bubble-md .markdown-body :deep(h2.md-heading--toc-flash),
+.chat-page .bubble-md .markdown-body :deep(h3.md-heading--toc-flash),
+.chat-page .bubble-md .markdown-body :deep(h4.md-heading--toc-flash),
+.chat-page .bubble-md .markdown-body :deep(h5.md-heading--toc-flash),
+.chat-page .bubble-md .markdown-body :deep(h6.md-heading--toc-flash) {
   animation: gitQaTocHeadingFlash 1.1s ease-in-out 2;
 }
 
