@@ -555,16 +555,25 @@ function pickDefaultAssistantTocKey() {
 }
 
 function rebuildAssistantRendered() {
-  for (const k of Object.keys(assistantRendered)) {
-    delete assistantRendered[k]
-  }
+  const nextKeys = new Set()
   for (const m of messages.value) {
     if (m.role !== 'assistant' || m.displayStream) continue
     const k = messageAnchorKey(m)
     if (!k || !(m.content && String(m.content).trim())) continue
+    nextKeys.add(k)
     const prefix = `cq-${k}`
-    const { html, headings } = renderMarkdownWithAnchors(m.content || '', prefix)
-    assistantRendered[k] = { html, headings }
+    try {
+      const { html, headings } = renderMarkdownWithAnchors(m.content || '', prefix)
+      assistantRendered[k] = { html, headings }
+    } catch (e) {
+      console.warn('[GitQaChat] Markdown 渲染失败', k, e)
+      assistantRendered[k] = { html: '', headings: [] }
+    }
+  }
+  for (const ex of Object.keys(assistantRendered)) {
+    if (!nextKeys.has(ex)) {
+      delete assistantRendered[ex]
+    }
   }
   const cur = activeAssistantKey.value
   const curOk =
