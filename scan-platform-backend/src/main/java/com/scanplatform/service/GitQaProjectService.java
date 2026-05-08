@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
@@ -27,6 +29,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Slf4j
 public class GitQaProjectService {
+
+    private static final ObjectMapper SSE_DATA = new ObjectMapper();
 
     private final GitQaProjectRepository repository;
     private final GitProjectRepository gitProjectRepository;
@@ -151,11 +155,11 @@ public class GitQaProjectService {
                     if (delta.kind() == AgentStreamJsonSseExtractor.StreamJsonDelta.Kind.THINKING) {
                         thinkingCapture.append(delta.text());
                         log.info("Git 问答 stream-json 思考增量 projectId={} +{} 字符", qp.getId(), delta.text().length());
-                        sseJson(pw, "thinking", "{\"delta\":\"" + jsonEscape(delta.text()) + "\"}");
+                        sseJson(pw, "thinking", sseDataJson("delta", delta.text()));
                     } else if (delta.kind() == AgentStreamJsonSseExtractor.StreamJsonDelta.Kind.ASSISTANT) {
                         assistantReply.append(delta.text());
                         log.info("Git 问答 stream-json 助手增量 projectId={} +{} 字符", qp.getId(), delta.text().length());
-                        sseJson(pw, "assistant", "{\"delta\":\"" + jsonEscape(delta.text()) + "\"}");
+                        sseJson(pw, "assistant", sseDataJson("delta", delta.text()));
                     }
                 } catch (Exception ex) {
                     log.warn("Git 问答 stream-json 单条处理异常 projectId={} msg={}", qp.getId(), ex.getMessage());
@@ -210,6 +214,16 @@ public class GitQaProjectService {
             return body;
         }
         return "<!--GITQA_THINKING_BEGIN-->\n" + th + "\n<!--GITQA_THINKING_END-->\n\n" + body;
+    }
+
+    private static String sseDataJson(String key, String value) {
+        try {
+            Map<String, String> m = new LinkedHashMap<>(1);
+            m.put(key, value != null ? value : "");
+            return SSE_DATA.writeValueAsString(m);
+        } catch (Exception e) {
+            return "{\"" + jsonEscape(key) + "\":\"\"}";
+        }
     }
 
     /** 日志中单行 JSON 预览（过长截断） */

@@ -982,59 +982,80 @@ function parseSseBlock(block) {
   return { event, dataStr }
 }
 
+/** SSE data 里 delta 等字段统一读成字符串（避免 JSON 类型差异） */
+function readSseTextField(obj, key) {
+  if (obj == null || obj[key] == null) return ''
+  const v = obj[key]
+  return typeof v === 'string' ? v : String(v)
+}
+
+async function applyGitQaSseBlock(raw, userMsg, botMsg) {
+  const { event, dataStr } = parseSseBlock(raw)
+  if (!dataStr) return
+  let obj
+  try {
+    obj = JSON.parse(dataStr)
+  } catch (e) {
+    console.warn('[GitQaChat] SSE data 无法解析 JSON', event, e?.message, dataStr.slice(0, 280))
+    return
+  }
+  const delta = readSseTextField(obj, 'delta')
+  if (event === 'meta' && obj.userMessageId != null) {
+    userMsg.id = obj.userMessageId
+  } else if (event === 'thinking' && delta) {
+    appendThinkingDelta(botMsg, delta)
+    scrollToBottom()
+  } else if (event === 'assistant' && delta) {
+    appendStreamDelta(botMsg, delta)
+    scrollToBottom()
+  } else if (event === 'saved' && obj.assistantMessageId != null && obj.assistantMessageId !== 'null') {
+    botMsg.id = obj.assistantMessageId
+  } else if (event === 'error') {
+    const msg = obj.message || '执行出错'
+    botMsg.content += (botMsg.content ? '\n\n' : '') + `【错误】${msg}`
+    if (obj.rawTail) {
+      botMsg.content += `\n\n【原始输出尾部】\n${obj.rawTail}`
+    }
+    ElMessage.error(msg)
+    stopStreamAnim(botMsg)
+    botMsg.displayStream = false
+    botMsg.streamPlain = null
+    await loadHistory()
+  } else if (event === 'done') {
+    lastMeta.value = {
+      success: !!obj.success,
+      exitCode: obj.exitCode ?? -1,
+    }
+    stopStreamAnim(botMsg)
+    botMsg.displayStream = false
+    botMsg.streamPlain = null
+    if (!obj.success) {
+      ElMessage.warning('Agent 执行未成功（退出码非 0）')
+    }
+  }
+}
+
 async function consumeSseStream(reader, userMsg, botMsg) {
   const decoder = new TextDecoder()
   sseBuffer = ''
   for (;;) {
     const { value, done } = await reader.read()
-    if (done) break
-    sseBuffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    if (value && value.byteLength) {
+      sseBuffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    }
     let idx
     while ((idx = sseBuffer.indexOf('\n\n')) >= 0) {
       const raw = sseBuffer.slice(0, idx)
       sseBuffer = sseBuffer.slice(idx + 2)
-      const { event, dataStr } = parseSseBlock(raw)
-      if (!dataStr) continue
-      try {
-        const obj = JSON.parse(dataStr)
-        if (event === 'meta' && obj.userMessageId != null) {
-          userMsg.id = obj.userMessageId
-        } else if (event === 'thinking' && obj.delta) {
-          appendThinkingDelta(botMsg, obj.delta)
-          scrollToBottom()
-        } else if (event === 'assistant' && obj.delta) {
-          appendStreamDelta(botMsg, obj.delta)
-          scrollToBottom()
-        } else if (event === 'saved' && obj.assistantMessageId != null) {
-          botMsg.id = obj.assistantMessageId
-        } else if (event === 'error') {
-          const msg = obj.message || '执行出错'
-          botMsg.content += (botMsg.content ? '\n\n' : '') + `【错误】${msg}`
-          if (obj.rawTail) {
-            botMsg.content += `\n\n【原始输出尾部】\n${obj.rawTail}`
-          }
-          ElMessage.error(msg)
-          stopStreamAnim(botMsg)
-          botMsg.displayStream = false
-          botMsg.streamPlain = null
-          await loadHistory()
-        } else if (event === 'done') {
-          lastMeta.value = {
-            success: !!obj.success,
-            exitCode: obj.exitCode ?? -1,
-          }
-          stopStreamAnim(botMsg)
-          botMsg.displayStream = false
-          botMsg.streamPlain = null
-          if (!obj.success) {
-            ElMessage.warning('Agent 执行未成功（退出码非 0）')
-          }
-        }
-      } catch {
-        // 忽略无法解析的块
-      }
+      await applyGitQaSseBlock(raw, userMsg, botMsg)
     }
+    if (done) break
   }
+  const rest = sseBuffer.trim()
+  if (rest) {
+    await applyGitQaSseBlock(rest, userMsg, botMsg)
+  }
+  sseBuffer = ''
 }
 
 async function loadHistory() {
