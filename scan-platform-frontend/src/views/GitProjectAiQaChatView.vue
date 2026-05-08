@@ -1778,6 +1778,7 @@ onBeforeUnmount(() => {
   gap: 4px;
   flex-shrink: 0;
   margin-right: 5px;
+  margin-bottom: 5px;
 }
 .composer-actions-right :deep(.el-button) {
   margin-left: 0 !important;
