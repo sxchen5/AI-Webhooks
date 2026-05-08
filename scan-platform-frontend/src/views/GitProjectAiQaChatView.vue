@@ -242,7 +242,7 @@
                 <el-tooltip v-if="showSendFab" :content="replying ? t('gitQaChat.stopGenerate') : t('gitQaChat.send')" placement="top">
                   <el-button circle class="composer-send-fab" :disabled="!project" @click="replying ? stopReply() : send()">
                     <el-icon v-if="!replying" :size="16"><Top /></el-icon>
-                    <el-icon v-else :size="16"><Loading /></el-icon>
+                    <el-icon v-else :size="16"><IconStopGenerate /></el-icon>
                   </el-button>
                 </el-tooltip>
               </div>
@@ -268,7 +268,6 @@ import {
   ChatDotRound,
   DocumentCopy,
   Headset,
-  Loading,
   Microphone,
   RefreshRight,
   Top,
@@ -335,6 +334,20 @@ const IconThumbDown = () =>
         }),
       ]),
     ],
+  )
+
+/** 停止生成：圆形按钮上的白圆角方块（示意黑底圆 + 白停止块） */
+const IconStopGenerate = () =>
+  h(
+    'svg',
+    {
+      xmlns: 'http://www.w3.org/2000/svg',
+      viewBox: '0 0 16 16',
+      width: '1em',
+      height: '1em',
+      display: 'block',
+    },
+    [h('rect', { x: 3.5, y: 3.5, width: 9, height: 9, rx: 1.5, fill: 'currentColor' })],
   )
 
 /** 消息下方工具栏与回到底部等操作图标统一尺寸 */
@@ -1669,6 +1682,9 @@ onBeforeUnmount(() => {
   gap: 4px;
   flex-shrink: 0;
   margin-right: 5px;
+}
+.composer-actions-right :deep(.el-button) {
+  margin-left: 0 !important;
 }
 .composer-icon-btn {
   padding: 6px;
