@@ -43,7 +43,7 @@
       <el-table-column prop="taskStartTime" label="开始时间" width="170" sortable="custom">
         <template #default="{ row }">{{ formatBackendDateTime(row.taskStartTime) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="120" fixed="right">
+      <el-table-column label="操作" min-width="100" align="right">
         <template #default="{ row }">
           <el-button type="primary" link @click="openDetail(row)">详情</el-button>
         </template>

@@ -39,6 +39,14 @@ export default {
   },
   agentModels: {
     tip: '为 Cursor（agent）与 Claude Code（claude）分别维护可选模型白名单，供 Git 问答、Git 项目配置与下发任务中的模型下拉使用。',
+    cliFilter: 'CLI',
+    modelKeyFilter: '模型键',
+    query: '查询',
+    add: '新增',
+    edit: '编辑',
+    delete: '删除',
+    editTitle: '编辑模型',
+    createTitle: '新增模型',
   },
   gitQaChat: {
     welcomeEmpty: '有什么我能帮你的吗？',

@@ -48,4 +48,14 @@
     justify-content: center;
     row-gap: 6px;
   }
+
+  /* 操作列：链接按钮换行，避免占满整行导致其它列不可见 */
+  .page-card .el-table .el-table__body .el-table__cell .cell {
+    white-space: normal;
+    word-break: break-word;
+  }
+  .page-card .el-table .el-button.is-link {
+    padding: 2px 4px;
+    margin: 0 !important;
+  }
 }

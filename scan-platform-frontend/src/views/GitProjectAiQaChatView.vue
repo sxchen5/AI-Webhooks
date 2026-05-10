@@ -30,7 +30,7 @@
       <el-scrollbar
         ref="scrollbarRef"
         class="chat-scroll chat-scroll--grow"
-        :class="{ 'chat-scroll--toc-pad': tocColumnVisible }"
+        :class="{ 'chat-scroll--toc-pad': project }"
         wrap-class="git-qa-scroll-wrap"
         @scroll="onScrollWrap"
       >
@@ -153,7 +153,7 @@
       </div>
     </el-scrollbar>
 
-      <div v-show="tocColumnVisible" class="toc-float">
+      <div v-if="project" class="toc-float">
         <div class="toc-panel">
           <div class="toc-panel-header">
             <span class="toc-title">{{ t('gitQaChat.outline') }}</span>
@@ -662,27 +662,6 @@ const tocItems = computed(() => {
   const k = activeAssistantKey.value
   if (!k) return []
   return assistantRendered[k]?.headings ?? []
-})
-
-const tocColumnVisible = computed(() => {
-  const list = messages.value
-  let lastAssistant = null
-  for (let i = list.length - 1; i >= 0; i--) {
-    if (list[i].role === 'assistant') {
-      lastAssistant = list[i]
-      break
-    }
-  }
-  // 最后一条助手仍是流式纯文本气泡时，不展示标题导航
-  if (!lastAssistant || lastAssistant.displayStream) return false
-
-  const k = activeAssistantKey.value
-  let m = lastAssistant
-  if (k) {
-    const found = list.find((x) => x.role === 'assistant' && messageAnchorKey(x) === k)
-    if (found && !found.displayStream) m = found
-  }
-  return extractMarkdownHeadings(m.content || '').length > 0
 })
 
 watch(activeAssistantKey, () => {
@@ -1370,11 +1349,10 @@ onBeforeUnmount(() => {
   position: relative;
 }
 .chat-scroll--grow {
-  width: 100%;
   min-height: 0;
 }
 .chat-scroll--toc-pad :deep(.git-qa-scroll-wrap) {
-  padding-right: 188px;
+  padding-right: 25px;
   box-sizing: border-box;
 }
 .chat-scroll {

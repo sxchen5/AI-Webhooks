@@ -5,11 +5,16 @@ import com.scanplatform.dto.AgentModelOptionDto;
 import com.scanplatform.dto.AgentModelOptionItemDto;
 import com.scanplatform.entity.AgentModelOption;
 import com.scanplatform.repository.AgentModelOptionRepository;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -71,8 +76,22 @@ public class AgentModelCatalogService {
     }
 
     @Transactional(readOnly = true)
-    public List<AgentModelOption> listAll() {
-        return repository.findAll();
+    public Page<AgentModelOption> page(String cliFilterRaw, String keywordRaw, Pageable pageable) {
+        String kw = StringUtils.hasText(keywordRaw) ? keywordRaw.trim() : "";
+        Specification<AgentModelOption> spec = (root, query, cb) -> {
+            List<Predicate> preds = new ArrayList<>();
+            if (StringUtils.hasText(cliFilterRaw)) {
+                preds.add(cb.equal(root.get("cliKind"), AgentCliKind.fromDb(cliFilterRaw.trim())));
+            }
+            if (StringUtils.hasText(kw)) {
+                String like = "%" + kw.toLowerCase() + "%";
+                preds.add(cb.or(
+                        cb.like(cb.lower(root.get("modelKey")), like),
+                        cb.like(cb.lower(cb.coalesce(root.get("displayLabel"), cb.literal(""))), like)));
+            }
+            return preds.isEmpty() ? cb.conjunction() : cb.and(preds.toArray(new Predicate[0]));
+        };
+        return repository.findAll(spec, pageable);
     }
 
     @Transactional(readOnly = true)

@@ -3,28 +3,53 @@
     <template #header>
       <div class="card-header">
         <span>{{ t('nav.agentModels') }}</span>
-        <el-button type="primary" @click="openCreate">新增</el-button>
+        <div class="header-actions">
+          <el-select v-model="filterCliDraft" clearable :placeholder="t('agentModels.cliFilter')" style="width: 160px">
+            <el-option label="Cursor" value="CURSOR" />
+            <el-option label="Claude Code" value="CLAUDE" />
+          </el-select>
+          <el-input
+            v-model="filterModelKeyDraft"
+            clearable
+            :placeholder="t('agentModels.modelKeyFilter')"
+            style="width: 200px"
+            maxlength="64"
+            @keyup.enter="runSearch"
+          />
+          <el-button type="primary" plain @click="runSearch">{{ t('agentModels.query') }}</el-button>
+          <el-button type="primary" @click="openCreate">{{ t('agentModels.add') }}</el-button>
+        </div>
       </div>
     </template>
     <p class="tip">{{ t('agentModels.tip') }}</p>
     <el-table :data="rows" v-loading="loading" border stripe>
       <el-table-column prop="id" label="ID" width="70" />
-      <el-table-column prop="cliKind" label="CLI" width="100" />
-      <el-table-column prop="modelKey" label="模型键" min-width="140" />
-      <el-table-column prop="displayLabel" label="显示名" min-width="120" />
-      <el-table-column prop="sortOrder" label="排序" width="80" />
-      <el-table-column prop="status" label="状态" width="80">
+      <el-table-column prop="cliKind" label="CLI" min-width="90" />
+      <el-table-column prop="modelKey" label="模型键" min-width="120" show-overflow-tooltip />
+      <el-table-column prop="displayLabel" label="显示名" min-width="100" show-overflow-tooltip />
+      <el-table-column prop="sortOrder" label="排序" width="72" />
+      <el-table-column prop="status" label="状态" width="76">
         <template #default="{ row }">
           <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="160" fixed="right">
+      <el-table-column label="操作" min-width="120" align="right">
         <template #default="{ row }">
-          <el-button type="primary" link @click="openEdit(row)">编辑</el-button>
-          <el-button type="danger" link @click="onDelete(row)">删除</el-button>
+          <el-button type="primary" link @click="openEdit(row)">{{ t('agentModels.edit') }}</el-button>
+          <el-button type="danger" link @click="onDelete(row)">{{ t('agentModels.delete') }}</el-button>
         </template>
       </el-table-column>
     </el-table>
+    <div class="pager">
+      <el-pagination
+        background
+        layout="total, prev, pager, next"
+        :total="total"
+        v-model:current-page="page"
+        :page-size="size"
+        @current-change="onPageChange"
+      />
+    </div>
   </el-card>
 
   <el-dialog v-model="dlg" :title="dlgTitle" width="520px" align-center destroy-on-close>
@@ -72,6 +97,15 @@ import {
 const { t } = useI18n()
 const loading = ref(false)
 const rows = ref([])
+const total = ref(0)
+const page = ref(1)
+const size = ref(10)
+const filterCliDraft = ref('')
+const filterModelKeyDraft = ref('')
+const filterCli = ref('')
+const filterModelKey = ref('')
+const hasSearched = ref(false)
+
 const dlg = ref(false)
 const isEdit = ref(false)
 const saving = ref(false)
@@ -89,12 +123,28 @@ const rules = {
   modelKey: [{ required: true, message: '必填', trigger: 'blur' }],
 }
 
-const dlgTitle = computed(() => (isEdit.value ? '编辑模型' : '新增模型'))
+const dlgTitle = computed(() => (isEdit.value ? t('agentModels.editTitle') : t('agentModels.createTitle')))
+
+function runSearch() {
+  filterCli.value = filterCliDraft.value ?? ''
+  filterModelKey.value = filterModelKeyDraft.value?.trim() || ''
+  page.value = 1
+  hasSearched.value = true
+  load()
+}
+
+function onPageChange() {
+  if (!hasSearched.value) return
+  load()
+}
 
 async function load() {
+  if (!hasSearched.value) return
   loading.value = true
   try {
-    rows.value = (await fetchAgentModelList()) || []
+    const res = await fetchAgentModelList(page.value - 1, size.value, filterCli.value || undefined, filterModelKey.value || undefined)
+    rows.value = res.content || []
+    total.value = res.totalElements || 0
   } finally {
     loading.value = false
   }
@@ -147,7 +197,11 @@ async function save() {
       ElMessage.success('已创建')
     }
     dlg.value = false
-    await load()
+    if (!hasSearched.value) {
+      runSearch()
+    } else {
+      await load()
+    }
   } finally {
     saving.value = false
   }
@@ -157,10 +211,12 @@ async function onDelete(row) {
   await ElMessageBox.confirm(`删除模型「${row.modelKey}」？`, '提示', { type: 'warning' })
   await deleteAgentModel(row.id)
   ElMessage.success('已删除')
-  await load()
+  if (hasSearched.value) await load()
 }
 
-onMounted(load)
+onMounted(() => {
+  runSearch()
+})
 </script>
 
 <style scoped lang="scss">
@@ -173,10 +229,21 @@ onMounted(load)
   justify-content: space-between;
   font-weight: 600;
 }
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 .tip {
   margin: 0 0 12px;
   font-size: 13px;
   color: #909399;
   line-height: 1.5;
+}
+.pager {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

@@ -39,6 +39,14 @@ export default {
   },
   agentModels: {
     tip: 'Maintain allowed --model values for Cursor (agent) and Claude Code (claude). Used by Git Q&A, repo config, and jobs.',
+    cliFilter: 'CLI',
+    modelKeyFilter: 'Model key',
+    query: 'Search',
+    add: 'Add',
+    edit: 'Edit',
+    delete: 'Delete',
+    editTitle: 'Edit model',
+    createTitle: 'Add model',
   },
   gitQaChat: {
     welcomeEmpty: 'How can I help you?',

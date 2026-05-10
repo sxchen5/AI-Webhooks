@@ -8,6 +8,9 @@ import com.scanplatform.entity.AgentModelOption;
 import com.scanplatform.service.AgentModelCatalogService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,8 +28,16 @@ public class AgentModelOptionController {
     }
 
     @GetMapping
-    public ApiResponse<List<AgentModelOption>> list() {
-        return ApiResponse.ok(catalogService.listAll());
+    public ApiResponse<Page<AgentModelOption>> page(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String cli,
+            @RequestParam(required = false) String modelKey) {
+        var p = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Direction.ASC, "cliKind", "sortOrder", "modelKey"));
+        return ApiResponse.ok(catalogService.page(cli, modelKey, p));
     }
 
     @GetMapping("/{id}")
