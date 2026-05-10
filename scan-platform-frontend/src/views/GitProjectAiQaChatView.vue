@@ -30,7 +30,7 @@
       <el-scrollbar
         ref="scrollbarRef"
         class="chat-scroll chat-scroll--grow"
-        :class="{ 'chat-scroll--toc-pad': tocColumnVisible && tocOpen, 'chat-scroll--toc-pad-collapsed': tocColumnVisible && !tocOpen }"
+        :class="{ 'chat-scroll--toc-pad': tocColumnVisible }"
         wrap-class="git-qa-scroll-wrap"
         @scroll="onScrollWrap"
       >
@@ -153,11 +153,10 @@
       </div>
     </el-scrollbar>
 
-      <div v-show="tocColumnVisible" class="toc-float" :class="{ 'toc-float--collapsed': !tocOpen }">
-        <div v-if="tocOpen" class="toc-panel">
+      <div v-show="tocColumnVisible" class="toc-float">
+        <div class="toc-panel">
           <div class="toc-panel-header">
             <span class="toc-title">{{ t('gitQaChat.outline') }}</span>
-            <el-button text type="primary" size="small" @click="tocOpen = false">{{ t('gitQaChat.outlineClose') }}</el-button>
           </div>
           <div v-if="!tocItems.length" class="toc-empty">{{ t('gitQaChat.noOutline') }}</div>
           <nav v-else class="toc-nav" :aria-label="t('gitQaChat.outline')">
@@ -174,9 +173,6 @@
             </button>
           </nav>
         </div>
-        <button v-else type="button" class="toc-reopen" @click="tocOpen = true" :title="t('gitQaChat.outlineOpen')">
-          {{ t('gitQaChat.outline') }}
-        </button>
       </div>
     </div>
 
@@ -562,7 +558,6 @@ const msgBlockRefs = new Map()
 const assistantRendered = reactive({})
 const activeAssistantKey = ref('')
 const activeTocId = ref('')
-const tocOpen = ref(true)
 
 function messageAnchorKey(m) {
   if (m?.clientKey) return String(m.clientKey)
@@ -1379,11 +1374,7 @@ onBeforeUnmount(() => {
   min-height: 0;
 }
 .chat-scroll--toc-pad :deep(.git-qa-scroll-wrap) {
-  padding-right: 25px;
-  box-sizing: border-box;
-}
-.chat-scroll--toc-pad-collapsed :deep(.git-qa-scroll-wrap) {
-  padding-right: 25px;
+  padding-right: 188px;
   box-sizing: border-box;
 }
 .chat-scroll {
@@ -1608,7 +1599,7 @@ onBeforeUnmount(() => {
   top: 6px;
   bottom: 6px;
   z-index: 40;
-  width: 200px;
+  width: 180px;
   pointer-events: none;
   display: flex;
   flex-direction: column;
@@ -1616,9 +1607,6 @@ onBeforeUnmount(() => {
 }
 .toc-float > * {
   pointer-events: auto;
-}
-.toc-float--collapsed {
-  width: auto;
 }
 .toc-panel {
   max-height: min(70vh, calc(100vh - 200px));
@@ -1638,7 +1626,7 @@ onBeforeUnmount(() => {
 .toc-panel-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 6px;
   padding: 8px 2px 6px;
   border-bottom: 1px solid var(--chat-header-border);
@@ -1683,24 +1671,6 @@ onBeforeUnmount(() => {
   color: var(--el-color-primary, #409eff);
   font-weight: 600;
   background: rgba(64, 158, 255, 0.1);
-}
-.toc-reopen {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  padding: 12px 6px;
-  border-radius: 10px;
-  border: 1px solid var(--chat-border);
-  background: transparent;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
-  cursor: pointer;
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  color: var(--el-color-primary, #409eff);
-}
-.chat-page--dark .toc-reopen {
-  border-color: var(--el-border-color, #303030);
 }
 .thinking-row {
   display: flex;
