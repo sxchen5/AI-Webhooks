@@ -222,4 +222,23 @@ html.dark .login-page .title {
 html.dark .login-page .captcha-hint {
   color: var(--el-text-color-secondary, #a3a3a3);
 }
+
+@media (max-width: 767px) {
+  .login-page {
+    padding: 16px;
+    align-items: flex-start;
+    padding-top: max(24px, env(safe-area-inset-top));
+  }
+  .title {
+    font-size: 22px;
+    margin-bottom: 20px;
+  }
+  .captcha-row :deep(.el-form-item__content) {
+    flex-wrap: wrap;
+  }
+  .captcha-img-wrap {
+    width: 100%;
+    height: 44px;
+  }
+}
 </style>

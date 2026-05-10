@@ -87,6 +87,7 @@ export default {
   layout: {
     collapseMenu: '收起菜单',
     expandMenu: '展开菜单',
+    openSideMenu: '打开侧栏菜单',
     settings: '设置',
   },
 }

@@ -801,7 +801,7 @@ function nextClientKey() {
 
 function goBack() {
   abortCtrl?.abort()
-  router.push({ name: 'GitQaProjects' })
+  router.push({ name: 'GitQaProjects', query: { refresh: '1' } })
 }
 
 function scrollToBottomAnimated() {
@@ -1917,6 +1917,44 @@ onBeforeUnmount(() => {
   margin: 10px auto 0;
   font-size: 12px;
   color: #e6a23c;
+}
+
+@media (max-width: 767px) {
+  .chat-page {
+    height: calc(100dvh - 56px);
+    max-height: calc(100dvh - 52px);
+    margin: -4px -4px 0;
+    border-radius: 12px;
+  }
+  .chat-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .header-spacer {
+    display: none;
+  }
+  .subtitle {
+    max-width: 100%;
+  }
+  .chat-scroll {
+    padding: 0 10px;
+  }
+  .messages {
+    max-width: 100%;
+    padding-top: 10px;
+  }
+  .footer-stack {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .composer-inner-bar {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .composer-model-inner {
+    max-width: 100%;
+  }
 }
 </style>
 

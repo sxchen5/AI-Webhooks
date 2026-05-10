@@ -10,6 +10,7 @@ import { i18n } from './i18n'
 import { setI18nLocale } from './i18n'
 import { usePreferencesStore } from './stores/preferences'
 import './styles/global.scss'
+import './styles/responsive.scss'
 import './styles/chat-github-markdown-light.css'
 import './styles/chat-github-markdown-dark.css'
 

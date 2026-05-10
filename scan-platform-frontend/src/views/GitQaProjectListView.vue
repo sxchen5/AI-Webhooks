@@ -144,8 +144,8 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   createGitQaProject,
@@ -157,6 +157,7 @@ import {
 import { fetchGitProjectOptions } from '@/api/gitProject'
 import { formatBackendDateTime } from '@/utils/formatTime'
 
+const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const tableData = ref([])
@@ -401,6 +402,19 @@ async function onDelete(row) {
 onMounted(async () => {
   await loadGitProjectOptions()
 })
+
+watch(
+  () => route.query.refresh,
+  (v) => {
+    if (v === '1' || v === 1) {
+      runSearch()
+      const q = { ...route.query }
+      delete q.refresh
+      router.replace({ path: route.path, query: q, hash: route.hash })
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <style scoped lang="scss">

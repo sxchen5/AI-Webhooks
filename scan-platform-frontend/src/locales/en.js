@@ -87,6 +87,7 @@ export default {
   layout: {
     collapseMenu: 'Collapse menu',
     expandMenu: 'Expand menu',
+    openSideMenu: 'Open navigation',
     settings: 'Settings',
   },
 }

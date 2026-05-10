@@ -1,6 +1,7 @@
 <template>
-  <el-container class="layout-root">
-    <el-aside :width="asideWidth" class="aside" :class="{ 'aside--collapsed': collapsed }">
+  <el-container class="layout-root" :class="{ 'layout-root--mobile': isMobile }">
+    <div v-if="isMobile && mobileNavOpen" class="mobile-nav-scrim" @click="mobileNavOpen = false" />
+    <el-aside :width="asideWidth" class="aside" :class="{ 'aside--collapsed': collapsed && !isMobile, 'aside--m-open': isMobile && mobileNavOpen }">
       <div class="aside-inner">
         <div v-if="!collapsed" class="logo-row">
           <div class="logo-brand">
@@ -124,6 +125,17 @@
     </el-aside>
     <el-container>
       <el-header class="header">
+        <el-button
+          v-if="isMobile"
+          class="header-menu-btn"
+          text
+          type="primary"
+          :title="t('layout.openSideMenu')"
+          :aria-label="t('layout.openSideMenu')"
+          @click="toggleMobileNav"
+        >
+          <el-icon :size="22"><Menu /></el-icon>
+        </el-button>
         <div class="header-title">
           <template v-if="breadcrumb.parent">
             <span class="header-parent">{{ breadcrumb.parent }}</span>
@@ -188,7 +200,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   ChatDotRound,
   Clock,
@@ -199,6 +211,7 @@ import {
   Folder,
   FolderOpened,
   Link,
+  Menu,
   Message,
   Monitor,
   Setting,
@@ -218,7 +231,23 @@ const prefs = usePreferencesStore()
 const { t } = useI18n()
 
 const collapsed = ref(false)
-const asideWidth = computed(() => (collapsed.value ? '64px' : '240px'))
+const isMobile = ref(false)
+const mobileNavOpen = ref(false)
+let mqListener
+
+function syncMobile() {
+  isMobile.value = window.matchMedia('(max-width: 767px)').matches
+}
+
+function toggleMobileNav() {
+  mobileNavOpen.value = !mobileNavOpen.value
+  if (mobileNavOpen.value) collapsed.value = false
+}
+
+const asideWidth = computed(() => {
+  if (isMobile.value) return '0px'
+  return collapsed.value ? '64px' : '240px'
+})
 const settingsOpen = ref(false)
 const draftAvatarPreset = ref(prefs.avatarPreset || DEFAULT_AVATAR_PRESET_ID)
 const draftLocale = ref(prefs.locale)
@@ -231,6 +260,17 @@ watch(settingsOpen, (open) => {
     draftAvatarPreset.value = prefs.avatarPreset || DEFAULT_AVATAR_PRESET_ID
     draftLocale.value = prefs.locale
     draftTheme.value = prefs.theme
+  }
+})
+
+watch(() => route.path, () => {
+  mobileNavOpen.value = false
+})
+
+watch(isMobile, (m) => {
+  if (m) {
+    mobileNavOpen.value = false
+    collapsed.value = false
   }
 })
 
@@ -278,11 +318,31 @@ async function onLogoutFromDrawer() {
     /* cancel */
   }
 }
+
+onMounted(() => {
+  syncMobile()
+  const mq = window.matchMedia('(max-width: 767px)')
+  mqListener = () => syncMobile()
+  if (mq.addEventListener) mq.addEventListener('change', mqListener)
+  else mq.addListener(mqListener)
+})
+
+onBeforeUnmount(() => {
+  const mq = window.matchMedia('(max-width: 767px)')
+  if (mqListener) {
+    if (mq.removeEventListener) mq.removeEventListener('change', mqListener)
+    else mq.removeListener(mqListener)
+  }
+})
 </script>
 
 <style scoped lang="scss">
 .layout-root {
   height: 100vh;
+}
+.layout-root > .el-container {
+  flex: 1;
+  min-width: 0;
 }
 .aside {
   background: var(--sp-aside-bg);
@@ -486,6 +546,8 @@ async function onLogoutFromDrawer() {
   font-size: 16px;
   font-weight: 500;
   color: var(--el-text-color-primary, #303133);
+  flex: 1;
+  min-width: 0;
 }
 .header-parent {
   color: var(--el-text-color-secondary, #909399);
@@ -504,6 +566,50 @@ async function onLogoutFromDrawer() {
   padding: 16px;
   background: var(--sp-page-bg);
   transition: background 0.2s ease;
+  min-width: 0;
+}
+
+.header-menu-btn {
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.mobile-nav-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 2004;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.layout-root--mobile .aside {
+  overflow: visible;
+  border-right: none;
+}
+.layout-root--mobile .aside-inner {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: min(86vw, 280px);
+  z-index: 2005;
+  transform: translateX(-102%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
+  background: var(--sp-aside-bg);
+  border-right: 1px solid var(--sp-aside-edge, #e9e9e9);
+}
+.layout-root--mobile .aside--m-open .aside-inner {
+  transform: translateX(0);
+}
+.layout-root--mobile .header {
+  padding: 0 12px;
+}
+.layout-root--mobile .header-title {
+  font-size: 14px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .settings-body {
