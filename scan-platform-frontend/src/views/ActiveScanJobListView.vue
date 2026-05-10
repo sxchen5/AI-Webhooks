@@ -33,7 +33,7 @@
         </div>
       </div>
     </template>
-    <p class="tip">定时使用 Spring 6 段 Cron（秒 分 时 日 月 周），例：每天 2 点 <code>0 0 2 * * ?</code>；启用定时后保存会自动计算下次执行时间。邮件通知使用<strong>系统配置管理 → 邮件配置</strong>中的 SMTP，收件人请在<strong>Git项目配置</strong>中配置通知邮箱。进入页面后请点击<strong>查询</strong>加载列表。</p>
+    <p class="tip">定时使用 Spring 6 段 Cron（秒 分 时 日 月 周），例：每天 2 点 <code>0 0 2 * * ?</code>；启用定时后保存会自动计算下次执行时间。邮件通知使用<strong>系统配置管理 → 邮件配置</strong>中的 SMTP；默认收件人为<strong>Git 项目配置</strong>中的通知邮箱，可在本页任务表单中<strong>覆盖通知邮箱</strong>。进入页面后请点击<strong>查询</strong>加载列表。</p>
     <el-table
       :data="tableData"
       row-key="id"
@@ -106,6 +106,7 @@
         </el-descriptions-item>
         <el-descriptions-item label="失败发邮件">{{ detail.notifyOnFailure === 1 ? '是' : '否' }}</el-descriptions-item>
         <el-descriptions-item label="成功发邮件">{{ detail.notifyOnSuccess === 1 ? '是' : '否' }}</el-descriptions-item>
+        <el-descriptions-item label="覆盖通知邮箱">{{ detail.notifyEmailOverride || '—（使用 Git 项目配置）' }}</el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="detail.status === 1 ? 'success' : 'info'">{{ detail.status === 1 ? '启用' : '禁用' }}</el-tag>
         </el-descriptions-item>
@@ -150,6 +151,17 @@
       </el-form-item>
       <el-form-item label="成功发邮件">
         <el-switch :active-value="1" :inactive-value="0" v-model="form.notifyOnSuccess" />
+      </el-form-item>
+      <el-form-item label="覆盖通知邮箱">
+        <el-input
+          v-model="form.notifyEmailOverride"
+          type="textarea"
+          :rows="2"
+          maxlength="500"
+          show-word-limit
+          placeholder="留空则使用 Git 项目配置中的通知邮箱；多个地址用英文逗号分隔"
+          clearable
+        />
       </el-form-item>
       <el-form-item label="状态" prop="status">
         <el-radio-group v-model="form.status">
@@ -218,6 +230,7 @@ const form = reactive({
   agentModel: undefined,
   notifyOnFailure: 1,
   notifyOnSuccess: 0,
+  notifyEmailOverride: '',
   status: 1,
 })
 
@@ -329,6 +342,7 @@ function resetForm() {
   form.agentModel = undefined
   form.notifyOnFailure = 1
   form.notifyOnSuccess = 0
+  form.notifyEmailOverride = ''
   form.status = 1
 }
 
@@ -359,6 +373,7 @@ function openEdit(row) {
     agentModel: row.agentModel || undefined,
     notifyOnFailure: row.notifyOnFailure,
     notifyOnSuccess: row.notifyOnSuccess,
+    notifyEmailOverride: row.notifyEmailOverride || '',
     status: row.status,
   })
   dialogVisible.value = true
@@ -379,6 +394,7 @@ function openCopy(row) {
     agentModel: row.agentModel || undefined,
     notifyOnFailure: row.notifyOnFailure,
     notifyOnSuccess: row.notifyOnSuccess,
+    notifyEmailOverride: row.notifyEmailOverride || '',
     status: row.status,
   })
   dialogVisible.value = true
@@ -403,6 +419,7 @@ async function saveDialog() {
       agentModel: form.agentModel || null,
       notifyOnFailure: form.notifyOnFailure,
       notifyOnSuccess: form.notifyOnSuccess,
+      notifyEmailOverride: form.notifyEmailOverride?.trim() || null,
       status: form.status,
     }
     if (isEdit.value) {

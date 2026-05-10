@@ -7,10 +7,10 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 /**
- * 全局配置 sys_config：SMTP 与邮件标题前缀等。
+ * 主动扫描邮件与 SMTP 配置（表 active_scan_mail，原 sys_config）。
  */
 @Entity
-@Table(name = "sys_config")
+@Table(name = "active_scan_mail")
 @Getter
 @Setter
 public class SysConfig {
@@ -33,6 +33,14 @@ public class SysConfig {
 
     @Column(name = "email_title_prefix", length = 255)
     private String emailTitlePrefix = "【代码扫描通知】";
+
+    /** 1 使用 STARTTLS（常见 587）；与 smtp_ssl_enabled 一般二选一 */
+    @Column(name = "smtp_tls_enabled", nullable = false)
+    private Integer smtpTlsEnabled = 1;
+
+    /** 1 使用 SSL 隐式加密（常见 465）；为 1 时通常应关闭 TLS */
+    @Column(name = "smtp_ssl_enabled", nullable = false)
+    private Integer smtpSslEnabled = 0;
 
     @Column(name = "create_time", insertable = false, updatable = false)
     private LocalDateTime createTime;

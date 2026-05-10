@@ -13,7 +13,7 @@ import java.util.Arrays;
 import java.util.Properties;
 
 /**
- * 根据 sys_config 动态 SMTP 发送告警邮件（失败时调用）。
+ * 根据 active_scan_mail（实体 SysConfig）动态 SMTP 发送告警/主动扫描通知邮件。
  */
 @Service
 @RequiredArgsConstructor
@@ -23,7 +23,6 @@ public class AlertMailService {
     /**
      * @return true 表示已尝试发送且 SMTP 返回成功
      */
-    /** 通用发送（主动扫描成功/失败通知等） */
     public boolean sendMail(SysConfig config, String toAddresses, String subject, String text) {
         return sendFailureAlert(config, toAddresses, subject, text);
     }
@@ -55,14 +54,21 @@ public class AlertMailService {
             helper.setSubject(subject);
             helper.setText(text, false);
             log.info(
-                    "SMTP 发送邮件: host={} port={} from={} toCount={} subject={} bodyChars={}",
+                    "SMTP 发送邮件: host={} port={} ssl={} tls={} from={} toCount={} subject={} bodyChars={}",
                     config.getSmtpHost(),
                     config.getSmtpPort(),
+                    config.getSmtpSslEnabled(),
+                    config.getSmtpTlsEnabled(),
                     from,
                     to.length,
                     subject,
                     text != null ? text.length() : 0);
-            sender.send(message);
+            long t0 = System.currentTimeMillis();
+            try {
+                sender.send(message);
+            } finally {
+                log.info("SMTP send() 结束: subject={} 耗时Ms={}", subject, System.currentTimeMillis() - t0);
+            }
             log.info("SMTP 邮件已提交: subject={}", subject);
             return true;
         } catch (Exception e) {
@@ -74,14 +80,30 @@ public class AlertMailService {
     private JavaMailSenderImpl buildSender(SysConfig c) {
         JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
         mailSender.setHost(c.getSmtpHost());
-        mailSender.setPort(c.getSmtpPort());
+        int port = c.getSmtpPort() != null ? c.getSmtpPort() : 25;
+        mailSender.setPort(port);
         mailSender.setUsername(c.getSmtpUsername());
         mailSender.setPassword(c.getSmtpPassword());
         Properties props = mailSender.getJavaMailProperties();
         props.put("mail.transport.protocol", "smtp");
-        props.put("mail.smtp.auth", StringUtils.hasText(c.getSmtpUsername()));
-        props.put("mail.smtp.starttls.enable", "true");
+        props.put("mail.smtp.auth", String.valueOf(StringUtils.hasText(c.getSmtpUsername())));
         props.put("mail.debug", "false");
+        props.put("mail.smtp.connectiontimeout", "15000");
+        props.put("mail.smtp.timeout", "120000");
+        props.put("mail.smtp.writetimeout", "120000");
+
+        boolean ssl = c.getSmtpSslEnabled() != null && c.getSmtpSslEnabled() == 1;
+        boolean tls = c.getSmtpTlsEnabled() == null || c.getSmtpTlsEnabled() == 1;
+        if (ssl) {
+            props.put("mail.smtp.ssl.enable", "true");
+            props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+            props.put("mail.smtp.socketFactory.port", String.valueOf(port));
+            props.put("mail.smtp.socketFactory.fallback", "false");
+            props.put("mail.smtp.starttls.enable", "false");
+        } else {
+            props.put("mail.smtp.ssl.enable", "false");
+            props.put("mail.smtp.starttls.enable", Boolean.toString(tls));
+        }
         return mailSender;
     }
 }

@@ -61,7 +61,7 @@ public class ActiveScanAsyncExecutor {
         }
 
         log.info(
-                "主动扫描上下文: logId={} jobId={} jobName={} repoId={} repoName={} branch={} notifyOnSuccess={} notifyOnFailure={} receiveEmail={}",
+                "主动扫描上下文: logId={} jobId={} jobName={} repoId={} repoName={} branch={} notifyOnSuccess={} notifyOnFailure={} notifyEmailOverride={} repoReceiveEmail={}",
                 activeLogId,
                 job.getId(),
                 job.getJobName(),
@@ -70,6 +70,7 @@ public class ActiveScanAsyncExecutor {
                 repo.getBranch(),
                 job.getNotifyOnSuccess(),
                 job.getNotifyOnFailure(),
+                StringUtils.hasText(job.getNotifyEmailOverride()) ? "(任务已覆盖)" : "(未覆盖)",
                 StringUtils.hasText(repo.getReceiveEmail()) ? "(已配置)" : "(未配置)");
 
         task.setTaskStartTime(LocalDateTime.now());
@@ -149,7 +150,7 @@ public class ActiveScanAsyncExecutor {
 
     /**
      * 按任务配置发送成功/失败邮件（Git 失败或执行失败 execStatus=2 视为失败）。
-     * 通知邮箱取自 Git 仓库配置 receive_email；SMTP 发件方取自 sys_config。
+     * 通知邮箱：任务 notify_email_override 非空时优先，否则 Git 仓库 receive_email；SMTP 发件方取自 active_scan_mail。
      * notify_on_* 在库中为 NULL 时：失败通知默认开启(1)，成功通知默认关闭(0)，与实体默认值一致。
      */
     private void notifyAfterRun(SysConfig config, ActiveScanJob job, ActiveScanRepo repo, ActiveScanLog task, boolean execSuccess) {
@@ -165,12 +166,12 @@ public class ActiveScanAsyncExecutor {
                 notifyFail,
                 wantNotify);
 
-        String emails = repo.getReceiveEmail();
+        String emails = StringUtils.hasText(job.getNotifyEmailOverride()) ? job.getNotifyEmailOverride().trim() : repo.getReceiveEmail();
         if (!StringUtils.hasText(emails)) {
             task.setEmailStatus(0);
             logRepository.save(task);
             log.warn(
-                    "主动扫描跳过发邮件: logId={} repoId={} 原因=Git项目配置中未填写通知邮箱(receive_email)",
+                    "主动扫描跳过发邮件: logId={} repoId={} 原因=未配置收件人（任务未填覆盖邮箱且 Git 项目 receive_email 为空）",
                     task.getId(),
                     repo.getId());
             return;

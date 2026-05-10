@@ -56,6 +56,10 @@ public class ActiveScanJob {
     @Column(name = "notify_on_success", nullable = false)
     private Integer notifyOnSuccess = 0;
 
+    /** 非空时覆盖 Git 项目配置中的通知邮箱，多个地址逗号分隔 */
+    @Column(name = "notify_email_override", length = 500)
+    private String notifyEmailOverride;
+
     @Column(nullable = false)
     private Integer status = 1;
 

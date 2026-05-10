@@ -10,16 +10,18 @@ CREATE TABLE IF NOT EXISTS sys_user (
     UNIQUE KEY uk_username (username)
 ) COMMENT '系统用户表';
 
-CREATE TABLE IF NOT EXISTS sys_config (
+CREATE TABLE IF NOT EXISTS active_scan_mail (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     smtp_host VARCHAR(255),
     smtp_port INT,
     smtp_username VARCHAR(255),
     smtp_password VARCHAR(255),
     email_title_prefix VARCHAR(255) DEFAULT '【代码扫描通知】',
+    smtp_tls_enabled TINYINT NOT NULL DEFAULT 1 COMMENT '1 启用 STARTTLS（常见 587）',
+    smtp_ssl_enabled TINYINT NOT NULL DEFAULT 0 COMMENT '1 启用 SSL（常见 465）',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) COMMENT '全局配置（邮件等）';
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT '主动扫描 SMTP 与邮件标题配置（原 sys_config）';
 
 CREATE TABLE IF NOT EXISTS git_project (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -64,6 +66,7 @@ CREATE TABLE IF NOT EXISTS active_scan_job (
     agent_model VARCHAR(64) COMMENT '非空则覆盖仓库模型，在命令末尾追加 --model',
     notify_on_failure TINYINT DEFAULT 1,
     notify_on_success TINYINT DEFAULT 0,
+    notify_email_override VARCHAR(500) COMMENT '非空则覆盖仓库通知邮箱，逗号分隔',
     status TINYINT DEFAULT 1,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

@@ -42,6 +42,8 @@ public class SysConfigService {
         if (StringUtils.hasText(dto.getEmailTitlePrefix())) {
             c.setEmailTitlePrefix(dto.getEmailTitlePrefix());
         }
+        c.setSmtpTlsEnabled(dto.getSmtpTlsEnabled() != null && dto.getSmtpTlsEnabled() == 1 ? 1 : 0);
+        c.setSmtpSslEnabled(dto.getSmtpSslEnabled() != null && dto.getSmtpSslEnabled() == 1 ? 1 : 0);
         c = configRepository.save(c);
         log.info("已保存系统全局配置: id={}", c.getId());
         return toDto(c, true);
@@ -50,6 +52,8 @@ public class SysConfigService {
     private SysConfig createDefault() {
         SysConfig c = new SysConfig();
         c.setEmailTitlePrefix("【代码扫描通知】");
+        c.setSmtpTlsEnabled(1);
+        c.setSmtpSslEnabled(0);
         return configRepository.save(c);
     }
 
@@ -61,6 +65,8 @@ public class SysConfigService {
         d.setSmtpUsername(c.getSmtpUsername());
         d.setSmtpPassword(maskPassword && StringUtils.hasText(c.getSmtpPassword()) ? "******" : null);
         d.setEmailTitlePrefix(c.getEmailTitlePrefix());
+        d.setSmtpTlsEnabled(c.getSmtpTlsEnabled() != null ? c.getSmtpTlsEnabled() : 1);
+        d.setSmtpSslEnabled(c.getSmtpSslEnabled() != null ? c.getSmtpSslEnabled() : 0);
         return d;
     }
 }

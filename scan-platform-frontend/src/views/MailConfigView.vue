@@ -13,6 +13,14 @@
       <el-form-item label="SMTP 端口">
         <el-input-number v-model="form.smtpPort" :min="1" :max="65535" :controls="false" />
       </el-form-item>
+      <el-form-item label="STARTTLS">
+        <el-switch :active-value="1" :inactive-value="0" v-model="form.smtpTlsEnabled" />
+        <span class="field-hint">常见端口 587；与 SSL 一般二选一</span>
+      </el-form-item>
+      <el-form-item label="SSL 加密">
+        <el-switch :active-value="1" :inactive-value="0" v-model="form.smtpSslEnabled" />
+        <span class="field-hint">常见端口 465；开启时建议关闭 STARTTLS</span>
+      </el-form-item>
       <el-form-item label="SMTP 用户名">
         <el-input v-model="form.smtpUsername" clearable />
       </el-form-item>
@@ -32,7 +40,7 @@
         title="说明"
         type="info"
         :closable="false"
-        description="用于「Git 仓库扫描」主动扫描任务成功/失败通知；收件人在各仓库的「通知邮箱」中配置。无需改 application.yml。"
+        description="用于「Git 仓库扫描」主动扫描任务成功/失败通知；默认收件人在各 Git 项目配置的「通知邮箱」中填写，也可在下发任务中按任务覆盖。无需改 application.yml。"
       />
     </el-form>
   </el-card>
@@ -48,6 +56,8 @@ const saving = ref(false)
 const form = reactive({
   smtpHost: '',
   smtpPort: null,
+  smtpTlsEnabled: 1,
+  smtpSslEnabled: 0,
   smtpUsername: '',
   smtpPasswordInput: '',
   emailTitlePrefix: '',
@@ -59,6 +69,8 @@ async function load() {
     const c = await getSysConfig()
     form.smtpHost = c.smtpHost || ''
     form.smtpPort = c.smtpPort
+    form.smtpTlsEnabled = c.smtpTlsEnabled != null ? c.smtpTlsEnabled : 1
+    form.smtpSslEnabled = c.smtpSslEnabled != null ? c.smtpSslEnabled : 0
     form.smtpUsername = c.smtpUsername || ''
     form.smtpPasswordInput = ''
     form.emailTitlePrefix = c.emailTitlePrefix || '【代码扫描通知】'
@@ -73,6 +85,8 @@ async function onSave() {
     await saveSysConfig({
       smtpHost: form.smtpHost || null,
       smtpPort: form.smtpPort,
+      smtpTlsEnabled: form.smtpTlsEnabled,
+      smtpSslEnabled: form.smtpSslEnabled,
       smtpUsername: form.smtpUsername || null,
       smtpPassword: form.smtpPasswordInput || null,
       emailTitlePrefix: form.emailTitlePrefix || null,
@@ -100,5 +114,10 @@ onMounted(load)
 }
 .form {
   max-width: 720px;
+}
+.field-hint {
+  margin-left: 10px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 </style>
