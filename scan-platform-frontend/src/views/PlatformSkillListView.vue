@@ -52,6 +52,19 @@
     </div>
   </el-card>
 
+  <!-- 置于主弹窗外：避免 destroy-on-close 卸载后 ref 丢失；且需非零尺寸才能稳定触发系统文件选择框 -->
+  <input
+    ref="dirImportRef"
+    type="file"
+    class="file-input-native"
+    webkitdirectory
+    directory
+    multiple
+    @change="onDirectoryPicked"
+  />
+  <input ref="fileImportRef" type="file" class="file-input-native" multiple @change="onMultiFilesPicked" />
+  <input ref="jsonImportRef" type="file" class="file-input-native" accept="application/json,.json" @change="onJsonPicked" />
+
   <el-drawer v-model="detailVisible" title="平台技能详情" size="62%">
     <template v-if="detail">
       <el-descriptions :column="1" border size="small" class="detail-desc">
@@ -79,7 +92,14 @@
     </template>
   </el-drawer>
 
-  <el-dialog v-model="dialogVisible" :title="dialogTitle" width="92%" top="4vh" class="skill-dialog" destroy-on-close>
+  <el-dialog
+    v-model="dialogVisible"
+    :title="dialogTitle"
+    width="680px"
+    align-center
+    class="skill-form-dialog"
+    destroy-on-close
+  >
     <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
       <el-form-item label="技能名" prop="skillName">
         <el-input
@@ -128,9 +148,6 @@
             </template>
           </el-table-column>
         </el-table>
-        <input ref="dirImportRef" type="file" class="visually-hidden" webkitdirectory multiple @change="onDirectoryPicked" />
-        <input ref="fileImportRef" type="file" class="visually-hidden" multiple @change="onMultiFilesPicked" />
-        <input ref="jsonImportRef" type="file" class="visually-hidden" accept="application/json,.json" @change="onJsonPicked" />
       </el-form-item>
       <el-form-item label="状态" prop="status">
         <el-radio-group v-model="form.status">
@@ -145,8 +162,38 @@
     </template>
   </el-dialog>
 
-  <el-dialog v-model="fileEditorVisible" :title="`编辑：${editingPath}`" width="80%" top="6vh" destroy-on-close>
-    <el-input v-model="editingContent" type="textarea" :rows="22" class="file-editor-ta" placeholder="文件 UTF-8 文本内容" />
+  <el-dialog
+    v-model="fileEditorVisible"
+    :title="`编辑：${editingPath}`"
+    width="800px"
+    align-center
+    class="skill-file-editor-dialog"
+    destroy-on-close
+    @closed="onFileEditorClosed"
+  >
+    <div class="file-editor-toolbar">
+      <el-radio-group v-model="fileEditorViewMode" size="small">
+        <el-radio-button label="edit">编辑</el-radio-button>
+        <el-radio-button label="split">编辑+预览</el-radio-button>
+        <el-radio-button label="preview">Markdown 预览</el-radio-button>
+      </el-radio-group>
+    </div>
+    <div v-if="fileEditorViewMode === 'edit'" class="file-editor-body">
+      <el-input
+        v-model="editingContent"
+        type="textarea"
+        :rows="18"
+        class="file-editor-ta"
+        placeholder="文件 UTF-8 文本内容"
+      />
+    </div>
+    <div v-else-if="fileEditorViewMode === 'split'" class="file-editor-body file-editor-split">
+      <el-input v-model="editingContent" type="textarea" :rows="16" class="file-editor-ta split-editor" />
+      <MarkdownPreview class="split-preview" :source="editingContent" />
+    </div>
+    <div v-else class="file-editor-body">
+      <MarkdownPreview :source="editingContent" />
+    </div>
     <template #footer>
       <el-button @click="fileEditorVisible = false">取消</el-button>
       <el-button type="primary" @click="applyFileEditor">确定</el-button>
@@ -155,7 +202,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, nextTick, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import MarkdownPreview from '@/components/MarkdownPreview.vue'
 import {
@@ -207,6 +254,7 @@ const fileImportRef = ref(null)
 const jsonImportRef = ref(null)
 
 const fileEditorVisible = ref(false)
+const fileEditorViewMode = ref('edit')
 const editingIndex = ref(-1)
 const editingPath = ref('')
 const editingContent = ref('')
@@ -431,15 +479,22 @@ async function addEmptyFile() {
   }
 }
 
-function triggerDirImport() {
+function onFileEditorClosed() {
+  fileEditorViewMode.value = 'edit'
+}
+
+async function triggerDirImport() {
+  await nextTick()
   dirImportRef.value?.click()
 }
 
-function triggerFileImport() {
+async function triggerFileImport() {
+  await nextTick()
   fileImportRef.value?.click()
 }
 
-function triggerJsonImport() {
+async function triggerJsonImport() {
+  await nextTick()
   jsonImportRef.value?.click()
 }
 
@@ -541,6 +596,7 @@ function openFileEditor(index) {
   editingIndex.value = index
   editingPath.value = row.path || ''
   editingContent.value = row.content ?? ''
+  fileEditorViewMode.value = 'edit'
   fileEditorVisible.value = true
 }
 
@@ -641,13 +697,41 @@ h4 {
 .files-table {
   width: 100%;
 }
-.visually-hidden {
-  position: absolute;
-  width: 0;
-  height: 0;
+.file-input-native {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 1px;
+  height: 1px;
   opacity: 0;
   overflow: hidden;
-  z-index: -1;
+}
+.file-editor-toolbar {
+  margin-bottom: 10px;
+}
+.file-editor-body {
+  min-height: 200px;
+}
+.file-editor-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: stretch;
+}
+@media (max-width: 900px) {
+  .file-editor-split {
+    grid-template-columns: 1fr;
+  }
+}
+.split-editor :deep(.el-textarea__inner) {
+  min-height: 320px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+}
+.split-preview {
+  min-height: 320px;
+  max-height: 55vh;
+  overflow: auto;
 }
 .file-editor-ta :deep(.el-textarea__inner) {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -656,7 +740,10 @@ h4 {
 </style>
 
 <style lang="scss">
-.skill-dialog .el-dialog__body {
+.skill-form-dialog .el-dialog__body {
+  padding-top: 8px;
+}
+.skill-file-editor-dialog .el-dialog__body {
   padding-top: 8px;
 }
 </style>
