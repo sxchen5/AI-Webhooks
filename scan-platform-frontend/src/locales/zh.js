@@ -18,8 +18,8 @@ export default {
     confirm: '确定',
   },
   app: {
-    title: '代码扫描平台',
-    loginTitle: '代码扫描平台',
+    title: '仓库智能协作平台',
+    loginTitle: '仓库智能协作平台',
   },
   nav: {
     console: '控制台',

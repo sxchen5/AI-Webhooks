@@ -1,21 +1,21 @@
 ---
 name: gitlab-webhook-cursor-scan
-description: 在 GitLab WebHook 触发的服务器任务中，用 Cursor CLI（agent 打印模式）对本地镜像仓库做非交互扫描；与扫描平台的 WEBHOOK_* 环境变量配合使用。
+description: 在 GitLab WebHook 触发的服务器任务中，用 Cursor CLI（agent 打印模式）对本地镜像仓库做非交互扫描；与仓库智能协作平台的 WEBHOOK_* 环境变量配合使用。
 ---
 
 # GitLab WebHook + Cursor 扫描
 
 ## 何时使用
 
-- 代码已通过 CI 或镜像同步到服务器上的 **本地目录**（与扫描平台 `project_info.local_code_path` 一致）。
+- 代码已通过 CI 或镜像同步到服务器上的 **本地目录**（与仓库智能协作平台 `project_info.local_code_path` 一致）。
 - 希望在收到 push WebHook 后，用 **Cursor CLI 非交互模式**（`agent -p ... --output-format text`）做一次安全/质量类审查，并把终端输出写入平台的 `scan_task_log.exec_result`。
 
 ## 是否需要单独 Skill
 
-- **Skills 不会“被 WebHook 直接调用”**：扫描平台只执行你在 `agent_command` 里配置的 Shell；Skill 是给 Cursor Agent 的**说明与规范**，应放在**被扫描的代码仓库**（或本机 `~/.cursor/skills/`）里，这样 `agent` 运行时才能加载到对应上下文。
+- **Skills 不会“被 WebHook 直接调用”**：仓库智能协作平台只执行你在 `agent_command` 里配置的 Shell；Skill 是给 Cursor Agent 的**说明与规范**，应放在**被扫描的代码仓库**（或本机 `~/.cursor/skills/`）里，这样 `agent` 运行时才能加载到对应上下文。
 - 本仓库提供 **Skill（本文件）** + **可执行包装脚本** `scripts/cursor-gitlab-webhook-scan.sh`：推荐在平台里配置命令调用该脚本；把本 Skill 复制到业务仓库的 `.cursor/skills/gitlab-webhook-cursor-scan/SKILL.md`（或安装为全局 Skill），以便 agent 按统一口径扫描。
 
-## 扫描平台侧配置建议
+## 仓库智能协作平台侧配置建议
 
 1. **本地代码路径**：填服务器上该 GitLab 项目的 clone 路径（需事先 `git clone` 并配置 `origin`）。
 2. **agent_command 示例**（脚本路径按实际部署调整）：

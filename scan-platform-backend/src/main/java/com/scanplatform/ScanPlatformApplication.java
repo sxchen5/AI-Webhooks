@@ -6,7 +6,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
- * 代码扫描平台（主动扫描、平台技能、邮件配置等）入口。
+ * 仓库智能协作平台（主动扫描、平台技能、邮件配置等）入口。
  */
 @SpringBootApplication
 @EnableAsync

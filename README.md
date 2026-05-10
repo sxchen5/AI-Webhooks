@@ -1,4 +1,4 @@
-# 代码扫描平台
+# 仓库智能协作平台
 
 Spring Boot 3 + Vue3 + Element Plus + MySQL。支持 **主动 Git 扫描**（多仓库、定时/手动、`git clone` + agent/技能）、**Git 项目 AI 问答**（按问题执行 agent）、**平台技能**、**邮件配置**；扫描日志写入 `active_scan_log`。
 

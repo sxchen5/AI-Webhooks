@@ -18,8 +18,8 @@ export default {
     confirm: 'OK',
   },
   app: {
-    title: 'Code Scan Platform',
-    loginTitle: 'Code Scan Platform',
+    title: 'Smart Repository Collaboration Platform',
+    loginTitle: 'Smart Repository Collaboration Platform',
   },
   nav: {
     console: 'Home',

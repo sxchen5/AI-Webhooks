@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# GitLab WebHook → 扫描平台 子进程入口：同步本地仓库并以 Cursor CLI 非交互模式跑 agent。
+# GitLab WebHook → 仓库智能协作平台 子进程入口：同步本地仓库并以 Cursor CLI 非交互模式跑 agent。
 # 依赖：本机已安装 Cursor CLI（https://cursor.com/docs/cli/overview），且 `agent` 在 PATH 中。
 # 环境变量由后端注入：WEBHOOK_REPO_PATH、WEBHOOK_BRANCH、WEBHOOK_COMMIT 等（见 README）。
 
@@ -52,5 +52,5 @@ if [[ -n "${CURSOR_AGENT_MODEL:-}" ]]; then
   MODEL_ARGS=(--model "$CURSOR_AGENT_MODEL")
 fi
 
-# 非交互打印模式；将完整输出交给扫描平台写入 exec_result
+# 非交互打印模式；将完整输出交给仓库智能协作平台写入 exec_result
 exec "$AGENT_BIN" -p "$PROMPT" --output-format text "${MODEL_ARGS[@]}" "$@"
