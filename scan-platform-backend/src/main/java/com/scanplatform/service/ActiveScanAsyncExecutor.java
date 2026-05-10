@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.web.util.HtmlUtils;
 
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -199,13 +200,21 @@ public class ActiveScanAsyncExecutor {
         }
         String prefix = StringUtils.hasText(config.getEmailTitlePrefix()) ? config.getEmailTitlePrefix() : "【代码扫描通知】";
         String subject = prefix + (execSuccess ? " 主动扫描成功 - " : " 主动扫描失败 - ") + job.getJobName();
-        String body = "任务: " + job.getJobName() + "\n仓库: " + repo.getRepoName() + "\n触发: " + task.getTriggerType()
-                + "\n分支: " + task.getBranch()
-                + "\nCommit: " + (task.getCommitHash() != null ? task.getCommitHash() : "")
-                + "\n\nGit 日志:\n" + (task.getCloneLog() != null ? task.getCloneLog() : "")
-                + "\n\n命令:\n" + (task.getExecCommand() != null ? task.getExecCommand() : "")
-                + "\n\n输出:\n" + (task.getExecResult() != null ? task.getExecResult() : "");
-        boolean sent = alertMailService.sendMail(config, emails, subject, body);
+        String jobName = job.getJobName() != null ? job.getJobName() : "";
+        String repoName = repo.getRepoName() != null ? repo.getRepoName() : "";
+        String trigger = task.getTriggerType() != null ? task.getTriggerType() : "";
+        String branch = task.getBranch() != null ? task.getBranch() : "";
+        String output = task.getExecResult() != null ? task.getExecResult() : "";
+        String body = "<html><body style=\"font-family:sans-serif;font-size:14px;line-height:1.5;\">"
+                + "<div><b>任务</b>：" + HtmlUtils.htmlEscape(jobName) + "</div>"
+                + "<div><b>仓库</b>：" + HtmlUtils.htmlEscape(repoName) + "</div>"
+                + "<div><b>触发</b>：" + HtmlUtils.htmlEscape(trigger) + "</div>"
+                + "<div><b>分支</b>：" + HtmlUtils.htmlEscape(branch) + "</div>"
+                + "<pre style=\"white-space:pre-wrap;word-break:break-word;margin:12px 0 0;padding:0;border:0;"
+                + "font-family:inherit;font-size:14px;\">"
+                + HtmlUtils.htmlEscape(output)
+                + "</pre></body></html>";
+        boolean sent = alertMailService.sendMail(config, emails, subject, body, true);
         task.setEmailStatus(sent ? 1 : 2);
         logRepository.save(task);
         log.info("主动扫描邮件结果: logId={} sent={} emailStatus={}", task.getId(), sent, task.getEmailStatus());

@@ -24,10 +24,21 @@ public class AlertMailService {
      * @return true 表示已尝试发送且 SMTP 返回成功
      */
     public boolean sendMail(SysConfig config, String toAddresses, String subject, String text) {
-        return sendFailureAlert(config, toAddresses, subject, text);
+        return sendFailureAlert(config, toAddresses, subject, text, false);
+    }
+
+    /**
+     * @param html true 时 {@code body} 按 HTML 解析（如含 &lt;b&gt; 等）
+     */
+    public boolean sendMail(SysConfig config, String toAddresses, String subject, String body, boolean html) {
+        return sendFailureAlert(config, toAddresses, subject, body, html);
     }
 
     public boolean sendFailureAlert(SysConfig config, String toAddresses, String subject, String text) {
+        return sendFailureAlert(config, toAddresses, subject, text, false);
+    }
+
+    private boolean sendFailureAlert(SysConfig config, String toAddresses, String subject, String text, boolean html) {
         if (!StringUtils.hasText(toAddresses)) {
             log.warn("未配置告警邮箱，跳过邮件发送");
             return false;
@@ -52,7 +63,7 @@ public class AlertMailService {
             helper.setFrom(from);
             helper.setTo(to);
             helper.setSubject(subject);
-            helper.setText(text, false);
+            helper.setText(text, html);
             log.info(
                     "SMTP 发送邮件: host={} port={} ssl={} tls={} from={} toCount={} subject={} bodyChars={}",
                     config.getSmtpHost(),
