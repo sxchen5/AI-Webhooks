@@ -33,7 +33,13 @@
           <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" min-width="120" align="right">
+      <el-table-column
+        label="操作"
+        class-name="col-actions"
+        header-cell-class-name="col-actions"
+        align="left"
+        header-align="left"
+      >
         <template #default="{ row }">
           <el-button type="primary" link @click="openEdit(row)">{{ t('agentModels.edit') }}</el-button>
           <el-button type="danger" link @click="onDelete(row)">{{ t('agentModels.delete') }}</el-button>

@@ -30,7 +30,6 @@
       <el-scrollbar
         ref="scrollbarRef"
         class="chat-scroll chat-scroll--grow"
-        :class="{ 'chat-scroll--toc-pad': project }"
         wrap-class="git-qa-scroll-wrap"
         @scroll="onScrollWrap"
       >
@@ -153,10 +152,11 @@
       </div>
     </el-scrollbar>
 
-      <div v-if="project" class="toc-float">
-        <div class="toc-panel">
+      <div v-if="project" class="toc-float" :class="{ 'toc-float--collapsed': !tocOpen }">
+        <div v-if="tocOpen" class="toc-panel">
           <div class="toc-panel-header">
             <span class="toc-title">{{ t('gitQaChat.outline') }}</span>
+            <el-button text type="primary" size="small" @click="tocOpen = false">{{ t('gitQaChat.outlineClose') }}</el-button>
           </div>
           <div v-if="!tocItems.length" class="toc-empty">{{ t('gitQaChat.noOutline') }}</div>
           <nav v-else class="toc-nav" :aria-label="t('gitQaChat.outline')">
@@ -173,6 +173,9 @@
             </button>
           </nav>
         </div>
+        <button v-else type="button" class="toc-reopen" @click="tocOpen = true" :title="t('gitQaChat.outlineOpen')">
+          {{ t('gitQaChat.outline') }}
+        </button>
       </div>
     </div>
 
@@ -212,6 +215,7 @@
           </div>
           <div class="composer-textarea-stack">
             <el-input
+              ref="composerDraftRef"
               v-model="draft"
               type="textarea"
               :rows="2"
@@ -275,7 +279,7 @@
 </template>
 
 <script setup>
-import { computed, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, unref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
@@ -376,6 +380,7 @@ const prefs = usePreferencesStore()
 const project = ref(null)
 const messages = ref([])
 const draft = ref('')
+const composerDraftRef = ref(null)
 const fileInputRef = ref(null)
 const pendingFiles = ref([])
 let pendingFileSeq = 0
@@ -484,6 +489,22 @@ function stopReply() {
   abortCtrl?.abort()
 }
 
+function applyDraftFromSpeech(text) {
+  draft.value = text
+  nextTick(() => {
+    const inst = composerDraftRef.value
+    if (!inst) return
+    let ta = unref(inst.textarea)
+    if (!ta && inst.$el) {
+      ta = inst.$el.querySelector('textarea')
+    }
+    if (ta && ta instanceof HTMLTextAreaElement) {
+      if (ta.value !== text) ta.value = text
+      if (typeof inst.resizeTextarea === 'function') inst.resizeTextarea()
+    }
+  })
+}
+
 function toggleVoiceInput() {
   const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)
   if (!SR) {
@@ -515,7 +536,7 @@ function toggleVoiceInput() {
       else interims += piece
     }
     const merged = voiceSessionPrefix.value + finals + interims
-    draft.value = merged
+    applyDraftFromSpeech(merged)
   }
   speechRec.onerror = () => {
     isRecording.value = false
@@ -558,6 +579,7 @@ const msgBlockRefs = new Map()
 const assistantRendered = reactive({})
 const activeAssistantKey = ref('')
 const activeTocId = ref('')
+const tocOpen = ref(true)
 
 function messageAnchorKey(m) {
   if (m?.clientKey) return String(m.clientKey)
@@ -1351,10 +1373,6 @@ onBeforeUnmount(() => {
 .chat-scroll--grow {
   min-height: 0;
 }
-.chat-scroll--toc-pad :deep(.git-qa-scroll-wrap) {
-  padding-right: 25px;
-  box-sizing: border-box;
-}
 .chat-scroll {
   flex: 1;
   min-height: 0;
@@ -1586,6 +1604,9 @@ onBeforeUnmount(() => {
 .toc-float > * {
   pointer-events: auto;
 }
+.toc-float--collapsed {
+  width: auto;
+}
 .toc-panel {
   max-height: min(70vh, calc(100vh - 200px));
   width: 100%;
@@ -1604,7 +1625,7 @@ onBeforeUnmount(() => {
 .toc-panel-header {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
   gap: 6px;
   padding: 8px 2px 6px;
   border-bottom: 1px solid var(--chat-header-border);
@@ -1649,6 +1670,24 @@ onBeforeUnmount(() => {
   color: var(--el-color-primary, #409eff);
   font-weight: 600;
   background: rgba(64, 158, 255, 0.1);
+}
+.toc-reopen {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  padding: 12px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--chat-border);
+  background: transparent;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--el-color-primary, #409eff);
+}
+.chat-page--dark .toc-reopen {
+  border-color: var(--el-border-color, #303030);
 }
 .thinking-row {
   display: flex;

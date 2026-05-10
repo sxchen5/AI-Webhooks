@@ -49,10 +49,13 @@
     row-gap: 6px;
   }
 
-  /* 操作列：链接按钮换行，避免占满整行导致其它列不可见 */
-  .page-card .el-table .el-table__body .el-table__cell .cell {
+  /* 操作列：保持不换行；其它列允许换行 */
+  .page-card .el-table .el-table__body .el-table__cell:not(.col-actions) .cell {
     white-space: normal;
     word-break: break-word;
+  }
+  .page-card .el-table td.col-actions .cell {
+    white-space: nowrap;
   }
   .page-card .el-table .el-button.is-link {
     padding: 2px 4px;

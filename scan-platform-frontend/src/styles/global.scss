@@ -51,3 +51,10 @@ html.dark body,
 html.dark #app {
   background: var(--sp-page-bg);
 }
+
+/* 列表「操作」列：左对齐，宽度随按钮内容收缩（与 data 列同左对齐） */
+.page-card .el-table th.col-actions.el-table__cell,
+.page-card .el-table td.col-actions.el-table__cell {
+  width: 1%;
+  white-space: nowrap;
+}
