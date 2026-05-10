@@ -17,8 +17,10 @@
       </div>
     </template>
     <p class="tip">
-      与仓库内 <code>.cursor/skills/&lt;技能名&gt;/SKILL.md</code> 同名时，<strong>每次扫描前</strong>由平台写入工作区，<strong>覆盖仓库文件</strong>，优先级最高；未在平台配置时仍使用仓库自带技能。
-      「扫描技能名」须与下方「技能名」一致。进入页面后请点击<strong>查询</strong>加载列表。
+      与仓库内 <code>.cursor/skills/&lt;技能名&gt;/</code> 同名时，<strong>每次扫描前</strong>由平台<strong>整目录覆盖写入</strong>（含
+      <code>SKILL.md</code> 及子目录下附加文件），优先级最高；须包含根路径
+      <code>SKILL.md</code>。可从本机<strong>选择技能文件夹一键导入</strong>（推荐），或上传多个文件 / 导入 JSON。
+      进入页面后请点击<strong>查询</strong>加载列表。
     </p>
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column prop="id" label="ID" width="70" />
@@ -56,6 +58,7 @@
         <el-descriptions-item label="ID">{{ detail.id }}</el-descriptions-item>
         <el-descriptions-item label="技能名">{{ detail.skillName }}</el-descriptions-item>
         <el-descriptions-item label="说明">{{ detail.description || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="文件数">{{ detail.files?.length ?? 0 }}</el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="detail.status === 1 ? 'success' : 'info'">{{ detail.status === 1 ? '启用' : '禁用' }}</el-tag>
         </el-descriptions-item>
@@ -63,52 +66,71 @@
         <el-descriptions-item label="更新时间">{{ formatBackendDateTime(detail.updateTime) }}</el-descriptions-item>
       </el-descriptions>
       <h4>SKILL.md 预览</h4>
-      <MarkdownPreview :source="detail.skillBody || ''" />
+      <MarkdownPreview :source="primarySkillMd(detail.files)" />
+      <template v-if="(detail.files || []).length > 1">
+        <h4>其它文件</h4>
+        <el-table :data="nonPrimaryFiles(detail.files)" size="small" border max-height="280">
+          <el-table-column prop="path" label="路径" min-width="200" />
+          <el-table-column label="大小" width="100">
+            <template #default="{ row }">{{ (row.content || '').length }} 字</template>
+          </el-table-column>
+        </el-table>
+      </template>
     </template>
   </el-drawer>
 
   <el-dialog v-model="dialogVisible" :title="dialogTitle" width="92%" top="4vh" class="skill-dialog" destroy-on-close>
     <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
       <el-form-item label="技能名" prop="skillName">
-        <el-input v-model="form.skillName" maxlength="128" placeholder="仅字母数字及 ._-，与 SKILL 目录名一致" :disabled="isEdit" />
+        <el-input
+          v-model="form.skillName"
+          maxlength="128"
+          placeholder="仅字母数字及 ._-，与 .cursor/skills 下目录名一致"
+          :disabled="isEdit"
+        />
       </el-form-item>
       <el-form-item label="说明" prop="description">
         <el-input v-model="form.description" maxlength="500" placeholder="列表展示用" />
       </el-form-item>
-      <el-form-item label="SKILL.md" prop="skillBody">
-        <div class="skill-toolbar">
-          <el-radio-group v-model="skillBodyViewMode" size="small">
-            <el-radio-button label="edit">编辑</el-radio-button>
-            <el-radio-button label="split">编辑+预览</el-radio-button>
-            <el-radio-button label="preview">预览</el-radio-button>
-          </el-radio-group>
-          <div class="skill-actions">
-            <el-button size="small" @click="copySkillBody">复制</el-button>
-            <el-button size="small" @click="downloadSkillMd">下载 SKILL.md</el-button>
-          </div>
+      <el-form-item label="技能文件" prop="files">
+        <div class="files-toolbar">
+          <el-button type="primary" size="small" @click="addEmptyFile">添加文件</el-button>
+          <el-button type="success" size="small" @click="triggerDirImport">从本地目录一键导入</el-button>
+          <el-button size="small" @click="triggerFileImport">上传文件</el-button>
+          <el-button size="small" @click="triggerJsonImport">导入 JSON</el-button>
+          <el-button size="small" @click="exportJsonBundle">导出 JSON</el-button>
         </div>
-        <p class="field-hint">正文为 Markdown；预览与下发扫描日志中的预览使用相同渲染规则。</p>
-        <div v-if="skillBodyViewMode === 'edit'" class="skill-body-block">
-          <el-input
-            v-model="form.skillBody"
-            type="textarea"
-            :rows="22"
-            placeholder="粘贴完整 SKILL.md（含 YAML frontmatter 的 --- name / description ---）"
-          />
-        </div>
-        <div v-else-if="skillBodyViewMode === 'split'" class="skill-split">
-          <el-input
-            v-model="form.skillBody"
-            type="textarea"
-            :rows="20"
-            class="split-editor"
-            placeholder="左侧编辑，右侧实时预览"
-          />
-          <MarkdownPreview class="split-preview" :source="form.skillBody" />
-        </div>
-        <div v-else class="skill-body-block">
-          <MarkdownPreview :source="form.skillBody" />
-        </div>
+        <p class="field-hint">
+          路径为相对技能根目录的正斜杠形式（如 <code>SKILL.md</code>、<code>refs/rule.md</code>）。目录导入会合并同名路径；须包含
+          <code>SKILL.md</code> 且内容非空。
+        </p>
+        <el-table :data="form.files" border size="small" class="files-table" max-height="360">
+          <el-table-column label="路径" min-width="220">
+            <template #default="{ row, $index }">
+              <el-input v-model="row.path" size="small" placeholder="相对路径" @change="syncPrimaryCase($index)" />
+            </template>
+          </el-table-column>
+          <el-table-column label="字数" width="90">
+            <template #default="{ row }">{{ (row.content || '').length }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="160" fixed="right">
+            <template #default="{ $index }">
+              <el-button type="primary" link size="small" @click="openFileEditor($index)">编辑内容</el-button>
+              <el-button
+                type="danger"
+                link
+                size="small"
+                :disabled="isOnlySkillMd(form.files, $index)"
+                @click="removeFileRow($index)"
+              >
+                删除
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+        <input ref="dirImportRef" type="file" class="visually-hidden" webkitdirectory multiple @change="onDirectoryPicked" />
+        <input ref="fileImportRef" type="file" class="visually-hidden" multiple @change="onMultiFilesPicked" />
+        <input ref="jsonImportRef" type="file" class="visually-hidden" accept="application/json,.json" @change="onJsonPicked" />
       </el-form-item>
       <el-form-item label="状态" prop="status">
         <el-radio-group v-model="form.status">
@@ -120,6 +142,14 @@
     <template #footer>
       <el-button @click="dialogVisible = false">取消</el-button>
       <el-button type="primary" :loading="saving" @click="saveDialog">保存</el-button>
+    </template>
+  </el-dialog>
+
+  <el-dialog v-model="fileEditorVisible" :title="`编辑：${editingPath}`" width="80%" top="6vh" destroy-on-close>
+    <el-input v-model="editingContent" type="textarea" :rows="22" class="file-editor-ta" placeholder="文件 UTF-8 文本内容" />
+    <template #footer>
+      <el-button @click="fileEditorVisible = false">取消</el-button>
+      <el-button type="primary" @click="applyFileEditor">确定</el-button>
     </template>
   </el-dialog>
 </template>
@@ -137,7 +167,15 @@ import {
 } from '@/api/platformSkill'
 import { formatBackendDateTime } from '@/utils/formatTime'
 
-const skillBodyViewMode = ref('edit')
+const DEFAULT_SKILL_MD = `---
+name: my-scan-skill
+description: 示例：按需修改 name 与正文
+---
+
+# 扫描说明
+
+在此编写技能正文…
+`
 
 const loading = ref(false)
 const tableData = ref([])
@@ -160,13 +198,43 @@ const form = reactive({
   id: null,
   skillName: '',
   description: '',
-  skillBody: '',
+  files: [],
   status: 1,
 })
 
+const dirImportRef = ref(null)
+const fileImportRef = ref(null)
+const jsonImportRef = ref(null)
+
+const fileEditorVisible = ref(false)
+const editingIndex = ref(-1)
+const editingPath = ref('')
+const editingContent = ref('')
+
 const rules = {
   skillName: [{ required: true, message: '必填', trigger: 'blur' }],
-  skillBody: [{ required: true, message: '必填', trigger: 'blur' }],
+  files: [
+    {
+      validator: (_rule, _val, callback) => {
+        const list = normalizeFilesForPayload(form.files)
+        if (!list.length) {
+          callback(new Error('至少保留一个文件'))
+          return
+        }
+        const primary = list.find((f) => f.path === 'SKILL.md')
+        if (!primary) {
+          callback(new Error('必须包含 SKILL.md'))
+          return
+        }
+        if (!String(primary.content || '').trim()) {
+          callback(new Error('SKILL.md 内容不能为空'))
+          return
+        }
+        callback()
+      },
+      trigger: 'change',
+    },
+  ],
 }
 
 const dialogTitle = computed(() => {
@@ -174,6 +242,15 @@ const dialogTitle = computed(() => {
   if (isCopy.value) return '复制平台技能'
   return '新建平台技能'
 })
+
+function primarySkillMd(files) {
+  const p = (files || []).find((f) => (f.path || '').toLowerCase() === 'skill.md')
+  return p?.content || ''
+}
+
+function nonPrimaryFiles(files) {
+  return (files || []).filter((f) => (f.path || '').toLowerCase() !== 'skill.md')
+}
 
 function runSearch() {
   keywordFilter.value = keywordDraft.value?.trim() || ''
@@ -199,21 +276,66 @@ async function load() {
   }
 }
 
+function normalizeFilesForPayload(files) {
+  const map = new Map()
+  for (const f of files || []) {
+    let p = (f.path || '').trim().replace(/\\/g, '/').replace(/^\/+/, '')
+    if (!p) continue
+    if (p.toLowerCase() === 'skill.md') p = 'SKILL.md'
+    map.set(p, f.content ?? '')
+  }
+  return Array.from(map.entries()).map(([path, content]) => ({ path, content }))
+}
+
+function upsertFile(path, content) {
+  const p = path.trim().replace(/\\/g, '/').replace(/^\/+/, '')
+  if (!p) return
+  const norm = p.toLowerCase() === 'skill.md' ? 'SKILL.md' : p
+  const idx = form.files.findIndex((x) => (x.path || '').replace(/\\/g, '/').replace(/^\/+/, '') === norm)
+  if (idx >= 0) {
+    form.files[idx] = { path: norm, content: content ?? '' }
+  } else {
+    form.files.push({ path: norm, content: content ?? '' })
+  }
+}
+
+function commonDirPrefix(paths) {
+  if (!paths.length) return ''
+  const parts = paths.map((p) => p.split('/').filter(Boolean))
+  const minLen = Math.min(...parts.map((a) => a.length))
+  const prefix = []
+  for (let i = 0; i < minLen; i++) {
+    const seg = parts[0][i]
+    if (parts.every((p) => p[i] === seg)) prefix.push(seg)
+    else break
+  }
+  return prefix.join('/')
+}
+
+function stripPrefix(path, prefix) {
+  if (!prefix) return path.replace(/\\/g, '/').replace(/^\/+/, '')
+  const n = path.replace(/\\/g, '/').replace(/^\/+/, '')
+  const pref = prefix.replace(/\\/g, '/').replace(/\/+$/, '')
+  if (n === pref) return ''
+  if (n.startsWith(pref + '/')) return n.slice(pref.length + 1)
+  return n
+}
+
+function shouldSkipImportPath(rel) {
+  if (!rel) return true
+  const lower = rel.toLowerCase()
+  if (lower.includes('/.git/') || lower.endsWith('/.git')) return true
+  if (lower.includes('__macosx/')) return true
+  if (lower.endsWith('.ds_store')) return true
+  return false
+}
+
 function resetForm() {
   form.id = null
   form.skillName = ''
   form.description = ''
-  form.skillBody = `---
-name: my-scan-skill
-description: 示例：按需修改 name 与正文
----
-
-# 扫描说明
-
-在此编写技能正文…
-`
+  form.files = [{ path: 'SKILL.md', content: DEFAULT_SKILL_MD }]
   form.status = 1
-  skillBodyViewMode.value = 'edit'
 }
 
 function openCreate() {
@@ -228,42 +350,51 @@ async function openDetail(row) {
   detailVisible.value = true
 }
 
-function openEdit(row) {
+async function openEdit(row) {
   isEdit.value = true
   isCopy.value = false
-  Object.assign(form, {
-    id: row.id,
-    skillName: row.skillName,
-    description: row.description || '',
-    skillBody: row.skillBody || '',
-    status: row.status,
-  })
-  skillBodyViewMode.value = 'edit'
+  await loadFormFromRow(row.id)
+}
+
+async function openCopy(row) {
+  isEdit.value = false
+  isCopy.value = true
+  await loadFormFromCopy(row)
+}
+
+async function loadFormFromRow(id) {
+  const d = await getPlatformSkill(id)
+  form.id = d.id
+  form.skillName = d.skillName
+  form.description = d.description || ''
+  form.files = (d.files || []).map((f) => ({ path: f.path, content: f.content ?? '' }))
+  form.status = d.status
   dialogVisible.value = true
 }
 
-function openCopy(row) {
-  isEdit.value = false
-  isCopy.value = true
-  Object.assign(form, {
-    id: null,
-    skillName: `${row.skillName}-copy`,
-    description: row.description || '',
-    skillBody: row.skillBody || '',
-    status: row.status,
-  })
-  skillBodyViewMode.value = 'edit'
+async function loadFormFromCopy(row) {
+  const d = await getPlatformSkill(row.id)
+  form.id = null
+  form.skillName = `${d.skillName}-copy`
+  form.description = d.description || ''
+  form.files = (d.files || []).map((f) => ({ path: f.path, content: f.content ?? '' }))
+  form.status = d.status
   dialogVisible.value = true
 }
 
 async function saveDialog() {
   await formRef.value.validate()
+  const files = normalizeFilesForPayload(form.files)
+  if (!files.find((f) => f.path === 'SKILL.md')) {
+    ElMessage.warning('必须包含 SKILL.md')
+    return
+  }
   saving.value = true
   try {
     const payload = {
       skillName: form.skillName.trim(),
       description: form.description?.trim() || null,
-      skillBody: form.skillBody.trim(),
+      files,
       status: form.status,
     }
     if (isEdit.value) {
@@ -284,26 +415,165 @@ async function saveDialog() {
   }
 }
 
-async function copySkillBody() {
-  const t = form.skillBody ?? ''
+async function addEmptyFile() {
   try {
-    await navigator.clipboard.writeText(t)
-    ElMessage.success('已复制 SKILL.md 原文')
+    const { value } = await ElMessageBox.prompt('相对路径（如 scripts/check.sh）', '添加文件', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      inputPlaceholder: 'refs/notes.md',
+    })
+    const p = (value || '').trim().replace(/\\/g, '/').replace(/^\/+/, '')
+    if (!p) return
+    upsertFile(p, '')
+    ElMessage.success('已添加，请点击「编辑内容」填写')
   } catch {
-    ElMessage.error('复制失败，请手动选中编辑区文本复制')
+    /* cancel */
   }
 }
 
-function downloadSkillMd() {
-  const name = (form.skillName || 'SKILL').trim().replace(/[/\\?%*:|"<>]/g, '_') || 'SKILL'
-  const blob = new Blob([form.skillBody ?? ''], { type: 'text/markdown;charset=utf-8' })
+function triggerDirImport() {
+  dirImportRef.value?.click()
+}
+
+function triggerFileImport() {
+  fileImportRef.value?.click()
+}
+
+function triggerJsonImport() {
+  jsonImportRef.value?.click()
+}
+
+async function onDirectoryPicked(ev) {
+  const list = ev.target.files
+  ev.target.value = ''
+  if (!list?.length) return
+  const paths = []
+  for (const f of list) {
+    const rel = f.webkitRelativePath || f.name
+    if (shouldSkipImportPath(rel)) continue
+    paths.push(rel.replace(/\\/g, '/'))
+  }
+  const prefix = commonDirPrefix(paths)
+  let count = 0
+  for (const f of list) {
+    const rel = f.webkitRelativePath || f.name
+    if (shouldSkipImportPath(rel)) continue
+    const relNorm = rel.replace(/\\/g, '/')
+    const shortPath = stripPrefix(relNorm, prefix)
+    if (!shortPath || shouldSkipImportPath(shortPath)) continue
+    try {
+      const text = await f.text()
+      upsertFile(shortPath, text)
+      count++
+    } catch {
+      ElMessage.warning(`无法读取为文本，已跳过: ${shortPath}`)
+    }
+  }
+  ElMessage.success(`已导入 ${count} 个文件${prefix ? `（已去掉公共前缀「${prefix}」）` : ''}`)
+}
+
+async function onMultiFilesPicked(ev) {
+  const list = ev.target.files
+  ev.target.value = ''
+  if (!list?.length) return
+  let n = 0
+  for (const f of list) {
+    const name = (f.name || '').replace(/\\/g, '/').replace(/^\/+/, '')
+    if (!name || shouldSkipImportPath(name)) continue
+    try {
+      const text = await f.text()
+      upsertFile(name, text)
+      n++
+    } catch {
+      ElMessage.warning(`跳过: ${name}`)
+    }
+  }
+  ElMessage.success(`已导入 ${n} 个文件`)
+}
+
+async function onJsonPicked(ev) {
+  const file = ev.target.files?.[0]
+  ev.target.value = ''
+  if (!file) return
+  try {
+    const text = await file.text()
+    const data = JSON.parse(text)
+    let arr = null
+    if (Array.isArray(data)) arr = data
+    else if (data && Array.isArray(data.files)) arr = data.files
+    if (!arr) {
+      ElMessage.error('JSON 格式应为 { "files": [ { "path", "content" } ] } 或文件数组')
+      return
+    }
+    let n = 0
+    for (const item of arr) {
+      if (!item || !item.path) continue
+      upsertFile(String(item.path), item.content != null ? String(item.content) : '')
+      n++
+    }
+    ElMessage.success(`已从 JSON 合并 ${n} 个文件`)
+  } catch (e) {
+    ElMessage.error(`JSON 解析失败: ${e.message || e}`)
+  }
+}
+
+function exportJsonBundle() {
+  const files = normalizeFilesForPayload(form.files)
+  const bundle = {
+    skillName: form.skillName || '',
+    description: form.description || '',
+    files,
+  }
+  const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `${name}.md`
+  const base = (form.skillName || 'platform-skill').replace(/[/\\?%*:|"<>]/g, '_') || 'platform-skill'
+  a.download = `${base}-bundle.json`
   a.click()
   URL.revokeObjectURL(url)
-  ElMessage.success('已开始下载')
+  ElMessage.success('已开始下载 JSON')
+}
+
+function openFileEditor(index) {
+  const row = form.files[index]
+  if (!row) return
+  editingIndex.value = index
+  editingPath.value = row.path || ''
+  editingContent.value = row.content ?? ''
+  fileEditorVisible.value = true
+}
+
+function applyFileEditor() {
+  const i = editingIndex.value
+  if (i < 0 || !form.files[i]) {
+    fileEditorVisible.value = false
+    return
+  }
+  form.files[i].content = editingContent.value
+  fileEditorVisible.value = false
+}
+
+function removeFileRow(index) {
+  form.files.splice(index, 1)
+  if (!form.files.length) {
+    form.files.push({ path: 'SKILL.md', content: DEFAULT_SKILL_MD })
+  }
+}
+
+function isOnlySkillMd(files, index) {
+  const row = files[index]
+  if (!row) return false
+  if ((row.path || '').toLowerCase() !== 'skill.md') return false
+  return files.length === 1
+}
+
+function syncPrimaryCase(index) {
+  const row = form.files[index]
+  if (!row) return
+  if ((row.path || '').trim().toLowerCase() === 'skill.md') {
+    row.path = 'SKILL.md'
+  }
 }
 
 async function onDelete(row) {
@@ -316,7 +586,6 @@ async function onDelete(row) {
     await load()
   }
 }
-
 </script>
 
 <style scoped lang="scss">
@@ -357,17 +626,11 @@ async function onDelete(row) {
 h4 {
   margin: 16px 0 8px;
 }
-.skill-toolbar {
+.files-toolbar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 6px;
-}
-.skill-actions {
-  display: flex;
   gap: 8px;
+  margin-bottom: 6px;
 }
 .field-hint {
   margin: 0 0 8px;
@@ -375,29 +638,20 @@ h4 {
   color: #909399;
   line-height: 1.4;
 }
-.skill-body-block {
+.files-table {
   width: 100%;
 }
-.skill-split {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  align-items: stretch;
-  min-height: 360px;
+.visually-hidden {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+  z-index: -1;
 }
-@media (max-width: 900px) {
-  .skill-split {
-    grid-template-columns: 1fr;
-  }
-}
-.split-editor :deep(.el-textarea__inner) {
+.file-editor-ta :deep(.el-textarea__inner) {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 13px;
-  min-height: 360px;
-}
-.split-preview {
-  min-height: 360px;
-  max-height: 70vh;
 }
 </style>
 

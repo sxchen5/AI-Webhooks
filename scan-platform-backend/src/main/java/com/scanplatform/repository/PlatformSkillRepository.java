@@ -16,7 +16,9 @@ public interface PlatformSkillRepository extends JpaRepository<PlatformSkill, Lo
     @Query(
             "SELECT s FROM PlatformSkill s WHERE "
                     + "LOWER(s.skillName) LIKE LOWER(CONCAT('%', :kw, '%')) OR "
-                    + "LOWER(COALESCE(s.description, '')) LIKE LOWER(CONCAT('%', :kw, '%'))")
+                    + "LOWER(COALESCE(s.description, '')) LIKE LOWER(CONCAT('%', :kw, '%')) OR "
+                    + "LOWER(COALESCE(s.skillBody, '')) LIKE LOWER(CONCAT('%', :kw, '%')) OR "
+                    + "LOWER(COALESCE(s.skillFilesJson, '')) LIKE LOWER(CONCAT('%', :kw, '%'))")
     Page<PlatformSkill> pageByKeyword(@Param("kw") String kw, Pageable pageable);
 
     Optional<PlatformSkill> findBySkillNameAndStatus(String skillName, Integer status);

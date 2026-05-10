@@ -1,6 +1,7 @@
 package com.scanplatform.web;
 
 import com.scanplatform.common.ApiResponse;
+import com.scanplatform.dto.PlatformSkillDetailDto;
 import com.scanplatform.dto.PlatformSkillDto;
 import com.scanplatform.dto.PlatformSkillOptionDto;
 import com.scanplatform.entity.PlatformSkill;
@@ -36,17 +37,17 @@ public class PlatformSkillController {
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<PlatformSkill> get(@PathVariable Long id) {
-        return ApiResponse.ok(service.get(id));
+    public ApiResponse<PlatformSkillDetailDto> get(@PathVariable Long id) {
+        return ApiResponse.ok(service.getDetail(id));
     }
 
     @PostMapping
-    public ApiResponse<PlatformSkill> create(@Valid @RequestBody PlatformSkillDto dto) {
+    public ApiResponse<PlatformSkillDetailDto> create(@Valid @RequestBody PlatformSkillDto dto) {
         return ApiResponse.ok(service.create(dto));
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<PlatformSkill> update(@PathVariable Long id, @Valid @RequestBody PlatformSkillDto dto) {
+    public ApiResponse<PlatformSkillDetailDto> update(@PathVariable Long id, @Valid @RequestBody PlatformSkillDto dto) {
         return ApiResponse.ok(service.update(id, dto));
     }
 

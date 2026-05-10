@@ -1,9 +1,12 @@
 package com.scanplatform.service;
 
+import com.scanplatform.dto.PlatformSkillDetailDto;
 import com.scanplatform.dto.PlatformSkillDto;
+import com.scanplatform.dto.PlatformSkillFileDto;
 import com.scanplatform.dto.PlatformSkillOptionDto;
 import com.scanplatform.entity.PlatformSkill;
 import com.scanplatform.repository.PlatformSkillRepository;
+import com.scanplatform.util.PlatformSkillPayloadCodec;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -31,7 +34,6 @@ public class PlatformSkillService {
         return repository.pageByKeyword(kw, pageable);
     }
 
-    /** 启用中的平台技能，供前端下拉 */
     @Transactional(readOnly = true)
     public List<PlatformSkillOptionDto> listEnabledOptions() {
         return repository.findByStatusOrderBySkillNameAsc(1).stream()
@@ -44,8 +46,13 @@ public class PlatformSkillService {
         return repository.findById(id).orElseThrow(() -> new IllegalArgumentException("技能不存在"));
     }
 
+    @Transactional(readOnly = true)
+    public PlatformSkillDetailDto getDetail(Long id) {
+        return toDetail(get(id));
+    }
+
     @Transactional
-    public PlatformSkill create(PlatformSkillDto dto) {
+    public PlatformSkillDetailDto create(PlatformSkillDto dto) {
         String name = dto.getSkillName().trim();
         validateSkillName(name);
         if (repository.existsBySkillName(name)) {
@@ -53,11 +60,12 @@ public class PlatformSkillService {
         }
         PlatformSkill e = new PlatformSkill();
         apply(dto, e, name);
-        return repository.save(e);
+        e = repository.save(e);
+        return toDetail(e);
     }
 
     @Transactional
-    public PlatformSkill update(Long id, PlatformSkillDto dto) {
+    public PlatformSkillDetailDto update(Long id, PlatformSkillDto dto) {
         PlatformSkill e = get(id);
         String name = dto.getSkillName().trim();
         validateSkillName(name);
@@ -65,7 +73,8 @@ public class PlatformSkillService {
             throw new IllegalArgumentException("技能名已被占用");
         }
         apply(dto, e, name);
-        return repository.save(e);
+        e = repository.save(e);
+        return toDetail(e);
     }
 
     @Transactional
@@ -83,7 +92,33 @@ public class PlatformSkillService {
     private void apply(PlatformSkillDto dto, PlatformSkill e, String name) {
         e.setSkillName(name);
         e.setDescription(StringUtils.hasText(dto.getDescription()) ? dto.getDescription().trim() : null);
-        e.setSkillBody(dto.getSkillBody().trim());
         e.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
+
+        List<PlatformSkillFileDto> normalized;
+        if (dto.getFiles() != null && !dto.getFiles().isEmpty()) {
+            normalized = PlatformSkillPayloadCodec.normalize(dto.getFiles());
+        } else if (StringUtils.hasText(dto.getSkillBody())) {
+            normalized =
+                    List.of(
+                            new PlatformSkillFileDto(
+                                    PlatformSkillPayloadCodec.PRIMARY_FILE, dto.getSkillBody().trim()));
+        } else {
+            throw new IllegalArgumentException("请配置文件列表或填写 SKILL.md 正文");
+        }
+        PlatformSkillPayloadCodec.validate(normalized);
+        e.setSkillFilesJson(PlatformSkillPayloadCodec.encode(normalized));
+        e.setSkillBody(PlatformSkillPayloadCodec.extractPrimaryContent(normalized));
+    }
+
+    private static PlatformSkillDetailDto toDetail(PlatformSkill e) {
+        PlatformSkillDetailDto d = new PlatformSkillDetailDto();
+        d.setId(e.getId());
+        d.setSkillName(e.getSkillName());
+        d.setDescription(e.getDescription());
+        d.setFiles(PlatformSkillPayloadCodec.decode(e.getSkillFilesJson(), e.getSkillBody()));
+        d.setStatus(e.getStatus());
+        d.setCreateTime(e.getCreateTime());
+        d.setUpdateTime(e.getUpdateTime());
+        return d;
     }
 }
