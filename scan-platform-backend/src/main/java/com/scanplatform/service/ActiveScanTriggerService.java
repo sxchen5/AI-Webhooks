@@ -55,7 +55,14 @@ public class ActiveScanTriggerService {
         row = logRepository.save(row);
 
         asyncExecutor.executeAsync(row.getId());
-        log.info("主动扫描已触发: logId={} jobId={} trigger={}", row.getId(), jobId, triggerType);
+        log.info(
+                "主动扫描已触发: logId={} jobId={} trigger={} repoId={} notifyOnSuccess={} notifyOnFailure={}",
+                row.getId(),
+                jobId,
+                triggerType,
+                repo.getId(),
+                job.getNotifyOnSuccess(),
+                job.getNotifyOnFailure());
         return row.getId();
     }
 }
