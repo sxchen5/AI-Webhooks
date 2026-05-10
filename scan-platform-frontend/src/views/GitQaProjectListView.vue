@@ -19,7 +19,7 @@
     <p class="tip">
       配置机器人名称与 Git 克隆；对话时在工作区执行与「Agent CLI」一致的命令：<strong>Cursor</strong> 使用
       <code>agent --print -f</code> + <code>--output-format stream-json</code>；<strong>Claude Code</strong> 使用
-      <code>claude --print</code> + <code>--output-format stream-json --verbose</code>。可选平台技能或自定义 Agent。保存后点「AI问答」进入对话。进入页面后请点击<strong>查询</strong>加载列表。
+      <code>claude --print</code> + <code>--output-format stream-json --verbose</code>。保存后点「AI问答」进入对话。进入页面后请点击<strong>查询</strong>加载列表。
     </p>
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column prop="id" label="ID" width="70" />
@@ -136,7 +136,6 @@
           <el-radio label="CLAUDE">Claude Code（claude）</el-radio>
         </el-radio-group>
       </el-form-item>
-      <el-divider content-position="left">可选：技能或自定义 Agent</el-divider>
       <el-form-item label="扫描技能">
         <el-select
           v-model="form.scanSkillName"
