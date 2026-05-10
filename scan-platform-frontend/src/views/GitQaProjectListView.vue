@@ -365,9 +365,6 @@ async function saveDialog() {
       gitPassword: form.gitPassword || null,
       branch: form.branch || 'main',
       localClonePath: form.localClonePath || null,
-      agentCommand: '',
-      scanSkillName: null,
-      scanSkillPrompt: null,
       agentCli: form.agentCli || 'CURSOR',
       status: form.status,
     }

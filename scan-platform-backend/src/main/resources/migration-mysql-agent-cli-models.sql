@@ -19,7 +19,7 @@ ALTER TABLE active_scan_job
     ADD COLUMN agent_cli VARCHAR(16) NULL COMMENT '覆盖仓库 CLI' AFTER agent_model;
 
 ALTER TABLE git_qa_project
-    ADD COLUMN agent_cli VARCHAR(16) NOT NULL DEFAULT 'CURSOR' COMMENT 'CURSOR 或 CLAUDE' AFTER scan_skill_prompt;
+    ADD COLUMN agent_cli VARCHAR(16) NOT NULL DEFAULT 'CURSOR' COMMENT 'CURSOR 或 CLAUDE' AFTER local_clone_path;
 
 INSERT IGNORE INTO agent_model_option (cli_kind, model_key, display_label, sort_order, status) VALUES
 ('CURSOR', 'auto', 'auto', 0, 1),

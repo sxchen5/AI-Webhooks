@@ -138,27 +138,6 @@ public class AgentCommandBuilder {
         return agentModelCatalogService.appendModelFlag(cli, cmd, model);
     }
 
-    /** Git 项目 AI 问答 */
-    public String resolveGitQaCommand(com.scanplatform.entity.GitQaProject qp,
-                                       String workPath, String branch, String commit, String userQuestion) throws IOException {
-        AgentCliKind cli = AgentCliKind.fromDb(qp.getAgentCli());
-        Path dir = Path.of(workPath).toAbsolutePath().normalize();
-        String skill = StringUtils.hasText(qp.getScanSkillName()) ? qp.getScanSkillName().trim() : null;
-        String prompt = qp.getScanSkillPrompt();
-        String label = StringUtils.hasText(qp.getBotName()) ? qp.getBotName().trim() : "Git问答";
-        String cmd;
-        if (StringUtils.hasText(skill)) {
-            cmd = appendStreamJsonIfAbsent(cli, buildSkillAgentCommand(dir, branch, commit, label, skill, prompt, userQuestion, cli));
-        } else {
-            String template = qp.getAgentCommand();
-            cmd = appendStreamJsonIfAbsent(
-                    cli,
-                    AgentCommandUtil.buildCommand(template, dir.toString(), branch, commit, userQuestion != null ? userQuestion : ""));
-        }
-        cmd = AgentCliRewriter.adaptExecutable(cmd, cli);
-        return cmd;
-    }
-
     private static AgentCliKind resolveCliForJob(ActiveScanJob job, ActiveScanRepo repo) {
         if (StringUtils.hasText(job.getAgentCli())) {
             return AgentCliKind.fromDb(job.getAgentCli());

@@ -118,7 +118,7 @@ public class GitQaProjectService {
 
         String cmd;
         try {
-            cmd = resolveChatShellCommand(qp, workPath, branch, commit, req.getQuestion(), req.getModel());
+            cmd = resolveChatShellCommand(qp, req.getQuestion(), req.getModel());
         } catch (Exception e) {
             if (!regenerate) {
                 gitQaChatMessageService.delete(id, userMessageId);
@@ -273,20 +273,8 @@ public class GitQaProjectService {
         return s.substring(s.length() - max);
     }
 
-    private String resolveChatShellCommand(GitQaProject qp, String workPath, String branch, String commit,
-                                            String question, String modelRaw)
-            throws Exception {
-        String base;
-        if (StringUtils.hasText(qp.getScanSkillName())) {
-            base = agentCommandBuilder.resolveGitQaCommand(qp, workPath, branch, commit, question);
-        } else {
-            String ac = qp.getAgentCommand();
-            if (StringUtils.hasText(ac) && !"(cursor-skill)".equals(ac.trim())) {
-                base = agentCommandBuilder.resolveGitQaCommand(qp, workPath, branch, commit, question);
-            } else {
-                base = agentCommandBuilder.buildGitQaStreamJsonCommand(question, AgentCliKind.fromDb(qp.getAgentCli()));
-            }
-        }
+    private String resolveChatShellCommand(GitQaProject qp, String question, String modelRaw) {
+        String base = agentCommandBuilder.buildGitQaStreamJsonCommand(question, AgentCliKind.fromDb(qp.getAgentCli()));
         return agentModelCatalogService.appendModelFlag(AgentCliKind.fromDb(qp.getAgentCli()), base, modelRaw);
     }
 
@@ -307,9 +295,6 @@ public class GitQaProjectService {
         }
         e.setBranch(StringUtils.hasText(dto.getBranch()) ? dto.getBranch() : "main");
         e.setLocalClonePath(StringUtils.hasText(dto.getLocalClonePath()) ? dto.getLocalClonePath() : null);
-        e.setAgentCommand(StringUtils.hasText(dto.getAgentCommand()) ? dto.getAgentCommand().trim() : "");
-        e.setScanSkillName(StringUtils.hasText(dto.getScanSkillName()) ? dto.getScanSkillName().trim() : null);
-        e.setScanSkillPrompt(StringUtils.hasText(dto.getScanSkillPrompt()) ? dto.getScanSkillPrompt().trim() : null);
         e.setAgentCli(StringUtils.hasText(dto.getAgentCli()) ? AgentCliKind.fromDb(dto.getAgentCli()).name() : AgentCliKind.CURSOR.name());
         e.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
     }

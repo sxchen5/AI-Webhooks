@@ -8,7 +8,7 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 /**
- * Git 项目 AI 问答：克隆与 agent 配置（独立于主动扫描任务）。
+ * Git 项目 AI 问答：克隆与 Agent CLI；对话固定 stream-json（独立于主动扫描任务）。
  */
 @Entity
 @Table(name = "git_qa_project")
@@ -41,15 +41,6 @@ public class GitQaProject {
 
     @Column(name = "local_clone_path", length = 500)
     private String localClonePath;
-
-    @Column(name = "agent_command", nullable = false, length = 1000)
-    private String agentCommand;
-
-    @Column(name = "scan_skill_name", length = 128)
-    private String scanSkillName;
-
-    @Column(name = "scan_skill_prompt", columnDefinition = "TEXT")
-    private String scanSkillPrompt;
 
     /** CURSOR 或 CLAUDE，决定 agent / claude 命令行 */
     @Column(name = "agent_cli", nullable = false, length = 16)
