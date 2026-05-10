@@ -133,7 +133,35 @@
         <el-input v-model="form.cronExpression" maxlength="120" placeholder="0 0 2 * * ?" clearable />
       </el-form-item>
       <el-form-item label="覆盖技能名">
-        <el-input v-model="form.scanSkillName" maxlength="128" placeholder="留空用 Git 项目配置" clearable />
+        <el-radio-group v-model="form.skillPickMode">
+          <el-radio label="none">不覆盖（沿用 Git 项目配置）</el-radio>
+          <el-radio label="platform">选择平台技能</el-radio>
+          <el-radio label="custom">手动输入技能名</el-radio>
+        </el-radio-group>
+      </el-form-item>
+      <el-form-item v-if="form.skillPickMode === 'platform'" label="平台技能">
+        <el-select
+          v-model="form.scanSkillName"
+          clearable
+          filterable
+          placeholder="从已启用的平台技能中选择"
+          style="width: 100%"
+        >
+          <el-option
+            v-for="o in platformSkillOptions"
+            :key="o.skillName"
+            :label="o.description ? `${o.skillName} — ${o.description}` : o.skillName"
+            :value="o.skillName"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item v-if="form.skillPickMode === 'custom'" label="技能名">
+        <el-input
+          v-model="form.scanSkillName"
+          maxlength="128"
+          placeholder="与仓库 .cursor/skills 下目录名一致"
+          clearable
+        />
       </el-form-item>
       <el-form-item label="覆盖技能说明">
         <el-input v-model="form.scanSkillPrompt" type="textarea" :rows="2" placeholder="留空用 Git 项目配置" clearable />
@@ -178,7 +206,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   createActiveJob,
@@ -190,6 +218,7 @@ import {
   runActiveJobsBatch,
   updateActiveJob,
 } from '@/api/activeScan'
+import { fetchPlatformSkillOptions } from '@/api/platformSkill'
 import { formatBackendDateTime } from '@/utils/formatTime'
 import { AGENT_MODEL_OPTIONS } from '@/constants/agentModels'
 
@@ -209,6 +238,7 @@ const selectedRows = ref([])
 const batchRunning = ref(false)
 const repoOptions = ref([])
 const repoMap = ref({})
+const platformSkillOptions = ref([])
 
 const detailVisible = ref(false)
 const detail = ref(null)
@@ -232,6 +262,8 @@ const form = reactive({
   notifyOnSuccess: 0,
   notifyEmailOverride: '',
   status: 1,
+  /** none：不覆盖；platform：平台技能下拉；custom：手输技能名 */
+  skillPickMode: 'none',
 })
 
 const rules = {
@@ -244,6 +276,22 @@ const dialogTitle = computed(() => {
   if (isCopy.value) return '复制任务'
   return '新建任务'
 })
+
+function inferSkillPickMode(savedName) {
+  const n = (savedName || '').trim()
+  if (!n) return 'none'
+  if (platformSkillOptions.value.some((o) => o.skillName === n)) return 'platform'
+  return 'custom'
+}
+
+watch(
+  () => form.skillPickMode,
+  (mode) => {
+    if (mode === 'none') {
+      form.scanSkillName = ''
+    }
+  },
+)
 
 function repoName(id) {
   return repoMap.value[id] || `#${id}`
@@ -260,6 +308,14 @@ async function loadRepos() {
     m[r.id] = r.name
   })
   repoMap.value = m
+}
+
+async function loadPlatformSkillOptions() {
+  try {
+    platformSkillOptions.value = (await fetchPlatformSkillOptions()) || []
+  } catch {
+    platformSkillOptions.value = []
+  }
 }
 
 function runSearch() {
@@ -344,6 +400,7 @@ function resetForm() {
   form.notifyOnSuccess = 0
   form.notifyEmailOverride = ''
   form.status = 1
+  form.skillPickMode = 'none'
 }
 
 function openCreate() {
@@ -361,30 +418,20 @@ async function openDetail(row) {
 function openEdit(row) {
   isEdit.value = true
   isCopy.value = false
-  Object.assign(form, {
-    id: row.id,
-    jobName: row.jobName,
-    repoId: row.repoId,
-    scheduleEnabled: row.scheduleEnabled,
-    cronExpression: row.cronExpression || '',
-    agentCommandOverride: row.agentCommandOverride || '',
-    scanSkillName: row.scanSkillName || '',
-    scanSkillPrompt: row.scanSkillPrompt || '',
-    agentModel: row.agentModel || undefined,
-    notifyOnFailure: row.notifyOnFailure,
-    notifyOnSuccess: row.notifyOnSuccess,
-    notifyEmailOverride: row.notifyEmailOverride || '',
-    status: row.status,
-  })
-  dialogVisible.value = true
+  void openJobDialogFromRow(row, false)
 }
 
 function openCopy(row) {
   isEdit.value = false
   isCopy.value = true
+  void openJobDialogFromRow(row, true)
+}
+
+async function openJobDialogFromRow(row, asCopy) {
+  await loadPlatformSkillOptions()
   Object.assign(form, {
-    id: null,
-    jobName: `${row.jobName}（复制）`,
+    id: asCopy ? null : row.id,
+    jobName: asCopy ? `${row.jobName}（复制）` : row.jobName,
     repoId: row.repoId,
     scheduleEnabled: row.scheduleEnabled,
     cronExpression: row.cronExpression || '',
@@ -397,6 +444,7 @@ function openCopy(row) {
     notifyEmailOverride: row.notifyEmailOverride || '',
     status: row.status,
   })
+  form.skillPickMode = inferSkillPickMode(row.scanSkillName)
   dialogVisible.value = true
 }
 
@@ -406,6 +454,13 @@ async function saveDialog() {
     ElMessage.warning('启用定时时请填写 Cron')
     return
   }
+  if (form.skillPickMode === 'platform' || form.skillPickMode === 'custom') {
+    if (!form.scanSkillName?.trim()) {
+      ElMessage.warning('请选择或填写覆盖技能名')
+      return
+    }
+  }
+  const scanSkillNameOut = form.skillPickMode === 'none' ? null : form.scanSkillName?.trim() || null
   saving.value = true
   try {
     const payload = {
@@ -414,7 +469,7 @@ async function saveDialog() {
       scheduleEnabled: form.scheduleEnabled,
       cronExpression: form.cronExpression?.trim() || null,
       agentCommandOverride: form.agentCommandOverride?.trim() || null,
-      scanSkillName: form.scanSkillName?.trim() || null,
+      scanSkillName: scanSkillNameOut,
       scanSkillPrompt: form.scanSkillPrompt?.trim() || null,
       agentModel: form.agentModel || null,
       notifyOnFailure: form.notifyOnFailure,
@@ -458,6 +513,7 @@ async function onDelete(row) {
 
 onMounted(async () => {
   await loadRepos()
+  await loadPlatformSkillOptions()
 })
 </script>
 
