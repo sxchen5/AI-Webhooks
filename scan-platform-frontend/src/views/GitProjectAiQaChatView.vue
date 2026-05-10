@@ -385,6 +385,8 @@ const pendingFiles = ref([])
 let pendingFileSeq = 0
 const MAX_FILE_BYTES = 400 * 1024
 const isRecording = ref(false)
+/** 开始本次语音输入时输入框已有内容，识别结果拼在其后 */
+const voiceSessionPrefix = ref('')
 let speechRec = null
 
 const GITQA_ATTACH = /^<!--gitqa-attach:(\[.*?\])-->\s*\n?/
@@ -505,12 +507,19 @@ function toggleVoiceInput() {
   speechRec.lang = prefs.locale === 'en' ? 'en-US' : 'zh-CN'
   speechRec.continuous = true
   speechRec.interimResults = true
+  voiceSessionPrefix.value = draft.value
   speechRec.onresult = (event) => {
-    let chunk = ''
-    for (let i = event.resultIndex; i < event.results.length; i += 1) {
-      chunk += event.results[i][0].transcript
+    const list = event.results
+    let finals = ''
+    let interims = ''
+    for (let i = 0; i < list.length; i += 1) {
+      const r = list[i]
+      const piece = r[0]?.transcript ?? ''
+      if (r.isFinal) finals += piece
+      else interims += piece
     }
-    if (chunk) draft.value += chunk
+    const merged = voiceSessionPrefix.value + finals + interims
+    draft.value = merged
   }
   speechRec.onerror = () => {
     isRecording.value = false
