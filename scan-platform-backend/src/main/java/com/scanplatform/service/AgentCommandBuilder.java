@@ -113,7 +113,11 @@ public class AgentCommandBuilder {
         return System.getProperty("os.name", "").toLowerCase().contains("win");
     }
 
-    /** 主动扫描：任务层技能字段优先于仓库；CLI 与模型按任务/仓库继承 */
+    /**
+     * 主动扫描：任务层技能字段优先于仓库；CLI 与模型按任务/仓库继承。
+     * 输出为普通终端结果（{@code agent --print -f} / {@code claude --print}），不追加
+     * {@code --output-format stream-json}；流式 JSON 仅用于 Git 问答 {@link #buildGitQaStreamJsonCommand}。
+     */
     public String resolveActiveScanCommand(ActiveScanRepo repo, ActiveScanJob job,
                                            String workPath, String branch, String commit) throws IOException {
         AgentCliKind cli = resolveCliForJob(job, repo);
@@ -134,7 +138,6 @@ public class AgentCommandBuilder {
             cmd = AgentCommandUtil.buildCommand(template, dir.toString(), branch, commit);
         }
         cmd = AgentCliRewriter.adaptExecutable(cmd, cli);
-        cmd = appendStreamJsonIfAbsent(cli, cmd);
         String model = StringUtils.hasText(job.getAgentModel()) ? job.getAgentModel() : repo.getAgentModel();
         return agentModelCatalogService.appendModelFlag(cli, cmd, model);
     }
