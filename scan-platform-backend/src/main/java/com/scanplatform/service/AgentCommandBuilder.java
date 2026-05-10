@@ -116,8 +116,7 @@ public class AgentCommandBuilder {
     /**
      * 主动扫描：任务层技能字段优先于仓库；CLI 与模型按任务/仓库继承。
      * 输出为普通终端结果（{@code agent --print -f} / {@code claude --print}），不追加
-     * {@code --output-format stream-json}；若模板中误带则会剥离。
-     * 流式 JSON 仅用于 Git 问答 {@link #buildGitQaStreamJsonCommand}。
+     * {@code --output-format stream-json}；流式 JSON 仅用于 Git 问答 {@link #buildGitQaStreamJsonCommand}。
      */
     public String resolveActiveScanCommand(ActiveScanRepo repo, ActiveScanJob job,
                                            String workPath, String branch, String commit) throws IOException {
@@ -139,25 +138,8 @@ public class AgentCommandBuilder {
             cmd = AgentCommandUtil.buildCommand(template, dir.toString(), branch, commit);
         }
         cmd = AgentCliRewriter.adaptExecutable(cmd, cli);
-        cmd = stripStreamJsonOutputFormatForActiveScan(cmd);
         String model = StringUtils.hasText(job.getAgentModel()) ? job.getAgentModel() : repo.getAgentModel();
         return agentModelCatalogService.appendModelFlag(cli, cmd, model);
-    }
-
-    /**
-     * 主动扫描只要终端可读结果：去掉模板里误配的 {@code --output-format stream-json}
-     *（及 Claude 配套的 {@code --verbose}，仅当与 stream-json 相邻时一并去掉），避免与 AI 问答共用命令串时带入流式 JSON。
-     */
-    private static String stripStreamJsonOutputFormatForActiveScan(String cmd) {
-        if (!StringUtils.hasText(cmd)) {
-            return cmd;
-        }
-        String c = cmd.replaceAll("(?i)\\s+--output-format\\s+stream-json(?:\\s+--verbose)?\\b", " ")
-                .replaceAll("(?i)\\s+--verbose\\s+--output-format\\s+stream-json\\b", " ")
-                .replaceAll("(?i)^--output-format\\s+stream-json(?:\\s+--verbose)?\\b\\s*", "")
-                .replaceAll("(?i)^--verbose\\s+--output-format\\s+stream-json\\b\\s*", "");
-        c = c.replaceAll("\\s{2,}", " ").trim();
-        return c;
     }
 
     private static AgentCliKind resolveCliForJob(ActiveScanJob job, ActiveScanRepo repo) {
