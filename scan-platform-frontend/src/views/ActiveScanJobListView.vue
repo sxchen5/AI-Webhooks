@@ -278,6 +278,8 @@ const form = reactive({
   agentCommandOverride: '',
   scanSkillName: '',
   scanSkillPrompt: '',
+  /** 非空时覆盖仓库 Agent CLI（CURSOR / CLAUDE），空字符串表示沿用 Git 项目配置 */
+  agentCliOverride: '',
   agentModel: undefined,
   notifyOnFailure: 1,
   notifyOnSuccess: 0,
@@ -313,6 +315,39 @@ watch(
     }
   },
 )
+
+/** 任务弹窗内：按「覆盖 CLI」或关联仓库默认 CLI 拉取可选模型 */
+async function reloadJobModelRows() {
+  const repo = repoOptions.value.find((r) => r.id === form.repoId)
+  const cliRaw = form.agentCliOverride != null && String(form.agentCliOverride).trim()
+    ? String(form.agentCliOverride).trim()
+    : ''
+  const cli = cliRaw || repo?.agentCli || 'CURSOR'
+  try {
+    agentModelRows.value = (await fetchAgentModelOptions(cli)) || []
+  } catch {
+    agentModelRows.value = []
+  }
+  const keys = new Set((agentModelRows.value || []).map((o) => o.modelKey))
+  if (form.agentModel && keys.size && !keys.has(form.agentModel)) {
+    form.agentModel = undefined
+  }
+}
+
+watch(
+  () => [form.repoId, form.agentCliOverride],
+  () => {
+    if (dialogVisible.value) {
+      void reloadJobModelRows()
+    }
+  },
+)
+
+watch(dialogVisible, (open) => {
+  if (open) {
+    void reloadJobModelRows()
+  }
+})
 
 function repoName(id) {
   return repoMap.value[id] || `#${id}`
@@ -416,6 +451,7 @@ function resetForm() {
   form.agentCommandOverride = ''
   form.scanSkillName = ''
   form.scanSkillPrompt = ''
+  form.agentCliOverride = ''
   form.agentModel = undefined
   form.notifyOnFailure = 1
   form.notifyOnSuccess = 0
@@ -459,6 +495,7 @@ async function openJobDialogFromRow(row, asCopy) {
     agentCommandOverride: row.agentCommandOverride || '',
     scanSkillName: row.scanSkillName || '',
     scanSkillPrompt: row.scanSkillPrompt || '',
+    agentCliOverride: row.agentCli || '',
     agentModel: row.agentModel || undefined,
     notifyOnFailure: row.notifyOnFailure,
     notifyOnSuccess: row.notifyOnSuccess,
@@ -492,7 +529,12 @@ async function saveDialog() {
       agentCommandOverride: form.agentCommandOverride?.trim() || null,
       scanSkillName: scanSkillNameOut,
       scanSkillPrompt: form.scanSkillPrompt?.trim() || null,
-      agentModel: form.agentModel || null,
+      agentCli: form.agentCliOverride != null && String(form.agentCliOverride).trim()
+        ? String(form.agentCliOverride).trim()
+        : null,
+      agentModel: form.agentModel != null && String(form.agentModel).trim()
+        ? String(form.agentModel).trim()
+        : null,
       notifyOnFailure: form.notifyOnFailure,
       notifyOnSuccess: form.notifyOnSuccess,
       notifyEmailOverride: form.notifyEmailOverride?.trim() || null,
