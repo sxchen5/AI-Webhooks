@@ -160,7 +160,7 @@
         <el-input
           v-model="form.scanSkillName"
           maxlength="128"
-          placeholder="与仓库 .cursor/skills 下目录名一致"
+          placeholder="与仓库根下 .cursor/skills/ 技能目录名一致（Agent 工作区约定，Cursor / Claude Code 均适用）"
           clearable
         />
       </el-form-item>

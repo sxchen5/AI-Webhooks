@@ -165,7 +165,7 @@
         <el-input
           v-model="form.scanSkillName"
           maxlength="128"
-          placeholder="与仓库 .cursor/skills 下目录名一致"
+          placeholder="与仓库根下 .cursor/skills/ 技能目录名一致（Agent 工作区约定，Cursor / Claude Code 均适用）"
           clearable
         />
       </el-form-item>
@@ -219,25 +219,6 @@ import { formatBackendDateTime } from '@/utils/formatTime'
 
 const agentModelRows = ref([])
 
-async function reloadRepoModelRows() {
-  const cli = form.agentCli || 'CURSOR'
-  try {
-    agentModelRows.value = (await fetchAgentModelOptions(cli)) || []
-  } catch {
-    agentModelRows.value = []
-  }
-}
-
-watch(
-  () => form.agentCli,
-  () => {
-    if (dialogVisible.value) void reloadRepoModelRows()
-  },
-)
-watch(dialogVisible, (v) => {
-  if (v) void reloadRepoModelRows()
-})
-
 const loading = ref(false)
 const tableData = ref([])
 const total = ref(0)
@@ -277,6 +258,25 @@ const form = reactive({
   receiveEmail: '',
   status: 1,
   skillPickMode: 'none',
+})
+
+async function reloadRepoModelRows() {
+  const cli = form.agentCli || 'CURSOR'
+  try {
+    agentModelRows.value = (await fetchAgentModelOptions(cli)) || []
+  } catch {
+    agentModelRows.value = []
+  }
+}
+
+watch(
+  () => form.agentCli,
+  () => {
+    if (dialogVisible.value) void reloadRepoModelRows()
+  },
+)
+watch(dialogVisible, (v) => {
+  if (v) void reloadRepoModelRows()
 })
 
 const dialogTitle = computed(() => {

@@ -17,7 +17,7 @@
       </div>
     </template>
     <p class="tip">
-      与仓库内 <code>.cursor/skills/&lt;技能名&gt;/</code> 同名时，<strong>每次扫描前</strong>由平台<strong>整目录覆盖写入</strong>（含
+      与仓库根目录下 <code>.cursor/skills/&lt;技能名&gt;/</code> 同名时（常见 Agent 工作区约定路径，<strong>Cursor 与 Claude Code 均将技能写入该目录</strong>），<strong>每次扫描前</strong>由平台<strong>整目录覆盖写入</strong>（含
       <code>SKILL.md</code> 及子目录下附加文件），优先级最高；须包含根路径
       <code>SKILL.md</code>。可从本机<strong>选择技能文件夹一键导入</strong>（推荐），或上传多个文件 / 导入 JSON。
       进入页面后请点击<strong>查询</strong>加载列表。
@@ -105,7 +105,7 @@
         <el-input
           v-model="form.skillName"
           maxlength="128"
-          placeholder="仅字母数字及 ._-，与 .cursor/skills 下目录名一致"
+          placeholder="仅字母数字及 ._-，与仓库 .cursor/skills/ 下目录名一致（Agent 工作区约定）"
           :disabled="isEdit"
         />
       </el-form-item>
