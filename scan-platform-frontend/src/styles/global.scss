@@ -52,9 +52,27 @@ html.dark #app {
   background: var(--sp-page-bg);
 }
 
-/* 列表「操作」列：左对齐，宽度随按钮内容收缩（与 data 列同左对齐） */
+/* 列表「操作」列：左对齐，宽度随内容收缩；所有操作控件单行不换行 */
 .page-card .el-table th.col-actions.el-table__cell,
 .page-card .el-table td.col-actions.el-table__cell {
   width: 1%;
   white-space: nowrap;
+  vertical-align: middle;
+}
+.page-card .el-table th.col-actions .cell,
+.page-card .el-table td.col-actions .cell {
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+}
+/* 覆盖 Element Plus 相邻 link 按钮外边距，避免与 flex gap 叠加导致换行错觉 */
+.page-card .el-table td.col-actions .cell .el-button + .el-button {
+  margin-left: 0 !important;
+}
+.page-card .el-table td.col-actions .cell .el-button.is-link {
+  margin-left: 0 !important;
+  flex-shrink: 0;
 }

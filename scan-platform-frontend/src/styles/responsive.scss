@@ -54,8 +54,11 @@
     white-space: normal;
     word-break: break-word;
   }
+  .page-card .el-table th.col-actions .cell,
   .page-card .el-table td.col-actions .cell {
-    white-space: nowrap;
+    display: inline-flex !important;
+    flex-wrap: nowrap !important;
+    white-space: nowrap !important;
   }
   .page-card .el-table .el-button.is-link {
     padding: 2px 4px;
