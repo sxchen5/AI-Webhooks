@@ -13,7 +13,7 @@ import java.nio.file.Path;
 
 /**
  * 根据 {@link AgentCliKind} 生成 Cursor {@code agent} 或 Claude Code {@code claude} 的 {@code --print} 行内命令；
- * 技能路径仍写入 {@code .cursor/skills/...}（与 Cursor 工作区约定一致）。
+ * 平台技能按 CLI 写入 {@code .cursor/skills/...}（Cursor）或 {@code .claude/skills/...}（Claude Code）。
  */
 @Component
 @RequiredArgsConstructor
@@ -48,10 +48,11 @@ public class AgentCommandBuilder {
         }
         String slug = sanitizeSkillSlug(skillFolderName.trim());
         if (!StringUtils.hasText(slug)) {
-            throw new IllegalArgumentException("扫描技能名无效，请使用字母数字与连字符（与 .cursor/skills 下目录名一致）");
+            throw new IllegalArgumentException(
+                    "扫描技能名无效，请使用字母数字与连字符（与 .cursor/skills 或 .claude/skills 下目录名一致，随 Agent CLI）");
         }
 
-        platformSkillMaterializer.materializeIfPresent(workDirAbsolute, slug);
+        platformSkillMaterializer.materializeIfPresent(workDirAbsolute, slug, cli);
 
         String p = workDirAbsolute.toString();
         String b = branch != null ? branch : "";

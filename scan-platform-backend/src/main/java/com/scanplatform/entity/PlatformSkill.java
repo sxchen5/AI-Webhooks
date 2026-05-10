@@ -7,7 +7,7 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 /**
- * 平台维护的 Cursor 技能：扫描前写入目标仓库 .cursor/skills/&lt;skill_name&gt;/ 下多文件（至少含 SKILL.md）。
+ * 平台技能：扫描前按 Agent CLI 写入目标仓库 {@code .cursor/skills/&lt;skill_name&gt;/} 或 {@code .claude/skills/&lt;skill_name&gt;/}（至少含 SKILL.md）。
  */
 @Entity
 @Table(name = "platform_skill")
@@ -25,7 +25,7 @@ public class PlatformSkill {
     @Column(length = 500)
     private String description;
 
-    /** JSON 数组 [{path,content}]，相对 .cursor/skills/&lt;skillName&gt;/ */
+    /** JSON 数组 [{path,content}]，相对技能包根目录（.cursor/skills/&lt;skillName&gt;/ 或 .claude/skills/&lt;skillName&gt;/） */
     @Column(name = "skill_files_json", columnDefinition = "LONGTEXT")
     private String skillFilesJson;
 

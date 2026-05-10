@@ -1,5 +1,6 @@
 package com.scanplatform.service;
 
+import com.scanplatform.agent.AgentCliKind;
 import com.scanplatform.dto.PlatformSkillFileDto;
 import com.scanplatform.entity.PlatformSkill;
 import com.scanplatform.repository.PlatformSkillRepository;
@@ -17,7 +18,8 @@ import java.nio.file.StandardOpenOption;
 import java.util.List;
 
 /**
- * 若平台库中存在同名启用技能，则写入工作区 {@code .cursor/skills/<name>/} 下全部配置的文件，覆盖仓库内同名目录。
+ * 若平台库中存在同名启用技能，则按 {@link AgentCliKind} 写入工作区技能目录并覆盖同名路径：
+ * Cursor 为 {@code .cursor/skills/<name>/}，Claude Code 为 {@code .claude/skills/<name>/}。
  */
 @Component
 @RequiredArgsConstructor
@@ -29,14 +31,16 @@ public class PlatformSkillMaterializer {
     /**
      * @param workRoot   被扫描代码根目录（绝对路径）
      * @param skillSlug  已通过校验的技能目录名
+     * @param cli        决定写入 {@code .cursor/skills} 或 {@code .claude/skills}
      */
-    public void materializeIfPresent(Path workRoot, String skillSlug) {
+    public void materializeIfPresent(Path workRoot, String skillSlug, AgentCliKind cli) {
         if (!StringUtils.hasText(skillSlug)) {
             return;
         }
+        AgentCliKind k = cli != null ? cli : AgentCliKind.CURSOR;
         repository.findBySkillNameAndStatus(skillSlug.trim(), 1).ifPresentOrElse(skill -> {
             try {
-                Path dir = workRoot.resolve(".cursor").resolve("skills").resolve(skillSlug.trim()).normalize();
+                Path dir = skillBundleDir(workRoot, k, skillSlug.trim());
                 if (!dir.startsWith(workRoot.normalize())) {
                     throw new IllegalStateException("非法技能路径");
                 }
@@ -68,11 +72,23 @@ public class PlatformSkillMaterializer {
                             StandardOpenOption.TRUNCATE_EXISTING,
                             StandardOpenOption.WRITE);
                 }
-                log.info("已写入平台技能 {} 个文件: {} -> {}", files.size(), skill.getSkillName(), dir);
+                log.info("已写入平台技能 {} 个文件: {} -> {} (cli={})", files.size(), skill.getSkillName(), dir, k);
             } catch (Exception e) {
                 log.error("写入平台技能失败: {}", skillSlug, e);
                 throw new IllegalStateException("写入平台技能失败: " + e.getMessage(), e);
             }
-        }, () -> log.debug("未配置平台技能，使用仓库内 .cursor/skills: {}", skillSlug));
+        }, () -> log.debug("未配置平台技能，使用仓库内 {}: {}", builtinSkillRootForLog(k), skillSlug));
+    }
+
+    /** 技能包根目录：{@code <workRoot>/.cursor/skills/<slug>} 或 {@code <workRoot>/.claude/skills/<slug>} */
+    static Path skillBundleDir(Path workRoot, AgentCliKind cli, String skillSlug) {
+        Path root = workRoot.normalize();
+        Path parent =
+                cli == AgentCliKind.CLAUDE ? root.resolve(".claude").resolve("skills") : root.resolve(".cursor").resolve("skills");
+        return parent.resolve(skillSlug).normalize();
+    }
+
+    private static String builtinSkillRootForLog(AgentCliKind cli) {
+        return cli == AgentCliKind.CLAUDE ? ".claude/skills" : ".cursor/skills";
     }
 }

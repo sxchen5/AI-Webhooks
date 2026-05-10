@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS active_scan_log (
 
 CREATE TABLE IF NOT EXISTS platform_skill (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    skill_name VARCHAR(128) NOT NULL COMMENT '与 .cursor/skills 目录名一致',
+    skill_name VARCHAR(128) NOT NULL COMMENT '技能目录名；执行时写入 .cursor/skills 或 .claude/skills（随 Agent CLI）',
     description VARCHAR(500) COMMENT '说明',
     skill_files_json LONGTEXT COMMENT 'JSON [{path,content}] 相对技能根目录',
     skill_body LONGTEXT COMMENT '与 SKILL.md 同步，兼容旧读法',
@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS platform_skill (
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_skill_name (skill_name)
-) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT '平台技能：扫描前写入工作区，优先级高于仓库 .cursor/skills';
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT '平台技能：扫描前写入工作区，覆盖仓库内同名 .cursor/skills 或 .claude/skills';
 
 CREATE TABLE IF NOT EXISTS agent_model_option (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,

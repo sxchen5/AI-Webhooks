@@ -16,7 +16,7 @@
         </div>
       </div>
     </template>
-    <p class="tip">支持多个 HTTP(S) 仓库；用户名/密码用于非交互克隆。可从「Git项目管理」选择项目自动带出地址。通知邮箱用于主动扫描结果邮件，发信账号在<strong>系统配置管理 → 邮件配置</strong>中维护。进入页面后请点击<strong>查询</strong>加载列表。</p>
+    <p class="tip">支持多个 HTTP(S) 仓库；用户名/密码用于非交互克隆。可从「Git项目管理」选择项目自动带出地址。通知邮箱用于主动扫描结果邮件，发信账号在<strong>系统配置管理 → 邮件配置</strong>中维护。使用平台技能时，扫描前按所选 <strong>Agent CLI</strong> 写入仓库根目录：<code>.cursor/skills/&lt;技能名&gt;/</code>（Cursor）或 <code>.claude/skills/&lt;技能名&gt;/</code>（Claude Code）。进入页面后请点击<strong>查询</strong>加载列表。</p>
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column prop="id" label="ID" width="70" />
       <el-table-column prop="repoName" label="项目名称" min-width="120" />
@@ -165,7 +165,7 @@
         <el-input
           v-model="form.scanSkillName"
           maxlength="128"
-          placeholder="与仓库根下 .cursor/skills/ 技能目录名一致（Agent 工作区约定，Cursor / Claude Code 均适用）"
+          placeholder="与所选 Agent CLI 一致：Cursor 对应 .cursor/skills/，Claude Code 对应 .claude/skills/ 下的目录名"
           clearable
         />
       </el-form-item>

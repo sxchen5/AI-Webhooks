@@ -60,6 +60,6 @@ mvn clean package -DskipTests
 
 - **系统配置管理 → 邮件配置**：SMTP 与邮件标题前缀，供主动扫描任务通知使用。
 - **Git 仓库扫描管理**：仓库、下发任务、下发任务日志；子进程可注入 `ACTIVE_SCAN_*` 与 `WEBHOOK_*` 环境变量（与常见脚本变量名兼容）。
-- **技能管理 → 平台技能**：平台侧 `SKILL.md`，扫描前写入工作区覆盖同名仓库技能。
+- **技能管理 → 平台技能**：平台侧多文件技能包；扫描前按任务/仓库的 Agent CLI 写入工作区 `.cursor/skills/<名>/`（Cursor）或 `.claude/skills/<名>/`（Claude Code），覆盖仓库内同名目录。
 
 详见各页面内提示与 `schema.sql` 表结构注释。
