@@ -7,12 +7,12 @@ import com.scanplatform.entity.SysConfig;
 import com.scanplatform.repository.ActiveScanJobRepository;
 import com.scanplatform.repository.ActiveScanLogRepository;
 import com.scanplatform.repository.ActiveScanRepoRepository;
+import com.scanplatform.util.ActiveScanMailMarkdown;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
-import org.springframework.web.util.HtmlUtils;
 
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -205,15 +205,8 @@ public class ActiveScanAsyncExecutor {
         String trigger = task.getTriggerType() != null ? task.getTriggerType() : "";
         String branch = task.getBranch() != null ? task.getBranch() : "";
         String output = task.getExecResult() != null ? task.getExecResult() : "";
-        String body = "<html><body style=\"font-family:sans-serif;font-size:14px;line-height:1.5;\">"
-                + "<div><b>任务</b>：" + HtmlUtils.htmlEscape(jobName) + "</div>"
-                + "<div><b>仓库</b>：" + HtmlUtils.htmlEscape(repoName) + "</div>"
-                + "<div><b>触发</b>：" + HtmlUtils.htmlEscape(trigger) + "</div>"
-                + "<div><b>分支</b>：" + HtmlUtils.htmlEscape(branch) + "</div>"
-                + "<pre style=\"white-space:pre-wrap;word-break:break-word;margin:12px 0 0;padding:0;border:0;"
-                + "font-family:inherit;font-size:14px;\">"
-                + HtmlUtils.htmlEscape(output)
-                + "</pre></body></html>";
+        String body =
+                ActiveScanMailMarkdown.buildNotificationEmailHtml(jobName, repoName, trigger, branch, output);
         boolean sent = alertMailService.sendMail(config, emails, subject, body, true);
         task.setEmailStatus(sent ? 1 : 2);
         logRepository.save(task);
