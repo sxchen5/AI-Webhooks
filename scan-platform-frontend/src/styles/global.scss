@@ -52,15 +52,17 @@ html.dark #app {
   background: var(--sp-page-bg);
 }
 
-/* 列表「操作」列：左对齐，宽度随内容收缩；所有操作控件单行不换行 */
-.page-card .el-table th.col-actions.el-table__cell,
-.page-card .el-table td.col-actions.el-table__cell {
-  width: 1%;
+/* 列表卡片：不要在外层横向滚动整块表格，否则右侧 fixed 列会跟着动；横向滚动由 el-table 内部处理 */
+.page-card .el-card__body {
+  overflow-x: visible;
+}
+
+/* 操作列固定在右侧；单元格内按钮单行（主表、固定列副本、弹窗内表格均适用） */
+.el-table__cell.col-actions {
   white-space: nowrap;
   vertical-align: middle;
 }
-.page-card .el-table th.col-actions .cell,
-.page-card .el-table td.col-actions .cell {
+.el-table__cell.col-actions .cell {
   display: inline-flex;
   flex-direction: row;
   flex-wrap: nowrap;
@@ -68,11 +70,10 @@ html.dark #app {
   justify-content: flex-start;
   gap: 6px;
 }
-/* 覆盖 Element Plus 相邻 link 按钮外边距，避免与 flex gap 叠加导致换行错觉 */
-.page-card .el-table td.col-actions .cell .el-button + .el-button {
+.el-table__cell.col-actions .cell .el-button + .el-button {
   margin-left: 0 !important;
 }
-.page-card .el-table td.col-actions .cell .el-button.is-link {
+.el-table__cell.col-actions .cell .el-button.is-link {
   margin-left: 0 !important;
   flex-shrink: 0;
 }

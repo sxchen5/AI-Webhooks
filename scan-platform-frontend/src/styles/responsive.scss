@@ -22,17 +22,15 @@
     max-width: none !important;
   }
 
-  /* 表格横向滚动，避免挤压换行错乱 */
+  /* 横向滚动交给表格内部，避免整块卡片滚动导致右侧固定列跟着动 */
   .page-card .el-card__body {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    overflow-x: visible;
   }
 
   .page-card {
     min-height: calc(100dvh - 72px);
   }
 
-  /* 弹窗宽度 */
   .el-dialog {
     width: calc(100vw - 24px) !important;
     max-width: 100%;
@@ -49,13 +47,12 @@
     row-gap: 6px;
   }
 
-  /* 操作列：保持不换行；其它列允许换行 */
   .page-card .el-table .el-table__body .el-table__cell:not(.col-actions) .cell {
     white-space: normal;
     word-break: break-word;
   }
-  .page-card .el-table th.col-actions .cell,
-  .page-card .el-table td.col-actions .cell {
+  .el-table th.col-actions .cell,
+  .el-table td.col-actions .cell {
     display: inline-flex !important;
     flex-wrap: nowrap !important;
     white-space: nowrap !important;
