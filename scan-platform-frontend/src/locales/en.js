@@ -35,6 +35,10 @@ export default {
     platformSkills: 'Platform skills',
     system: 'System',
     mail: 'Mail',
+    agentModels: 'Agent models',
+  },
+  agentModels: {
+    tip: 'Maintain allowed --model values for Cursor (agent) and Claude Code (claude). Used by Git Q&A, repo config, and jobs.',
   },
   gitQaChat: {
     welcomeEmpty: 'How can I help you?',

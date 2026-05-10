@@ -17,8 +17,9 @@
       </div>
     </template>
     <p class="tip">
-      配置机器人名称与 Git 克隆；对话时默认在仓库目录执行
-      <code>agent --print -f &lt;问题&gt; --output-format stream-json</code>。可选填写平台技能或自定义 Agent（将自动追加 stream-json）。保存后点「AI问答」进入对话。进入页面后请点击<strong>查询</strong>加载列表。
+      配置机器人名称与 Git 克隆；对话时在工作区执行与「Agent CLI」一致的命令：<strong>Cursor</strong> 使用
+      <code>agent --print -f</code> + <code>--output-format stream-json</code>；<strong>Claude Code</strong> 使用
+      <code>claude --print</code> + <code>--output-format stream-json --verbose</code>。可选平台技能或自定义 Agent。保存后点「AI问答」进入对话。进入页面后请点击<strong>查询</strong>加载列表。
     </p>
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column prop="id" label="ID" width="70" />
@@ -71,6 +72,7 @@
         <el-descriptions-item label="用户名">{{ detail.gitUsername || '—' }}</el-descriptions-item>
         <el-descriptions-item label="分支">{{ detail.branch || '—' }}</el-descriptions-item>
         <el-descriptions-item label="本地克隆目录">{{ detail.localClonePath || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="Agent CLI">{{ detail.agentCli || 'CURSOR' }}</el-descriptions-item>
         <el-descriptions-item label="扫描技能">{{ detail.scanSkillName || '—' }}</el-descriptions-item>
         <el-descriptions-item label="技能补充说明">{{ detail.scanSkillPrompt || '—' }}</el-descriptions-item>
         <el-descriptions-item label="Agent 命令">
@@ -127,6 +129,12 @@
       </el-form-item>
       <el-form-item label="本地克隆目录" prop="localClonePath">
         <el-input v-model="form.localClonePath" maxlength="500" placeholder="留空则使用工作目录下 git-qa-{id}" clearable />
+      </el-form-item>
+      <el-form-item label="Agent CLI">
+        <el-radio-group v-model="form.agentCli">
+          <el-radio label="CURSOR">Cursor（agent）</el-radio>
+          <el-radio label="CLAUDE">Claude Code（claude）</el-radio>
+        </el-radio-group>
       </el-form-item>
       <el-divider content-position="left">可选：技能或自定义 Agent</el-divider>
       <el-form-item label="扫描技能">
@@ -229,6 +237,7 @@ const form = reactive({
   agentCommand: '',
   scanSkillName: '',
   scanSkillPrompt: '',
+  agentCli: 'CURSOR',
   status: 1,
 })
 
@@ -322,6 +331,7 @@ function resetForm() {
   form.agentCommand = ''
   form.scanSkillName = ''
   form.scanSkillPrompt = ''
+  form.agentCli = 'CURSOR'
   form.status = 1
 }
 
@@ -366,6 +376,7 @@ async function openEdit(row) {
     agentCommand: row.agentCommand === '(cursor-skill)' ? '' : (row.agentCommand || ''),
     scanSkillName: skillName,
     scanSkillPrompt: row.scanSkillPrompt || '',
+    agentCli: row.agentCli || 'CURSOR',
     status: row.status,
   })
   ensureLinkModeForDisabledProject()
@@ -391,6 +402,7 @@ async function openCopy(row) {
     agentCommand: row.agentCommand === '(cursor-skill)' ? '' : (row.agentCommand || ''),
     scanSkillName: skillName,
     scanSkillPrompt: row.scanSkillPrompt || '',
+    agentCli: row.agentCli || 'CURSOR',
     status: row.status,
   })
   ensureLinkModeForDisabledProject()
@@ -425,6 +437,7 @@ async function saveDialog() {
       agentCommand: form.agentCommand?.trim() || null,
       scanSkillName: form.scanSkillName?.trim() || null,
       scanSkillPrompt: form.scanSkillPrompt?.trim() || null,
+      agentCli: form.agentCli || 'CURSOR',
       status: form.status,
     }
     if (isEdit.value) {

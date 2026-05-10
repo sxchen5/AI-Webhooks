@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS active_scan_repo (
     scan_skill_name VARCHAR(128),
     scan_skill_prompt TEXT,
     agent_model VARCHAR(64) COMMENT '可选，非空时在 agent 末尾追加 --model',
+    agent_cli VARCHAR(16) NOT NULL DEFAULT 'CURSOR' COMMENT 'CURSOR 或 CLAUDE',
     receive_email VARCHAR(500) COMMENT '通知邮箱',
     status TINYINT DEFAULT 1,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -64,6 +65,7 @@ CREATE TABLE IF NOT EXISTS active_scan_job (
     scan_skill_name VARCHAR(128) COMMENT '非空则覆盖仓库技能名',
     scan_skill_prompt TEXT COMMENT '非空则覆盖仓库技能补充说明',
     agent_model VARCHAR(64) COMMENT '非空则覆盖仓库模型，在命令末尾追加 --model',
+    agent_cli VARCHAR(16) NULL COMMENT '非空则覆盖仓库 CLI（CURSOR/CLAUDE）',
     notify_on_failure TINYINT DEFAULT 1,
     notify_on_success TINYINT DEFAULT 0,
     notify_email_override VARCHAR(500) COMMENT '非空则覆盖仓库通知邮箱，逗号分隔',
@@ -108,6 +110,18 @@ CREATE TABLE IF NOT EXISTS platform_skill (
     UNIQUE KEY uk_skill_name (skill_name)
 ) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT '平台技能：扫描前写入工作区，优先级高于仓库 .cursor/skills';
 
+CREATE TABLE IF NOT EXISTS agent_model_option (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    cli_kind VARCHAR(16) NOT NULL COMMENT 'CURSOR 或 CLAUDE',
+    model_key VARCHAR(64) NOT NULL,
+    display_label VARCHAR(128),
+    sort_order INT NOT NULL DEFAULT 0,
+    status TINYINT NOT NULL DEFAULT 1,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_cli_model (cli_kind, model_key)
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT 'Agent/Claude 模型白名单';
+
 CREATE TABLE IF NOT EXISTS git_qa_project (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     bot_name VARCHAR(128) NOT NULL COMMENT '问答机器人名称',
@@ -120,6 +134,7 @@ CREATE TABLE IF NOT EXISTS git_qa_project (
     agent_command VARCHAR(1000) NOT NULL DEFAULT '' COMMENT '可选自定义 agent；空则对话使用 stream-json 默认命令',
     scan_skill_name VARCHAR(128),
     scan_skill_prompt TEXT,
+    agent_cli VARCHAR(16) NOT NULL DEFAULT 'CURSOR' COMMENT 'CURSOR=agent，CLAUDE=claude',
     status TINYINT DEFAULT 1,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

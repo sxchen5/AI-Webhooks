@@ -21,8 +21,10 @@ public class ActiveScanRepoDto {
     private String agentCommand;
     private String scanSkillName;
     private String scanSkillPrompt;
-    /** 可选：与 AI 问答相同白名单，非空则在 agent 命令末尾追加 --model */
+    /** 可选：非空则在命令末尾追加 --model（白名单见 Agent 模型配置） */
     private String agentModel;
+    /** CURSOR 或 CLAUDE */
+    private String agentCli;
     private String receiveEmail;
     private Integer status;
 

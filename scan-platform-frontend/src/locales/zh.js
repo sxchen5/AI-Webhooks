@@ -35,6 +35,10 @@ export default {
     platformSkills: '平台技能',
     system: '系统配置管理',
     mail: '邮件配置',
+    agentModels: 'Agent 模型配置',
+  },
+  agentModels: {
+    tip: '为 Cursor（agent）与 Claude Code（claude）分别维护可选模型白名单，供 Git 问答、Git 项目配置与下发任务中的模型下拉使用。',
   },
   gitQaChat: {
     welcomeEmpty: '有什么我能帮你的吗？',

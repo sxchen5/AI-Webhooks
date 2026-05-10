@@ -21,10 +21,10 @@ public class ActiveScanRepoOptionsController {
     @GetMapping
     public ApiResponse<List<IdNameOption>> list() {
         return ApiResponse.ok(repoService.listForOptions().stream()
-                .map(r -> new IdNameOption(r.getId(), r.getRepoName()))
+                .map(r -> new IdNameOption(r.getId(), r.getRepoName(), r.getAgentCli() != null ? r.getAgentCli() : "CURSOR"))
                 .collect(Collectors.toList()));
     }
 
-    public record IdNameOption(Long id, String name) {
+    public record IdNameOption(Long id, String name, String agentCli) {
     }
 }

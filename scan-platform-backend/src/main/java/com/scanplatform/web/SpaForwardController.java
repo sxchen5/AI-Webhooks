@@ -16,6 +16,7 @@ public class SpaForwardController {
     @GetMapping(value = {
             "/",
             "/login",
+            "/system/agent-models",
             "/system/mail",
             "/active-scan/git-projects",
             "/active-scan/repos",

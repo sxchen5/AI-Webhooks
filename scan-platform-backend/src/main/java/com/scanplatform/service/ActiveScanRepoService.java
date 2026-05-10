@@ -1,5 +1,6 @@
 package com.scanplatform.service;
 
+import com.scanplatform.agent.AgentCliKind;
 import com.scanplatform.dto.ActiveScanRepoDto;
 import com.scanplatform.entity.ActiveScanRepo;
 import com.scanplatform.entity.GitProject;
@@ -24,6 +25,7 @@ public class ActiveScanRepoService {
     private final ActiveScanRepoRepository repository;
     private final ActiveScanJobRepository jobRepository;
     private final GitProjectRepository gitProjectRepository;
+    private final AgentModelCatalogService agentModelCatalogService;
 
     @Transactional(readOnly = true)
     public Page<ActiveScanRepo> page(String projectName, Pageable pageable) {
@@ -87,7 +89,8 @@ public class ActiveScanRepoService {
         e.setAgentCommand(StringUtils.hasText(dto.getAgentCommand()) ? dto.getAgentCommand() : "(cursor-skill)");
         e.setScanSkillName(StringUtils.hasText(dto.getScanSkillName()) ? dto.getScanSkillName().trim() : null);
         e.setScanSkillPrompt(StringUtils.hasText(dto.getScanSkillPrompt()) ? dto.getScanSkillPrompt().trim() : null);
-        e.setAgentModel(GitQaModelSupport.normalizeOrNull(dto.getAgentModel()));
+        e.setAgentCli(StringUtils.hasText(dto.getAgentCli()) ? AgentCliKind.fromDb(dto.getAgentCli()).name() : AgentCliKind.CURSOR.name());
+        e.setAgentModel(agentModelCatalogService.normalizeOrNull(AgentCliKind.fromDb(e.getAgentCli()), dto.getAgentModel()));
         e.setReceiveEmail(dto.getReceiveEmail());
         e.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
     }

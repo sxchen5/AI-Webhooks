@@ -100,6 +100,7 @@
         <el-descriptions-item label="上次执行">{{ formatBackendDateTime(detail.lastScheduleRun) }}</el-descriptions-item>
         <el-descriptions-item label="覆盖技能名">{{ detail.scanSkillName || '—' }}</el-descriptions-item>
         <el-descriptions-item label="覆盖技能说明">{{ detail.scanSkillPrompt || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="覆盖 CLI">{{ detail.agentCli || '—（沿用 Git 项目配置）' }}</el-descriptions-item>
         <el-descriptions-item label="覆盖模型">{{ detail.agentModel || '—' }}</el-descriptions-item>
         <el-descriptions-item label="覆盖 Agent 命令">
           <el-input type="textarea" :rows="3" readonly :model-value="detail.agentCommandOverride || ''" />
@@ -169,9 +170,21 @@
       <el-form-item label="覆盖 Agent 命令">
         <el-input v-model="form.agentCommandOverride" type="textarea" :rows="2" maxlength="1000" placeholder="留空使用 Git 项目配置中的命令" clearable />
       </el-form-item>
+      <el-form-item label="覆盖 CLI">
+        <el-select v-model="form.agentCliOverride" clearable placeholder="沿用关联 Git 项目配置" style="width: 100%">
+          <el-option label="沿用 Git 项目配置" value="" />
+          <el-option label="Cursor（agent）" value="CURSOR" />
+          <el-option label="Claude Code（claude）" value="CLAUDE" />
+        </el-select>
+      </el-form-item>
       <el-form-item label="覆盖模型名">
         <el-select v-model="form.agentModel" clearable filterable placeholder="不覆盖则留空" style="width: 100%">
-          <el-option v-for="m in agentModelOptions" :key="m" :label="m" :value="m" />
+          <el-option
+            v-for="opt in agentModelRows"
+            :key="opt.modelKey"
+            :label="opt.displayLabel || opt.modelKey"
+            :value="opt.modelKey"
+          />
         </el-select>
       </el-form-item>
       <el-form-item label="失败发邮件">
@@ -220,9 +233,9 @@ import {
 } from '@/api/activeScan'
 import { fetchPlatformSkillOptions } from '@/api/platformSkill'
 import { formatBackendDateTime } from '@/utils/formatTime'
-import { AGENT_MODEL_OPTIONS } from '@/constants/agentModels'
+import { fetchAgentModelOptions } from '@/api/agentModels'
 
-const agentModelOptions = AGENT_MODEL_OPTIONS
+const agentModelRows = ref([])
 
 const loading = ref(false)
 const tableData = ref([])

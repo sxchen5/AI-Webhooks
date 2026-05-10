@@ -239,7 +239,12 @@
                   popper-class="git-qa-model-popper"
                   :disabled="replying || !project"
                 >
-                  <el-option v-for="opt in modelOptions" :key="opt" :label="opt" :value="opt" />
+                  <el-option
+                    v-for="opt in modelOptionRows"
+                    :key="opt.modelKey"
+                    :label="opt.displayLabel || opt.modelKey"
+                    :value="opt.modelKey"
+                  />
                 </el-select>
               </div>
               <div class="composer-actions-right">
@@ -298,8 +303,8 @@ import {
   patchGitQaChatMessageFeedback,
   streamGitQaChat,
 } from '@/api/gitQaProject'
+import { fetchAgentModelOptions } from '@/api/agentModels'
 import MarkdownOutputPanel from '@/components/MarkdownOutputPanel.vue'
-import { AGENT_MODEL_OPTIONS } from '@/constants/agentModels'
 import { extractMarkdownHeadings, renderMarkdownWithAnchors } from '@/utils/markdownAnchors'
 import { usePreferencesStore } from '@/stores/preferences'
 
@@ -523,7 +528,24 @@ function toggleVoiceInput() {
 }
 
 const selectedModel = ref(undefined)
-const modelOptions = AGENT_MODEL_OPTIONS
+const modelOptionRows = ref([])
+
+async function reloadModelOptions() {
+  const cli = project.value?.agentCli || 'CURSOR'
+  try {
+    modelOptionRows.value = (await fetchAgentModelOptions(cli)) || []
+  } catch {
+    modelOptionRows.value = []
+  }
+}
+
+watch(
+  () => project.value?.agentCli,
+  () => {
+    void reloadModelOptions()
+  },
+)
+
 const replying = ref(false)
 const historyLoading = ref(false)
 const scrollbarRef = ref(null)
@@ -1196,6 +1218,7 @@ onMounted(async () => {
   const id = route.params.id
   try {
     project.value = await getGitQaProject(id)
+    await reloadModelOptions()
     await loadHistory()
     nextTick(() => {
       updateAtBottomFromWrap()

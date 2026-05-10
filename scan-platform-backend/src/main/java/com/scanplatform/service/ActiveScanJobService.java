@@ -1,7 +1,9 @@
 package com.scanplatform.service;
 
+import com.scanplatform.agent.AgentCliKind;
 import com.scanplatform.dto.ActiveScanJobDto;
 import com.scanplatform.entity.ActiveScanJob;
+import com.scanplatform.entity.ActiveScanRepo;
 import com.scanplatform.repository.ActiveScanJobRepository;
 import com.scanplatform.repository.ActiveScanRepoRepository;
 import jakarta.persistence.criteria.Predicate;
@@ -26,6 +28,7 @@ public class ActiveScanJobService {
     private final ActiveScanJobRepository jobRepository;
     private final ActiveScanRepoRepository repoRepository;
     private final ActiveScanCronHelper cronHelper;
+    private final AgentModelCatalogService agentModelCatalogService;
 
     @Transactional(readOnly = true)
     public Page<ActiveScanJob> page(String jobName, Long repoId, Pageable pageable) {
@@ -83,7 +86,12 @@ public class ActiveScanJobService {
         j.setAgentCommandOverride(StringUtils.hasText(dto.getAgentCommandOverride()) ? dto.getAgentCommandOverride() : null);
         j.setScanSkillName(StringUtils.hasText(dto.getScanSkillName()) ? dto.getScanSkillName().trim() : null);
         j.setScanSkillPrompt(StringUtils.hasText(dto.getScanSkillPrompt()) ? dto.getScanSkillPrompt().trim() : null);
-        j.setAgentModel(GitQaModelSupport.normalizeOrNull(dto.getAgentModel()));
+        ActiveScanRepo repo = repoRepository.findById(dto.getRepoId()).orElseThrow(() -> new IllegalArgumentException("仓库不存在"));
+        AgentCliKind modelKind = StringUtils.hasText(dto.getAgentCli())
+                ? AgentCliKind.fromDb(dto.getAgentCli())
+                : (StringUtils.hasText(j.getAgentCli()) ? AgentCliKind.fromDb(j.getAgentCli()) : AgentCliKind.fromDb(repo.getAgentCli()));
+        j.setAgentCli(StringUtils.hasText(dto.getAgentCli()) ? AgentCliKind.fromDb(dto.getAgentCli()).name() : null);
+        j.setAgentModel(agentModelCatalogService.normalizeOrNull(modelKind, dto.getAgentModel()));
         j.setNotifyEmailOverride(StringUtils.hasText(dto.getNotifyEmailOverride()) ? dto.getNotifyEmailOverride().trim() : null);
         j.setNotifyOnFailure(dto.getNotifyOnFailure() != null ? dto.getNotifyOnFailure() : 1);
         j.setNotifyOnSuccess(dto.getNotifyOnSuccess() != null ? dto.getNotifyOnSuccess() : 0);

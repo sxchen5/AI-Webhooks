@@ -68,6 +68,7 @@
         <el-descriptions-item label="本地克隆目录">{{ detail.localClonePath || '—' }}</el-descriptions-item>
         <el-descriptions-item label="扫描技能">{{ detail.scanSkillName || '—' }}</el-descriptions-item>
         <el-descriptions-item label="技能补充说明">{{ detail.scanSkillPrompt || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="Agent CLI">{{ detail.agentCli || 'CURSOR' }}</el-descriptions-item>
         <el-descriptions-item label="模型">{{ detail.agentModel || '—' }}</el-descriptions-item>
         <el-descriptions-item label="Agent 命令">
           <el-input type="textarea" :rows="4" readonly :model-value="detail.agentCommand || ''" />
@@ -130,7 +131,13 @@
       <el-form-item label="本地克隆目录" prop="localClonePath">
         <el-input v-model="form.localClonePath" maxlength="500" placeholder="留空则自动生成到工作区" clearable />
       </el-form-item>
-      <el-divider content-position="left">Cursor 技能（可选）</el-divider>
+      <el-divider content-position="left">Agent CLI 与技能（可选）</el-divider>
+      <el-form-item label="Agent CLI">
+        <el-radio-group v-model="form.agentCli">
+          <el-radio label="CURSOR">Cursor（agent）</el-radio>
+          <el-radio label="CLAUDE">Claude Code（claude）</el-radio>
+        </el-radio-group>
+      </el-form-item>
       <el-form-item label="扫描技能">
         <el-radio-group v-model="form.skillPickMode">
           <el-radio label="none">不使用技能</el-radio>
@@ -167,7 +174,12 @@
       </el-form-item>
       <el-form-item label="模型">
         <el-select v-model="form.agentModel" clearable filterable placeholder="不指定则不加 --model" style="width: 100%">
-          <el-option v-for="m in agentModelOptions" :key="m" :label="m" :value="m" />
+          <el-option
+            v-for="opt in agentModelRows"
+            :key="opt.modelKey"
+            :label="opt.displayLabel || opt.modelKey"
+            :value="opt.modelKey"
+          />
         </el-select>
       </el-form-item>
       <el-form-item label="Agent 命令" prop="agentCommand">
@@ -202,10 +214,29 @@ import {
 } from '@/api/activeScan'
 import { fetchGitProjectOptions } from '@/api/gitProject'
 import { fetchPlatformSkillOptions } from '@/api/platformSkill'
+import { fetchAgentModelOptions } from '@/api/agentModels'
 import { formatBackendDateTime } from '@/utils/formatTime'
-import { AGENT_MODEL_OPTIONS } from '@/constants/agentModels'
 
-const agentModelOptions = AGENT_MODEL_OPTIONS
+const agentModelRows = ref([])
+
+async function reloadRepoModelRows() {
+  const cli = form.agentCli || 'CURSOR'
+  try {
+    agentModelRows.value = (await fetchAgentModelOptions(cli)) || []
+  } catch {
+    agentModelRows.value = []
+  }
+}
+
+watch(
+  () => form.agentCli,
+  () => {
+    if (dialogVisible.value) void reloadRepoModelRows()
+  },
+)
+watch(dialogVisible, (v) => {
+  if (v) void reloadRepoModelRows()
+})
 
 const loading = ref(false)
 const tableData = ref([])
@@ -242,6 +273,7 @@ const form = reactive({
   scanSkillName: '',
   scanSkillPrompt: '',
   agentModel: undefined,
+  agentCli: 'CURSOR',
   receiveEmail: '',
   status: 1,
   skillPickMode: 'none',
@@ -370,6 +402,7 @@ function resetForm() {
   form.scanSkillName = ''
   form.scanSkillPrompt = ''
   form.agentModel = undefined
+  form.agentCli = 'CURSOR'
   form.receiveEmail = ''
   form.status = 1
   form.skillPickMode = 'none'
@@ -425,6 +458,7 @@ async function openEdit(row) {
     scanSkillName: skillName,
     scanSkillPrompt: row.scanSkillPrompt || '',
     agentModel: row.agentModel || undefined,
+    agentCli: row.agentCli || 'CURSOR',
     receiveEmail: row.receiveEmail || '',
     status: row.status,
     skillPickMode: inferSkillPickMode(skillName),
@@ -453,6 +487,7 @@ async function openCopy(row) {
     scanSkillName: skillName,
     scanSkillPrompt: row.scanSkillPrompt || '',
     agentModel: row.agentModel || undefined,
+    agentCli: row.agentCli || 'CURSOR',
     receiveEmail: row.receiveEmail || '',
     status: row.status,
     skillPickMode: inferSkillPickMode(skillName),
@@ -503,6 +538,7 @@ async function saveDialog() {
       scanSkillName: skillOut,
       scanSkillPrompt: form.scanSkillPrompt?.trim() || null,
       agentModel: form.agentModel || null,
+      agentCli: form.agentCli || 'CURSOR',
       receiveEmail: form.receiveEmail || null,
       status: form.status,
     }

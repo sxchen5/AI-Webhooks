@@ -18,5 +18,7 @@ public class GitQaProjectDto {
     private String agentCommand;
     private String scanSkillName;
     private String scanSkillPrompt;
+    /** CURSOR 或 CLAUDE */
+    private String agentCli;
     private Integer status;
 }

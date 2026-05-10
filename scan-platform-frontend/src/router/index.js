@@ -16,6 +16,12 @@ const routes = [
     redirect: '/active-scan/git-projects',
     children: [
       {
+        path: 'system/agent-models',
+        name: 'AgentModelConfig',
+        meta: { i18n: { parent: 'system', child: 'agentModels' } },
+        component: () => import('@/views/AgentModelConfigView.vue'),
+      },
+      {
         path: 'system/mail',
         name: 'MailConfig',
         meta: { i18n: { parent: 'system', child: 'mail' } },

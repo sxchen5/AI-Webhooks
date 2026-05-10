@@ -69,6 +69,10 @@
               <el-icon><Setting /></el-icon>
               <span class="submenu-title-text">{{ t('nav.system') }}</span>
             </template>
+            <el-menu-item index="/system/agent-models">
+              <el-icon><Cpu /></el-icon>
+              <template #title>{{ t('nav.agentModels') }}</template>
+            </el-menu-item>
             <el-menu-item index="/system/mail">
               <el-icon><Message /></el-icon>
               <template #title>{{ t('nav.mail') }}</template>
@@ -189,6 +193,7 @@ import {
   ChatDotRound,
   Clock,
   Collection,
+  Cpu,
   Expand,
   Fold,
   Folder,

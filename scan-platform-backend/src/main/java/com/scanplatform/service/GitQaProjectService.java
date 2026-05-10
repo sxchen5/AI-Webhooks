@@ -1,5 +1,6 @@
 package com.scanplatform.service;
 
+import com.scanplatform.agent.AgentCliKind;
 import com.scanplatform.dto.GitQaChatRequest;
 import com.scanplatform.dto.GitQaProjectDto;
 import com.scanplatform.entity.GitProject;
@@ -38,6 +39,7 @@ public class GitQaProjectService {
     private final ShellCommandService shellCommandService;
     private final AgentCommandBuilder agentCommandBuilder;
     private final GitQaChatMessageService gitQaChatMessageService;
+    private final AgentModelCatalogService agentModelCatalogService;
 
     @Transactional(readOnly = true)
     public Page<GitQaProject> page(String keyword, Pageable pageable) {
@@ -282,10 +284,10 @@ public class GitQaProjectService {
             if (StringUtils.hasText(ac) && !"(cursor-skill)".equals(ac.trim())) {
                 base = agentCommandBuilder.resolveGitQaCommand(qp, workPath, branch, commit, question);
             } else {
-                base = agentCommandBuilder.buildGitQaStreamJsonCommand(question);
+                base = agentCommandBuilder.buildGitQaStreamJsonCommand(question, AgentCliKind.fromDb(qp.getAgentCli()));
             }
         }
-        return GitQaModelSupport.appendModelFlag(base, modelRaw);
+        return agentModelCatalogService.appendModelFlag(AgentCliKind.fromDb(qp.getAgentCli()), base, modelRaw);
     }
 
     private void apply(GitQaProjectDto dto, GitQaProject e, boolean isNew) {
@@ -308,6 +310,7 @@ public class GitQaProjectService {
         e.setAgentCommand(StringUtils.hasText(dto.getAgentCommand()) ? dto.getAgentCommand().trim() : "");
         e.setScanSkillName(StringUtils.hasText(dto.getScanSkillName()) ? dto.getScanSkillName().trim() : null);
         e.setScanSkillPrompt(StringUtils.hasText(dto.getScanSkillPrompt()) ? dto.getScanSkillPrompt().trim() : null);
+        e.setAgentCli(StringUtils.hasText(dto.getAgentCli()) ? AgentCliKind.fromDb(dto.getAgentCli()).name() : AgentCliKind.CURSOR.name());
         e.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
     }
 

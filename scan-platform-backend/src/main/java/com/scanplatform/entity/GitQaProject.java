@@ -51,6 +51,10 @@ public class GitQaProject {
     @Column(name = "scan_skill_prompt", columnDefinition = "TEXT")
     private String scanSkillPrompt;
 
+    /** CURSOR 或 CLAUDE，决定 agent / claude 命令行 */
+    @Column(name = "agent_cli", nullable = false, length = 16)
+    private String agentCli = "CURSOR";
+
     @Column(nullable = false)
     private Integer status = 1;
 

@@ -50,6 +50,10 @@ public class ActiveScanJob {
     @Column(name = "agent_model", length = 64)
     private String agentModel;
 
+    /** 非空时覆盖仓库的 CLI 类型（CURSOR / CLAUDE） */
+    @Column(name = "agent_cli", length = 16)
+    private String agentCli;
+
     @Column(name = "notify_on_failure", nullable = false)
     private Integer notifyOnFailure = 1;
 

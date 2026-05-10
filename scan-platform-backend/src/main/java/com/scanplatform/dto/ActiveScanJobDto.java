@@ -16,8 +16,10 @@ public class ActiveScanJobDto {
     private String agentCommandOverride;
     private String scanSkillName;
     private String scanSkillPrompt;
-    /** 可选：覆盖仓库的模型名，非空则在 agent 命令末尾追加 --model */
+    /** 可选：覆盖仓库的模型名，非空则在命令末尾追加 --model */
     private String agentModel;
+    /** 非空时覆盖仓库的 CLI（CURSOR / CLAUDE） */
+    private String agentCli;
     /** 非空时覆盖 Git 项目配置中的通知邮箱，逗号分隔 */
     private String notifyEmailOverride;
     private Integer notifyOnFailure;
