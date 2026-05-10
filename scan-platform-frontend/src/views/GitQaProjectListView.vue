@@ -17,9 +17,9 @@
       </div>
     </template>
     <p class="tip">
-      配置机器人名称与 Git 克隆；对话时在工作区执行与「Agent CLI」一致的命令：<strong>Cursor</strong> 使用
+      配置机器人名称与 Git 克隆；对话在工作区执行与「Agent CLI」一致的默认问答命令：<strong>Cursor</strong> 使用
       <code>agent --print -f</code> + <code>--output-format stream-json</code>；<strong>Claude Code</strong> 使用
-      <code>claude --print</code> + <code>--output-format stream-json --verbose</code>。保存后点「AI问答」进入对话。进入页面后请点击<strong>查询</strong>加载列表。
+      <code>claude --print</code> + <code>--output-format stream-json --verbose</code>（行内仅携带用户问题，不在此页配置技能或自定义命令）。保存后点「AI问答」进入对话。进入页面后请点击<strong>查询</strong>加载列表。
     </p>
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column prop="id" label="ID" width="70" />
@@ -28,11 +28,9 @@
       <el-table-column prop="gitUsername" label="用户名" width="110" show-overflow-tooltip />
       <el-table-column prop="branch" label="分支" width="90" />
       <el-table-column prop="localClonePath" label="本地克隆目录" min-width="140" show-overflow-tooltip />
-      <el-table-column prop="agentCommand" label="Agent/技能" min-width="160" show-overflow-tooltip>
+      <el-table-column prop="agentCli" label="Agent CLI" width="120">
         <template #default="{ row }">
-          <span v-if="row.scanSkillName" style="color: #409eff">技能: {{ row.scanSkillName }}</span>
-          <span v-else-if="row.agentCommand">{{ row.agentCommand }}</span>
-          <span v-else class="muted">默认 stream-json 问答</span>
+          <span>{{ row.agentCli === 'CLAUDE' ? 'Claude Code' : 'Cursor' }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="status" label="状态" width="80">
@@ -72,12 +70,7 @@
         <el-descriptions-item label="用户名">{{ detail.gitUsername || '—' }}</el-descriptions-item>
         <el-descriptions-item label="分支">{{ detail.branch || '—' }}</el-descriptions-item>
         <el-descriptions-item label="本地克隆目录">{{ detail.localClonePath || '—' }}</el-descriptions-item>
-        <el-descriptions-item label="Agent CLI">{{ detail.agentCli || 'CURSOR' }}</el-descriptions-item>
-        <el-descriptions-item label="扫描技能">{{ detail.scanSkillName || '—' }}</el-descriptions-item>
-        <el-descriptions-item label="技能补充说明">{{ detail.scanSkillPrompt || '—' }}</el-descriptions-item>
-        <el-descriptions-item label="Agent 命令">
-          <el-input type="textarea" :rows="4" readonly :model-value="detail.agentCommand || ''" />
-        </el-descriptions-item>
+        <el-descriptions-item label="Agent CLI">{{ detail.agentCli === 'CLAUDE' ? 'Claude Code' : 'Cursor' }}</el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="detail.status === 1 ? 'success' : 'info'">{{ detail.status === 1 ? '启用' : '禁用' }}</el-tag>
         </el-descriptions-item>
@@ -136,43 +129,6 @@
           <el-radio label="CLAUDE">Claude Code（claude）</el-radio>
         </el-radio-group>
       </el-form-item>
-      <el-form-item label="扫描技能">
-        <el-select
-          v-model="form.scanSkillName"
-          clearable
-          filterable
-          allow-create
-          default-first-option
-          placeholder="选平台技能或手动输入技能目录名，可不填"
-          style="width: 100%"
-        >
-          <el-option
-            v-for="o in platformSkillOptions"
-            :key="o.skillName"
-            :label="o.description ? `${o.skillName} — ${o.description}` : o.skillName"
-            :value="o.skillName"
-          />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="技能补充说明">
-        <el-input
-          v-model="form.scanSkillPrompt"
-          type="textarea"
-          :rows="2"
-          placeholder="可选；可用 {{path}} {{branch}} {{commit}} {{question}}"
-          clearable
-        />
-      </el-form-item>
-      <el-form-item label="Agent 命令" prop="agentCommand">
-        <el-input
-          v-model="form.agentCommand"
-          type="textarea"
-          :rows="2"
-          maxlength="1000"
-          show-word-limit
-          placeholder="可选；不填则对话使用默认 stream-json。可含 {{path}} {{branch}} {{commit}} {{question}}"
-        />
-      </el-form-item>
       <el-form-item label="状态" prop="status">
         <el-radio-group v-model="form.status">
           <el-radio :label="1">启用</el-radio>
@@ -199,7 +155,6 @@ import {
   updateGitQaProject,
 } from '@/api/gitQaProject'
 import { fetchGitProjectOptions } from '@/api/gitProject'
-import { fetchPlatformSkillOptions } from '@/api/platformSkill'
 import { formatBackendDateTime } from '@/utils/formatTime'
 
 const router = useRouter()
@@ -212,7 +167,6 @@ const keywordDraft = ref('')
 const keywordFilter = ref('')
 const hasSearched = ref(false)
 
-const platformSkillOptions = ref([])
 const gitProjectOptions = ref([])
 
 const detailVisible = ref(false)
@@ -233,9 +187,6 @@ const form = reactive({
   gitPassword: '',
   branch: 'main',
   localClonePath: '',
-  agentCommand: '',
-  scanSkillName: '',
-  scanSkillPrompt: '',
   agentCli: 'CURSOR',
   status: 1,
 })
@@ -285,14 +236,6 @@ async function loadGitProjectOptions() {
   }
 }
 
-async function loadPlatformSkillOptions() {
-  try {
-    platformSkillOptions.value = (await fetchPlatformSkillOptions()) || []
-  } catch {
-    platformSkillOptions.value = []
-  }
-}
-
 function runSearch() {
   keywordFilter.value = keywordDraft.value?.trim() || ''
   page.value = 1
@@ -327,9 +270,6 @@ function resetForm() {
   form.gitPassword = ''
   form.branch = 'main'
   form.localClonePath = ''
-  form.agentCommand = ''
-  form.scanSkillName = ''
-  form.scanSkillPrompt = ''
   form.agentCli = 'CURSOR'
   form.status = 1
 }
@@ -360,7 +300,6 @@ async function openEdit(row) {
   await loadGitProjectOptions()
   isEdit.value = true
   isCopy.value = false
-  const skillName = row.scanSkillName || ''
   const linked = row.gitProjectId != null
   Object.assign(form, {
     id: row.id,
@@ -372,9 +311,6 @@ async function openEdit(row) {
     gitPassword: '',
     branch: row.branch || 'main',
     localClonePath: row.localClonePath || '',
-    agentCommand: row.agentCommand === '(cursor-skill)' ? '' : (row.agentCommand || ''),
-    scanSkillName: skillName,
-    scanSkillPrompt: row.scanSkillPrompt || '',
     agentCli: row.agentCli || 'CURSOR',
     status: row.status,
   })
@@ -386,7 +322,6 @@ async function openCopy(row) {
   await loadGitProjectOptions()
   isEdit.value = false
   isCopy.value = true
-  const skillName = row.scanSkillName || ''
   const linked = row.gitProjectId != null
   Object.assign(form, {
     id: null,
@@ -398,9 +333,6 @@ async function openCopy(row) {
     gitPassword: '',
     branch: row.branch || 'main',
     localClonePath: row.localClonePath || '',
-    agentCommand: row.agentCommand === '(cursor-skill)' ? '' : (row.agentCommand || ''),
-    scanSkillName: skillName,
-    scanSkillPrompt: row.scanSkillPrompt || '',
     agentCli: row.agentCli || 'CURSOR',
     status: row.status,
   })
@@ -433,9 +365,9 @@ async function saveDialog() {
       gitPassword: form.gitPassword || null,
       branch: form.branch || 'main',
       localClonePath: form.localClonePath || null,
-      agentCommand: form.agentCommand?.trim() || null,
-      scanSkillName: form.scanSkillName?.trim() || null,
-      scanSkillPrompt: form.scanSkillPrompt?.trim() || null,
+      agentCommand: '',
+      scanSkillName: null,
+      scanSkillPrompt: null,
       agentCli: form.agentCli || 'CURSOR',
       status: form.status,
     }
@@ -471,7 +403,6 @@ async function onDelete(row) {
 
 onMounted(async () => {
   await loadGitProjectOptions()
-  await loadPlatformSkillOptions()
 })
 </script>
 
@@ -498,10 +429,6 @@ onMounted(async () => {
 }
 .tip code {
   font-size: 12px;
-}
-.muted {
-  color: #909399;
-  font-size: 13px;
 }
 .pager {
   margin-top: 16px;
